@@ -35,12 +35,12 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
     return "";
   }
 
-  function next() {
+  async function next() {
     const v = validateStep();
     if (v) { setErr(v); return; }
     setErr("");
     if (step === 5) {
-      ctx.registerInvestor(form);
+      await ctx.registerInvestor(form);
       return;
     }
     setStep(step + 1);
@@ -71,7 +71,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
           <Field label="National ID Number"><TextInput value={form.nationalId} onChange={(v) => set("nationalId", v)} placeholder="CMxxxxxxxxxxxxx" /></Field>
           <Field label="Residential Address"><TextInput value={form.address} onChange={(v) => set("address", v)} placeholder="Town / City" /></Field>
           <Field label="Occupation"><TextInput value={form.occupation} onChange={(v) => set("occupation", v)} placeholder="What do you do?" /></Field>
-          <GuidanceBanner tone="info">A passport photo and digital signature would be captured here in production. Skipped for this prototype.</GuidanceBanner>
+          <GuidanceBanner tone="info">After your account is created, you will need to upload your selfie and National ID photos to complete identity verification. You can do this from your Profile page.</GuidanceBanner>
         </>
       )}
       {step === 3 && (
