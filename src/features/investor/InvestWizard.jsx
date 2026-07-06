@@ -1,36 +1,106 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Banknote, ChevronLeft, FileCheck, FileText, Landmark } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, Field, GuidanceBanner, Modal, SectionTitle, TextInput } from "@/components/ui/primitives";
-import { CORPORATE_THRESHOLD, GOALS, MIN_INVESTMENT, RATES } from "@/lib/constants";
-import { expectedReturn, fmtUGX, maturityValue } from "@/lib/format";
+import { GOALS, MIN_INVESTMENT } from "@/lib/constants";
+import { fmtUGX } from "@/lib/format";
+import { createClient } from "@/lib/supabase/client";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 
+/**
+ * InvestWizard — 6-step deposit submission flow.
+ *
+ * Step 1: Package selection (read from ctx.packages, live from DB)
+ * Step 2: Financial goal
+ * Step 3: Amount entry + live preview + package conflict guard
+ * Step 4: Review summary
+ * Step 5: Deposit instructions + payment method selection
+ * Step 6: Upload proof + submit
+ *
+ * The wizard submits a deposit_submissions row (not an investment_positions row).
+ * The DB trigger creates the investment position automatically on FO approval.
+ */
 export function InvestWizard({ ctx }) {
   const [step, setStep] = useState(1);
-  const [pkg, setPkg] = useState("");
+  const [selectedPkg, setSelectedPkg] = useState(null);  // full package object from DB
   const [goal, setGoal] = useState("");
   const [amount, setAmount] = useState("");
   const [amountErr, setAmountErr] = useState("");
   const [showConflict, setShowConflict] = useState(false);
-  const [proofAttached, setProofAttached] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [network, setNetwork] = useState(null);
+  const [transactionRef, setTransactionRef] = useState("");
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const packages = ctx.packages || [];
   const amt = Number(amount) || 0;
   const hasExisting = ctx.getInvestorInvestments(ctx.session.id).length > 0;
 
+  // Live preview math uses the selected package's rate directly from the DB object
+  const rate = selectedPkg ? selectedPkg.annual_return_rate / 100 : 0;
+  const ret = Math.round(amt * rate);
+  const mv = amt + ret;
+
   function continueFromAmount() {
+    if (!selectedPkg) return;
     if (amt < MIN_INVESTMENT) { setAmountErr("Minimum investment is " + fmtUGX(MIN_INVESTMENT) + "."); return; }
     setAmountErr("");
-    if (pkg === "standard" && amt >= CORPORATE_THRESHOLD) { setShowConflict(true); return; }
+    // Package conflict: investor chose Standard but amount qualifies for Corporate
+    if (selectedPkg.code === "standard" && selectedPkg.max_amount !== null && amt > selectedPkg.max_amount) {
+      setShowConflict(true); return;
+    }
+    // Reverse conflict: Corporate selected but amount is below Corporate threshold
+    if (selectedPkg.code === "corporate" && amt < selectedPkg.min_amount) {
+      setAmountErr("Corporate Package requires a minimum of " + fmtUGX(selectedPkg.min_amount) + ". Please increase the amount or switch to the Standard Package.");
+      return;
+    }
     setStep(4);
   }
 
-  function submit() {
-    ctx.submitInvestment({ package: pkg, goal, amount: amt });
+  function onFileSelected(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setProofPreview(ev.target.result);
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  async function submit() {
+    if (!proofFile && !proofPreview) return;
+    setSubmitting(true);
+    try {
+      let proofStoragePath = null;
+      if (proofFile) {
+        const supabase = createClient();
+        const ext = proofFile.name.split(".").pop() || "jpg";
+        const path = `${ctx.session.id}/${Date.now()}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("payment-proofs")
+          .upload(path, proofFile, { contentType: proofFile.type, upsert: true });
+        if (uploadErr) { ctx.showToast("Proof upload failed: " + uploadErr.message, "error"); setSubmitting(false); return; }
+        proofStoragePath = path;
+      }
+      await ctx.submitInvestment({
+        packageId: selectedPkg.id,
+        amount: amt,
+        goal,
+        paymentMethod,
+        network,
+        transactionRef: transactionRef || null,
+        proofStoragePath,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const steps = ["Package", "Goal", "Amount", "Review", "Deposit", "Upload Proof"];
-  const ret = expectedReturn(amt, pkg);
-  const mv = maturityValue(amt, pkg);
+  const corporatePkg = packages.find((p) => p.code === "corporate");
 
   return (
     <PageShell ctx={ctx} title="New Investment">
@@ -43,29 +113,35 @@ export function InvestWizard({ ctx }) {
         {step === 1 && (
           <>
             <SectionTitle sub="Choose the package that fits your contribution.">Choose Your Package</SectionTitle>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {[
-                { key: "standard", title: "Standard Package", rate: "30%", desc: "Below " + fmtUGX(CORPORATE_THRESHOLD) },
-                { key: "corporate", title: "Corporate Package", rate: "40%", desc: fmtUGX(CORPORATE_THRESHOLD) + " and above" },
-              ].map((p) => (
-                <div key={p.key} onClick={() => setPkg(p.key)} style={{
-                  border: "1.5px solid " + (pkg === p.key ? C.brand : C.line), borderRadius: 12, padding: 18, cursor: "pointer",
-                  background: pkg === p.key ? C.cardBg : C.white,
-                }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: C.ink, marginBottom: 4 }}>{p.title}</div>
-                  <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 600, color: C.brand, marginBottom: 6 }}>{p.rate}<span style={{ fontSize: 13, color: C.inkFaint, fontWeight: 400 }}> / year</span></div>
-                  <div style={{ fontSize: 12.5, color: C.inkSoft }}>{p.desc}</div>
-                  <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4 }}>12-month investment period</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 20 }}><Btn full disabled={!pkg} onClick={() => setStep(2)}>Continue</Btn></div>
+            {packages.length === 0 ? (
+              <div style={{ color: C.inkFaint, fontSize: 13.5, padding: 20, textAlign: "center" }}>Loading packages…</div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                {packages.map((p) => (
+                  <div key={p.id} onClick={() => setSelectedPkg(p)} style={{
+                    border: "1.5px solid " + (selectedPkg?.id === p.id ? C.brand : C.line),
+                    borderRadius: 12, padding: 18, cursor: "pointer",
+                    background: selectedPkg?.id === p.id ? C.cardBg : C.white,
+                  }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: C.ink, marginBottom: 4 }}>{p.name}</div>
+                    <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 600, color: C.brand, marginBottom: 6 }}>
+                      {p.annual_return_rate}%<span style={{ fontSize: 13, color: C.inkFaint, fontWeight: 400 }}> / year</span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: C.inkSoft }}>
+                      {p.max_amount ? "Below " + fmtUGX(p.max_amount + 1) : fmtUGX(p.min_amount) + " and above"}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: C.inkSoft, marginTop: 4 }}>{p.duration_months}-month investment period</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ marginTop: 20 }}><Btn full disabled={!selectedPkg} onClick={() => setStep(2)}>Continue</Btn></div>
           </>
         )}
 
         {step === 2 && (
           <>
-            <SectionTitle sub="This helps personalize your investment journey — it does not affect your return rate.">Choose Your Financial Goal</SectionTitle>
+            <SectionTitle sub="This personalises your investment journey — it does not affect your return rate.">Choose Your Financial Goal</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
               {GOALS.map((g) => (
                 <div key={g} onClick={() => setGoal(g)} style={{
@@ -89,10 +165,10 @@ export function InvestWizard({ ctx }) {
             <Field label="Investment Amount (UGX)" error={amountErr}>
               <TextInput value={amount} onChange={(v) => { setAmount(v.replace(/[^0-9]/g, "")); setAmountErr(""); }} placeholder="e.g. 500000" />
             </Field>
-            {amt >= MIN_INVESTMENT ? (
+            {amt >= MIN_INVESTMENT && selectedPkg ? (
               <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 8 }}><span>Package</span><strong style={{ textTransform: "capitalize" }}>{pkg}</strong></div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 8 }}><span>Annual Return ({(RATES[pkg] * 100)}%)</span><strong>{fmtUGX(ret)}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 8 }}><span>Package</span><strong>{selectedPkg.name}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 8 }}><span>Annual Return ({selectedPkg.annual_return_rate}%)</span><strong>{fmtUGX(ret)}</strong></div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}><span>Estimated Value at Maturity</span><strong style={{ color: C.success }}>{fmtUGX(mv)}</strong></div>
               </Card>
             ) : null}
@@ -103,12 +179,17 @@ export function InvestWizard({ ctx }) {
           </>
         )}
 
-        {step === 4 && (
+        {step === 4 && selectedPkg && (
           <>
             <SectionTitle>Review Investment Summary</SectionTitle>
-            {[["Package", pkg.charAt(0).toUpperCase() + pkg.slice(1)], ["Financial Goal", goal], ["Amount", fmtUGX(amt)],
-              ["Investment Period", "12 months"], ["Expected Return (" + (RATES[pkg] * 100) + "%)", fmtUGX(ret)],
-              ["Estimated Maturity Value", fmtUGX(mv)]].map((row) => (
+            {[
+              ["Package", selectedPkg.name],
+              ["Financial Goal", goal],
+              ["Amount", fmtUGX(amt)],
+              ["Investment Period", selectedPkg.duration_months + " months"],
+              ["Expected Return (" + selectedPkg.annual_return_rate + "%)", fmtUGX(ret)],
+              ["Estimated Maturity Value", fmtUGX(mv)],
+            ].map((row) => (
               <div key={row[0]} style={{ display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid " + C.line, fontSize: 13.5 }}>
                 <span style={{ color: C.inkSoft }}>{row[0]}</span><strong style={{ color: C.ink }}>{row[1]}</strong>
               </div>
@@ -122,19 +203,61 @@ export function InvestWizard({ ctx }) {
 
         {step === 5 && (
           <>
-            <SectionTitle sub="Send your funds using either option below, then upload proof on the next step.">Deposit Instructions</SectionTitle>
-            <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 700, fontSize: 13.5, color: C.ink, marginBottom: 6 }}><Banknote size={16} /> Mobile Money</div>
-              <div style={{ fontSize: 13.5, color: C.inkSoft }}>{ctx.org.momoLine}</div>
-            </Card>
-            <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, marginBottom: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 700, fontSize: 13.5, color: C.ink, marginBottom: 6 }}><Landmark size={16} /> Bank Transfer</div>
-              <div style={{ fontSize: 13.5, color: C.inkSoft }}>{ctx.org.bankLine}</div>
-            </Card>
-            <GuidanceBanner tone="info">Use your Member ID ({ctx.currentInvestor.memberId}) as the payment reference so we can match it quickly.</GuidanceBanner>
-            <div style={{ display: "flex", gap: 10 }}>
+            <SectionTitle sub="Choose how you'll send your funds, then send them using the details shown.">Deposit Instructions</SectionTitle>
+            <Field label="Payment Method">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 6, marginBottom: 4 }}>
+                {[
+                  { key: "MTN", method: "mobile_money", label: "MTN Mobile Money" },
+                  { key: "Airtel", method: "mobile_money", label: "Airtel Money" },
+                  { key: "Bank", method: "bank_transfer", label: "Bank Transfer" },
+                ].map((opt) => {
+                  const selected = opt.method === "bank_transfer"
+                    ? paymentMethod === "bank_transfer"
+                    : paymentMethod === "mobile_money" && network === opt.key;
+                  return (
+                    <div key={opt.key} onClick={() => {
+                      setPaymentMethod(opt.method);
+                      setNetwork(opt.method === "mobile_money" ? opt.key : null);
+                    }} style={{
+                      padding: "14px 10px", borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 700, textAlign: "center",
+                      border: "1.5px solid " + (selected ? C.brand : C.line),
+                      background: selected ? C.cardBg : C.white,
+                      color: selected ? C.brand : C.ink,
+                    }}>{opt.label}</div>
+                  );
+                })}
+              </div>
+            </Field>
+
+            {paymentMethod === "mobile_money" && network === "MTN" && (
+              <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 700, fontSize: 13.5, color: C.ink, marginBottom: 6 }}><Banknote size={16} /> MTN Mobile Money</div>
+                <div style={{ fontSize: 13.5, color: C.inkSoft }}>{ctx.org.mtnMomoLine}</div>
+              </Card>
+            )}
+            {paymentMethod === "mobile_money" && network === "Airtel" && (
+              <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 700, fontSize: 13.5, color: C.ink, marginBottom: 6 }}><Banknote size={16} /> Airtel Money</div>
+                <div style={{ fontSize: 13.5, color: C.inkSoft }}>{ctx.org.airtelMoneyLine}</div>
+              </Card>
+            )}
+            {paymentMethod === "bank_transfer" && (
+              <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, fontWeight: 700, fontSize: 13.5, color: C.ink, marginBottom: 6 }}><Landmark size={16} /> Bank Transfer</div>
+                <div style={{ fontSize: 13.5, color: C.inkSoft }}>{ctx.org.bankLine}</div>
+              </Card>
+            )}
+
+            {paymentMethod ? (
+              <GuidanceBanner tone="info">Use your Member ID ({ctx.currentInvestor?.memberId}) as the payment reference so we can match your deposit quickly.</GuidanceBanner>
+            ) : null}
+
+            <Field label="Transaction Reference / ID" hint="Optional but speeds up verification">
+              <TextInput value={transactionRef} onChange={setTransactionRef} placeholder="e.g. MTN ref or bank reference number" />
+            </Field>
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(4)}>Back</Btn>
-              <Btn full onClick={() => setStep(6)}>I've Sent the Funds</Btn>
+              <Btn full disabled={!paymentMethod} onClick={() => setStep(6)}>I've Sent the Funds</Btn>
             </div>
           </>
         )}
@@ -142,41 +265,47 @@ export function InvestWizard({ ctx }) {
         {step === 6 && (
           <>
             <SectionTitle sub="Attach a screenshot or transaction receipt as proof of your payment.">Upload Proof of Payment</SectionTitle>
-            <div onClick={() => setProofAttached(true)} style={{
-              border: "1.5px dashed " + (proofAttached ? C.success : C.line), borderRadius: 12, padding: 28, textAlign: "center",
-              cursor: "pointer", background: proofAttached ? C.successBg : C.cardBg, marginBottom: 16,
+            <input ref={fileInputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={onFileSelected} />
+            <div onClick={() => fileInputRef.current?.click()} style={{
+              border: "1.5px dashed " + (proofFile ? C.success : C.line), borderRadius: 12, padding: 28, textAlign: "center",
+              cursor: "pointer", background: proofFile ? C.successBg : C.cardBg, marginBottom: 16,
             }}>
-              {proofAttached ? (
+              {proofFile ? (
                 <>
                   <FileCheck size={26} color={C.success} style={{ marginBottom: 8 }} />
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: C.success }}>payment_proof.jpg attached</div>
+                  {proofPreview && proofFile.type.startsWith("image/") ? (
+                    <img src={proofPreview} alt="Proof preview" style={{ maxHeight: 120, maxWidth: "100%", borderRadius: 8, marginBottom: 8, display: "block", marginLeft: "auto", marginRight: "auto" }} />
+                  ) : null}
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: C.success }}>{proofFile.name} attached</div>
+                  <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 4 }}>Click to replace</div>
                 </>
               ) : (
                 <>
                   <FileText size={26} color={C.inkFaint} style={{ marginBottom: 8 }} />
                   <div style={{ fontWeight: 700, fontSize: 13.5, color: C.inkSoft }}>Click to attach proof of payment</div>
-                  <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 4 }}>JPG, PNG, or PDF</div>
+                  <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 4 }}>JPG, PNG, or PDF — screenshot or receipt</div>
                 </>
               )}
             </div>
-            <GuidanceBanner tone="warning">Your investment will show as "Pending Verification" until a Finance Officer or Administrator reviews and approves this deposit.</GuidanceBanner>
+            <GuidanceBanner tone="warning">Your investment will show as "Pending Verification" until a Finance Officer reviews and approves this deposit.</GuidanceBanner>
             <div style={{ display: "flex", gap: 10 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(5)}>Back</Btn>
-              <Btn full disabled={!proofAttached} onClick={submit}>Submit for Verification</Btn>
+              <Btn full disabled={!proofFile || submitting} onClick={submit}>{submitting ? "Submitting…" : "Submit for Verification"}</Btn>
             </div>
           </>
         )}
       </Card>
 
-      {showConflict ? (
+      {showConflict && corporatePkg ? (
         <Modal title="This amount qualifies for Corporate" onClose={() => setShowConflict(false)}>
           <div style={{ fontSize: 14, color: C.ink, lineHeight: 1.6, marginBottom: 18 }}>
-            You selected the <strong>Standard Package</strong>, but {fmtUGX(amt)} meets the {fmtUGX(CORPORATE_THRESHOLD)}
-            {" "}threshold for the <strong>Corporate Package</strong> (40% annual return instead of 30%). Did you mean to enter an extra zero,
-            or would you like to switch to Corporate to earn the higher rate?
+            You selected the <strong>Standard Package</strong>, but {fmtUGX(amt)} meets the{" "}
+            {fmtUGX(corporatePkg.min_amount)} threshold for the <strong>Corporate Package</strong>{" "}
+            ({corporatePkg.annual_return_rate}% annual return instead of {selectedPkg?.annual_return_rate}%). Did you
+            mean to enter an extra zero, or would you like to switch to Corporate to earn the higher rate?
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <Btn full onClick={() => { setPkg("corporate"); setShowConflict(false); setStep(4); }}>Switch to Corporate Package</Btn>
+            <Btn full onClick={() => { setSelectedPkg(corporatePkg); setShowConflict(false); setStep(4); }}>Switch to Corporate Package</Btn>
             <Btn full variant="outline" onClick={() => { setShowConflict(false); setStep(4); }}>Keep Standard Package</Btn>
             <Btn full variant="ghost" onClick={() => setShowConflict(false)}>Let Me Edit the Amount</Btn>
           </div>

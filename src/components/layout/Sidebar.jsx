@@ -49,7 +49,7 @@ export function Sidebar({ ctx }) {
               <div style={{ fontSize: 11.5, color: C.sidebarTextDim }}>{ROLE_LABEL[ctx.session.role]}</div>
             </div>
           </div>
-          <RoleSwitcher ctx={ctx} />
+          {process.env.NEXT_PUBLIC_ENABLE_DEMO_SWITCHER === "true" && <RoleSwitcher ctx={ctx} />}
           <div onClick={ctx.logout} style={Object.assign({}, navItemPickerStyle, { color: C.sidebarText, background: "transparent" })}>
             <LogOut size={15} /> Sign Out
           </div>
