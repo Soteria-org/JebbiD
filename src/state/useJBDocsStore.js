@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { buildSeed } from "@/lib/seedData";
-import { TODAY } from "@/lib/constants";
-import { fmtUGX, pad } from "@/lib/format";
+import { PERIOD_MONTHS, TODAY } from "@/lib/constants";
+import { addMonths, expectedReturn, fmtUGX, maturityValue, pad } from "@/lib/format";
 import {
   login as loginAction,
   logout as logoutAction,
