@@ -77,28 +77,10 @@ src/
   should be tackled next, now that there's a clean place to put each fix (e.g. package
   validation belongs in `InvestWizard.jsx` + eventually a server action).
 
-## Backend (Supabase) — live as of this commit
-
-The full V1 schema (11 tables, RLS on every table, business-rule triggers, private
-storage buckets) is applied to the real Supabase project and version-controlled in
-`supabase/migrations/`. **Read `docs/database-schema.md` before writing any backend
-code** — it explains the deposit/investment separation, the account-creation model,
-and which tables are trigger-only.
-
-Client setup: `src/lib/supabase/client.js` (browser), `server.js` (Server
-Components/Actions + admin client), `middleware.js` (session refresh). See
-`.env.local.example` for required environment variables.
-
-`useJBDocsStore.js` is still 100% in-memory — wiring it against this schema
-function-by-function is the next phase (see `docs/database-schema.md` §6).
-
----
-
 ## Getting it running
 
 ```bash
 npm install
-cp .env.local.example .env.local
 npm run dev
 ```
 

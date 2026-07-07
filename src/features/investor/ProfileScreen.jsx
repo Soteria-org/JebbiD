@@ -5,7 +5,6 @@ import { Avatar, Btn, Card, Field, TextInput, Toggle } from "@/components/ui/pri
 import { TODAY } from "@/lib/constants";
 import { fmtDate } from "@/lib/format";
 import { C } from "@/lib/theme";
-import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
 
 export function ProfileScreen({ ctx }) {
   const [tab, setTab] = useState("profile");
@@ -43,7 +42,7 @@ export function ProfileScreen({ ctx }) {
   return (
     <PageShell ctx={ctx} title="Profile & Settings">
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-        {[["profile", "My Profile"], ["kyc", "Identity Verification"], ["settings", "Settings"], ["security", "Security"]].map((t) => (
+        {[["profile", "My Profile"], ["settings", "Settings"], ["security", "Security"]].map((t) => (
           <div key={t[0]} onClick={() => setTab(t[0])} style={{
             padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer",
             background: tab === t[0] ? C.brand : C.cardBg, color: tab === t[0] ? C.white : C.inkSoft,
@@ -56,33 +55,12 @@ export function ProfileScreen({ ctx }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <Avatar name={inv.fullName} size={48} />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 16, color: C.ink }}>{inv.fullName}</div>
-                <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 2 }}>{inv.memberId}</div>
-              </div>
+              <div><div style={{ fontWeight: 700, fontSize: 16, color: C.ink }}>{inv.fullName}</div><div style={{ fontSize: 12.5, color: C.inkFaint }}>{inv.memberId}</div></div>
             </div>
             {!editing ? <Btn size="sm" variant="outline" icon={Edit2} onClick={() => setEditing(true)}>Edit</Btn> : null}
           </div>
 
-          {/* Login identifiers — shown as a distinct card so the investor understands how they can sign in */}
-          <div style={{ background: C.cardBg, borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: C.inkFaint, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 10 }}>
-              Your Login Identifiers
-            </div>
-            {[
-              ["Member ID", inv.memberId],
-              ["Username", inv.username || "—"],
-              ["Email", inv.email],
-            ].map(([label, value]) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid " + C.line, fontSize: 13.5 }}>
-                <span style={{ color: C.inkSoft }}>{label}</span>
-                <strong style={{ color: C.ink, fontFamily: label !== "Email" ? "monospace" : "inherit", fontSize: label !== "Email" ? 13 : 13.5 }}>{value}</strong>
-              </div>
-            ))}
-            <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8 }}>You can sign in using any of the above together with your password.</div>
-          </div>
-
-          {[["Full Name", inv.fullName, false], ["National ID", inv.nationalId, false]].map((r) => (
+          {[["Full Name", inv.fullName, false], ["Member ID", inv.memberId, false], ["National ID", inv.nationalId, false], ["Email", inv.email, false]].map((r) => (
             <div key={r[0]} style={{ display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid " + C.line, fontSize: 13.5 }}>
               <span style={{ color: C.inkSoft }}>{r[0]}</span><strong style={{ color: C.ink }}>{r[1]}</strong>
             </div>
@@ -118,16 +96,6 @@ export function ProfileScreen({ ctx }) {
               ))}
             </>
           )}
-        </Card>
-      )}
-
-      {tab === "kyc" && (
-        <Card style={{ maxWidth: 620 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>Identity Verification</div>
-          <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 16 }}>
-            Upload your selfie and National ID photos. A Finance Officer will review and verify your identity within 1-2 business days.
-          </div>
-          <KYCUploadPanel investorProfileId={inv.id} staffMode={false} />
         </Card>
       )}
 

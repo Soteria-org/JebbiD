@@ -6,7 +6,7 @@ import { C } from "@/lib/theme";
 
 export function AllInvestments({ ctx }) {
   const [filter, setFilter] = useState("all");
-  let list = [...ctx.investments].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  let list = [...ctx.investments].sort((a, b) => b.createdAt - a.createdAt);
   if (filter !== "all") list = list.filter((p) => p.status === filter);
   return (
     <PageShell ctx={ctx} title="All Investments">

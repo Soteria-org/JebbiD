@@ -1,21 +1,6 @@
 import React from "react";
 import { CORPORATE_THRESHOLD, RATES, TODAY } from "@/lib/constants";
 
-/**
- * The ACTUAL current date, as an ISO "YYYY-MM-DD" string — matches how Postgres
- * `date` columns come back from Supabase, so it can be compared directly against
- * real fields like maturity_date without any Date-object coercion surprises.
- *
- * Deliberately separate from TODAY (lib/constants.js), which is a frozen demo
- * constant (June 30, 2026) used only for generating consistent-looking mock seed
- * data. Anywhere comparing against a REAL date from Supabase must use this instead
- * of TODAY — using the frozen constant there would silently drift wrong every day
- * that passes without someone remembering to edit it.
- */
-export function todayISO() {
-  return new Date().toISOString().split("T")[0];
-}
-
 export function fmtUGX(n) {
   const v = Math.round(Number(n) || 0);
   return "UGX " + v.toLocaleString("en-UG");
