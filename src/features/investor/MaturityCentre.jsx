@@ -2,14 +2,22 @@ import React, { useState } from "react";
 import { ArrowRightLeft, ArrowUpRight, Award, Banknote, Repeat, TrendingUp, Wallet } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, Modal, StatCard } from "@/components/ui/primitives";
-import { TODAY } from "@/lib/constants";
-import { expectedReturn, fmtDate, fmtUGX, maturityValue } from "@/lib/format";
+import { fmtDate, fmtUGX, todayISO } from "@/lib/format";
 import { C } from "@/lib/theme";
 
 export function MaturityCentre({ ctx }) {
   const positions = ctx.getInvestorInvestments(ctx.session.id);
-  const maturable = positions.filter((p) => p.status === "active" && p.maturityDate <= TODAY && !p.maturityChoice);
+  const today = todayISO();
+  const maturable = positions.filter((p) => p.status === "active" && p.maturityDate && p.maturityDate <= today && !p.maturityChoice);
   const [choosing, setChoosing] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+
+  async function confirmChoice() {
+    setConfirming(true);
+    await ctx.chooseMaturityOption(choosing.positionId, choosing.choice);
+    setConfirming(false);
+    setChoosing(null);
+  }
 
   return (
     <PageShell ctx={ctx} title="Maturity Centre">
@@ -57,8 +65,8 @@ export function MaturityCentre({ ctx }) {
             {choosing.choice === "withdraw_all" && "The full maturity value will be submitted as a withdrawal request. No further investment will remain active for this position."}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
-            <Btn variant="ghost" onClick={() => setChoosing(null)}>Cancel</Btn>
-            <Btn full onClick={() => { ctx.chooseMaturityOption(choosing.positionId, choosing.choice); setChoosing(null); }}>Confirm</Btn>
+            <Btn variant="ghost" onClick={() => setChoosing(null)} disabled={confirming}>Cancel</Btn>
+            <Btn full onClick={confirmChoice} disabled={confirming}>{confirming ? "Processing…" : "Confirm"}</Btn>
           </div>
         </Modal>
       ) : null}

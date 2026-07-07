@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { buildSeed } from "@/lib/seedData";
-import { PERIOD_MONTHS, TODAY } from "@/lib/constants";
-import { addMonths, expectedReturn, fmtUGX, maturityValue, pad } from "@/lib/format";
+import { TODAY } from "@/lib/constants";
+import { fmtUGX, pad } from "@/lib/format";
 import {
   login as loginAction,
   logout as logoutAction,
@@ -18,6 +18,18 @@ import {
   requestClarification as requestClarificationAction,
   loadDepositsQueue as loadDepositsQueueAction,
 } from "@/lib/actions/deposit-actions";
+import {
+  loadMyInvestmentsView as loadMyInvestmentsViewAction,
+  loadAllInvestmentsView as loadAllInvestmentsViewAction,
+} from "@/lib/actions/investment-actions";
+import {
+  requestWithdrawal as requestWithdrawalAction,
+  loadWithdrawalsQueue as loadWithdrawalsQueueAction,
+  loadMyWithdrawals as loadMyWithdrawalsAction,
+  rejectWithdrawal as rejectWithdrawalAction,
+  markWithdrawalPaid as markWithdrawalPaidAction,
+} from "@/lib/actions/withdrawal-actions";
+import { chooseMaturityAction } from "@/lib/actions/maturity-actions";
 
 /**
  * useJBDocsStore
@@ -78,6 +90,60 @@ export default function useJBDocsStore() {
     });
   }, [session?.role]);
 
+  // Load investments: investor sees their own merged pending+active list; staff see
+  // every investor's positions, with each investor bridged into mock state so
+  // ctx.getInvestor(id) resolves even for investors who haven't logged in this
+  // session (AllInvestments/WithdrawalsQueue depend on that lookup).
+  useEffect(() => {
+    if (!session) return;
+    if (session.role === "investor") {
+      loadMyInvestmentsViewAction().then((result) => {
+        if (!result.error) setInvestments(result.items);
+      });
+    } else {
+      loadAllInvestmentsViewAction().then((result) => {
+        if (result.error) return;
+        const seen = new Set();
+        result.items.forEach((item) => {
+          if (item.investorProfile && !seen.has(item.investorProfile.id)) {
+            seen.add(item.investorProfile.id);
+            bridgeInvestorProfile(item.investorProfile);
+          }
+        });
+        setInvestments(result.items.map((item) => {
+          const { investorProfile, ...rest } = item;
+          return rest;
+        }));
+      });
+    }
+  }, [session?.role, session?.id]);
+
+  // Load withdrawals the same way — own list for investors, full queue + bridging for staff.
+  useEffect(() => {
+    if (!session) return;
+    if (session.role === "investor") {
+      loadMyWithdrawalsAction().then((result) => {
+        if (!result.error) setWithdrawals(normalizeWithdrawals(result.withdrawals));
+      });
+    } else {
+      loadWithdrawalsQueueAction().then((result) => {
+        if (result.error) return;
+        result.withdrawals.forEach((w) => { if (w.investor) bridgeInvestorProfile(w.investor); });
+        setWithdrawals(normalizeWithdrawals(result.withdrawals));
+      });
+    }
+  }, [session?.role, session?.id]);
+
+  function normalizeWithdrawals(rows) {
+    return rows.map((w) => ({
+      id: w.id, referenceNumber: w.reference_number, investmentId: w.investment_id,
+      investorId: w.investor?.id ?? session.id,
+      amount: w.amount_requested, penalty: w.penalty_amount, netAmount: w.net_amount,
+      paymentMethod: w.payment_method, status: w.status, requestedAt: w.created_at,
+      transactionRef: null, paidAt: null,
+    }));
+  }
+
   useEffect(() => {
     function onResize() {
       const mobile = window.innerWidth < 900;
@@ -98,8 +164,8 @@ export default function useJBDocsStore() {
   function closeModal() { setActiveModal(null); }
 
   function getInvestor(id) { return investors.find((i) => i.id === id); }
-  function getInvestorInvestments(id) { return investments.filter((p) => p.investorId === id).sort((a, b) => b.createdAt - a.createdAt); }
-  function getInvestorWithdrawals(id) { return withdrawals.filter((w) => w.investorId === id).sort((a, b) => b.requestedAt - a.requestedAt); }
+  function getInvestorInvestments(id) { return investments.filter((p) => p.investorId === id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); }
+  function getInvestorWithdrawals(id) { return withdrawals.filter((w) => w.investorId === id).sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)); }
 
   function addAudit(user, action, prev, next) {
     const id = "AUD-" + pad(counters.current.audit++, 4);
@@ -300,78 +366,70 @@ export default function useJBDocsStore() {
   }
 
   /* ---------------- WITHDRAWALS ---------------- */
-  function requestWithdrawal(data) {
-    const id = "WD-" + pad(counters.current.wd++, 4);
-    const w = {
-      id, investmentId: data.investmentId, investorId: session.id, amount: data.amount, reason: data.reason,
-      paymentMethod: data.paymentMethod, details: data.details, comments: data.comments, penalty: data.penalty,
-      netAmount: data.netAmount, status: "pending", requestedAt: TODAY, transactionRef: null, paidAt: null,
-    };
-    setWithdrawals((list) => [...list, w]);
-    const investor = getInvestor(session.id);
-    addAudit(investor.fullName, "Withdrawal Requested", "—", fmtUGX(data.amount) + " — " + id);
-    addNotification(session.id, "withdrawal_submitted", "Your withdrawal request of " + fmtUGX(data.amount) + " has been submitted and is pending review.");
+  async function requestWithdrawal(data) {
+    const result = await requestWithdrawalAction({
+      investmentId: data.investmentId, amount: data.amount, reason: data.reason,
+      paymentMethod: data.paymentMethod, network: data.details?.network,
+      bankDetails: data.paymentMethod === "mobile_money"
+        ? { phone: data.details?.phone }
+        : { bankName: data.details?.bankName, accountName: data.details?.accountName, accountNumber: data.details?.accountNumber },
+      comments: data.comments,
+    });
+    if (result.error) { showToast(result.error, "error"); return; }
+    setWithdrawals((list) => [{
+      id: result.withdrawal.id, referenceNumber: result.withdrawal.reference_number, investorId: session.id,
+      amount: result.withdrawal.amount_requested, penalty: result.withdrawal.penalty_amount,
+      netAmount: result.withdrawal.net_amount, paymentMethod: result.withdrawal.payment_method,
+      status: result.withdrawal.status, requestedAt: result.withdrawal.created_at, transactionRef: null, paidAt: null,
+    }, ...list]);
     showToast("Withdrawal request submitted.", "success");
     closeModal();
     setView("withdrawals");
   }
-  function rejectWithdrawal(wdId, reason) {
-    const staffName = currentStaffName();
-    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "rejected", rejectionReason: reason }) : w));
-    const w = withdrawals.find((x) => x.id === wdId);
-    addAudit(staffName, "Withdrawal Rejected", "Pending — " + wdId, "Rejected — " + wdId);
-    addNotification(w.investorId, "withdrawal_rejected", "Your withdrawal request " + wdId + " was rejected. Reason: " + reason);
+
+  async function rejectWithdrawal(wdId, reason) {
+    const result = await rejectWithdrawalAction(wdId, reason);
+    if (result.error) { showToast(result.error, "error"); return; }
+    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "rejected" }) : w));
     showToast("Withdrawal rejected.", "info");
   }
-  function markWithdrawalPaid(wdId, ref, payDate, notes) {
-    const staffName = currentStaffName();
-    const w = withdrawals.find((x) => x.id === wdId);
-    setWithdrawals((list) => list.map((x) => x.id === wdId ? Object.assign({}, x, { status: "paid", transactionRef: ref, paidAt: TODAY, payDateNote: payDate, notes }) : x));
-    setInvestments((list) => list.map((p) => p.id === w.investmentId ? Object.assign({}, p, { status: "withdrawn" }) : p));
-    addAudit(staffName, "Withdrawal Paid", "Pending — " + wdId, "Paid — " + wdId + " (Ref: " + ref + ")");
-    addNotification(w.investorId, "withdrawal_paid", "Your withdrawal of " + fmtUGX(w.netAmount) + " has been paid. Reference: " + ref + ".");
+
+  async function markWithdrawalPaid(wdId, ref, payDate, notes) {
+    const result = await markWithdrawalPaidAction({ withdrawalId: wdId, transactionId: ref, payoutDate: payDate, notes });
+    if (result.error) { showToast(result.error, "error"); return; }
+    // Trigger closes the investment_positions row too — reflect that locally.
+    const wd = withdrawals.find((w) => w.id === wdId);
+    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "paid", transactionRef: ref, paidAt: TODAY }) : w));
+    if (wd) setInvestments((list) => list.map((p) => p.investorId === wd.investorId && p.status === "active" ? Object.assign({}, p, { status: "closed" }) : p));
     showToast("Withdrawal marked as paid.", "success");
   }
 
   /* ---------------- MATURITY ---------------- */
-  function chooseMaturityOption(posId, choice) {
-    const p = investments.find((x) => x.id === posId);
-    const newId = "POS-" + pad(counters.current.pos++, 4);
-    if (choice === "reinvest" || choice === "switch_package") {
-      const newPkg = choice === "switch_package" ? (p.package === "standard" ? "corporate" : "standard") : p.package;
-      const amt = p.maturityValue;
-      const start = TODAY;
-      const newPos = { id: newId, investorId: p.investorId, package: newPkg, amount: amt, goal: p.goal, depositStatus: "approved",
-        status: "active", startDate: start, maturityDate: addMonths(start, PERIOD_MONTHS), expectedReturn: expectedReturn(amt, newPkg),
-        maturityValue: maturityValue(amt, newPkg), createdAt: TODAY, proofFile: null, rejectionReason: null, maturityChoice: null };
-      setInvestments((list) => [...list.map((x) => x.id === posId ? Object.assign({}, x, { status: "matured", maturityChoice: choice }) : x), newPos]);
-      addAudit("System", choice === "reinvest" ? "Investment Reinvested" : "Package Switched", posId + " matured", newId + " opened (" + fmtUGX(amt) + ")");
-      addNotification(p.investorId, "maturity", "Position " + posId + " matured and was rolled into new position " + newId + ".");
-    } else if (choice === "withdraw_profit") {
-      const principal = p.amount;
-      const start = TODAY;
-      const newPos = { id: newId, investorId: p.investorId, package: p.package, amount: principal, goal: p.goal, depositStatus: "approved",
-        status: "active", startDate: start, maturityDate: addMonths(start, PERIOD_MONTHS), expectedReturn: expectedReturn(principal, p.package),
-        maturityValue: maturityValue(principal, p.package), createdAt: TODAY, proofFile: null, rejectionReason: null, maturityChoice: null };
-      const wdId = "WD-" + pad(counters.current.wd++, 4);
-      const w = { id: wdId, investmentId: posId, investorId: p.investorId, amount: p.expectedReturn, reason: "Maturity profit withdrawal",
-        paymentMethod: "mobile_money", details: {}, comments: "Profit withdrawal at maturity; principal reinvested as " + newId, penalty: 0,
-        netAmount: p.expectedReturn, status: "pending", requestedAt: TODAY, transactionRef: null, paidAt: null };
-      setInvestments((list) => [...list.map((x) => x.id === posId ? Object.assign({}, x, { status: "matured", maturityChoice: choice }) : x), newPos]);
-      setWithdrawals((list) => [...list, w]);
-      addAudit("System", "Profit Withdrawal Requested", posId + " matured", wdId + " — " + fmtUGX(p.expectedReturn));
-      addNotification(p.investorId, "maturity", "Profit of " + fmtUGX(p.expectedReturn) + " submitted for withdrawal. Principal reinvested as " + newId + ".");
-    } else if (choice === "withdraw_all") {
-      const wdId = "WD-" + pad(counters.current.wd++, 4);
-      const w = { id: wdId, investmentId: posId, investorId: p.investorId, amount: p.maturityValue, reason: "Full maturity withdrawal",
-        paymentMethod: "mobile_money", details: {}, comments: "Full withdrawal at maturity", penalty: 0, netAmount: p.maturityValue,
-        status: "pending", requestedAt: TODAY, transactionRef: null, paidAt: null };
-      setInvestments((list) => list.map((x) => x.id === posId ? Object.assign({}, x, { status: "matured", maturityChoice: choice }) : x));
-      setWithdrawals((list) => [...list, w]);
-      addAudit("System", "Full Withdrawal Requested", posId + " matured", wdId + " — " + fmtUGX(p.maturityValue));
-      addNotification(p.investorId, "maturity", "Full maturity value of " + fmtUGX(p.maturityValue) + " submitted for withdrawal.");
-    }
+  /**
+   * Wired to choose_maturity_action() (migration 015) — a single atomic Postgres
+   * function, not hand-simulated here. See that migration's comments for why
+   * reinvestment creates investment_positions rows directly instead of going
+   * through deposit_submissions.
+   *
+   * KNOWN GAP, not silently hidden: withdraw_profit/withdraw_all don't yet collect
+   * real payout details (mobile money number, bank account) the way a manual
+   * withdrawal request does — staff will need to follow up with the investor before
+   * actually paying these out. Worth fixing before this is investor-facing for real.
+   */
+  async function chooseMaturityOption(posId, choice) {
+    const result = await chooseMaturityAction(posId, choice);
+    if (result.error) { showToast(result.error, "error"); return; }
     showToast("Maturity option confirmed.", "success");
+    // The DB function did the real (atomic) work — close old position, maybe open a
+    // new one, maybe create a withdrawal. Simplest correct way to reflect that
+    // locally is to reload from Supabase rather than hand-simulate the same branching
+    // logic twice in two languages.
+    const [invResult, wdResult] = await Promise.all([
+      loadMyInvestmentsViewAction(),
+      loadMyWithdrawalsAction(),
+    ]);
+    if (!invResult.error) setInvestments(invResult.items);
+    if (!wdResult.error) setWithdrawals(normalizeWithdrawals(wdResult.withdrawals));
   }
 
   /* ---------------- FINANCE OFFICER MANAGEMENT ---------------- */
