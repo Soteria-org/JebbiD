@@ -134,3 +134,7 @@ violations across file boundaries, which static analysis can't fully verify.
 4. Tackle the fixes from the backend master prompt (package validation, admin-created
    user onboarding, KYC capture, richer deposit review) inside the relevant
    `features/**` file now that each has a dedicated home.
+
+
+## PR branch note
+This branch was prepared for review against main.
