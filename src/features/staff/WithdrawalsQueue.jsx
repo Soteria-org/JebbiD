@@ -6,7 +6,7 @@ import { fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
 
 export function WithdrawalsQueue({ ctx }) {
-  const all = [...ctx.withdrawals].sort((a, b) => b.requestedAt - a.requestedAt);
+  const all = [...ctx.withdrawals].sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
   const [paying, setPaying] = useState(null);
   const [ref, setRef] = useState("");
   const [payDate, setPayDate] = useState("");
@@ -46,15 +46,15 @@ export function WithdrawalsQueue({ ctx }) {
       {paying ? (
         <Modal title="Mark Withdrawal as Paid" onClose={() => setPaying(null)}>
           <Field label="Transaction Reference"><TextInput value={ref} onChange={setRef} placeholder="e.g. MTN Reference, Bank Reference" /></Field>
-          <Field label="Payment Date"><TextInput value={payDate} onChange={setPayDate} placeholder="e.g. 30 Jun 2026" /></Field>
+          <Field label="Payment Date" hint="Defaults to today if left blank"><TextInput type="date" value={payDate} onChange={setPayDate} /></Field>
           <Field label="Notes" hint="Optional"><TextArea value={notes} onChange={setNotes} rows={2} /></Field>
-          <Btn full variant="success" disabled={!ref} onClick={() => { ctx.markWithdrawalPaid(paying, ref, payDate, notes); setPaying(null); setRef(""); setPayDate(""); setNotes(""); }}>Confirm Payment</Btn>
+          <Btn full variant="success" disabled={!ref} onClick={async () => { await ctx.markWithdrawalPaid(paying, ref, payDate, notes); setPaying(null); setRef(""); setPayDate(""); setNotes(""); }}>Confirm Payment</Btn>
         </Modal>
       ) : null}
       {rejecting ? (
         <Modal title="Reject Withdrawal" onClose={() => setRejecting(null)}>
           <Field label="Reason"><TextArea value={reason} onChange={setReason} rows={3} /></Field>
-          <Btn full variant="danger" disabled={!reason} onClick={() => { ctx.rejectWithdrawal(rejecting, reason); setRejecting(null); setReason(""); }}>Confirm Rejection</Btn>
+          <Btn full variant="danger" disabled={!reason} onClick={async () => { await ctx.rejectWithdrawal(rejecting, reason); setRejecting(null); setReason(""); }}>Confirm Rejection</Btn>
         </Modal>
       ) : null}
     </PageShell>

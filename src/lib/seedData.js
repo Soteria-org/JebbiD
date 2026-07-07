@@ -51,7 +51,12 @@ export function buildSeed() {
     address: "Kireka, Uganda",
     phone: "+256 787 905165 / +256 757 180024",
     email: "zeal247invest@gmail.com",
-    momoLine: "+256 787 905165 (MTN Mobile Money — Jebbidox Youth Investment Club)",
+    // ASSUMPTION FLAGGED: mapped by Uganda telecom prefix convention (078/077 = MTN,
+    // 075/070 = Airtel) from the two numbers already in the org's own contact info.
+    // Not yet confirmed with Soteria which number is actually registered on which
+    // network's Mobile Money service — verify before this goes live for real deposits.
+    mtnMomoLine: "+256 787 905165 (MTN Mobile Money — Jebbidox Youth Investment Club)",
+    airtelMoneyLine: "+256 757 180024 (Airtel Money — Jebbidox Youth Investment Club)",
     bankLine: "Stanbic Bank Uganda — Acc. Name: Jebbidox Youth Investment Club — Acc. No: 9030012345678",
   };
 
