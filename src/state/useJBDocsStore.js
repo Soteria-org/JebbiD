@@ -1,8 +1,35 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { buildSeed } from "@/lib/seedData";
-import { PERIOD_MONTHS, TODAY } from "@/lib/constants";
-import { addMonths, expectedReturn, fmtUGX, maturityValue, pad } from "@/lib/format";
+import { TODAY } from "@/lib/constants";
+import { fmtUGX, pad } from "@/lib/format";
+import {
+  login as loginAction,
+  logout as logoutAction,
+  registerInvestor as registerInvestorAction,
+  createStaffOrInvestorAccount as createStaffOrInvestorAccountAction,
+  completeForcedPasswordChange as completeForcedPasswordChangeAction,
+} from "@/lib/actions/auth-actions";
+import {
+  loadPackages as loadPackagesAction,
+  submitDeposit as submitDepositAction,
+  approveDeposit as approveDepositAction,
+  rejectDeposit as rejectDepositAction,
+  requestClarification as requestClarificationAction,
+  loadDepositsQueue as loadDepositsQueueAction,
+} from "@/lib/actions/deposit-actions";
+import {
+  loadMyInvestmentsView as loadMyInvestmentsViewAction,
+  loadAllInvestmentsView as loadAllInvestmentsViewAction,
+} from "@/lib/actions/investment-actions";
+import {
+  requestWithdrawal as requestWithdrawalAction,
+  loadWithdrawalsQueue as loadWithdrawalsQueueAction,
+  loadMyWithdrawals as loadMyWithdrawalsAction,
+  rejectWithdrawal as rejectWithdrawalAction,
+  markWithdrawalPaid as markWithdrawalPaidAction,
+} from "@/lib/actions/withdrawal-actions";
+import { chooseMaturityAction } from "@/lib/actions/maturity-actions";
 
 /**
  * useJBDocsStore
@@ -44,6 +71,79 @@ export default function useJBDocsStore() {
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 900 : false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Real data from Supabase — loaded below via useEffect
+  const [packages, setPackages] = useState([]);
+  const [depositSubmissions, setDepositSubmissions] = useState([]);
+
+  // Load investment packages for all users (InvestWizard needs them)
+  useEffect(() => {
+    loadPackagesAction().then((result) => {
+      if (!result.error && result.packages) setPackages(result.packages);
+    });
+  }, []);
+
+  // Load deposits queue for staff whenever their session is established
+  useEffect(() => {
+    if (!session || session.role === "investor") return;
+    loadDepositsQueueAction().then((result) => {
+      if (!result.error) setDepositSubmissions(result.deposits);
+    });
+  }, [session?.role]);
+
+  // Load investments: investor sees their own merged pending+active list; staff see
+  // every investor's positions, with each investor bridged into mock state so
+  // ctx.getInvestor(id) resolves even for investors who haven't logged in this
+  // session (AllInvestments/WithdrawalsQueue depend on that lookup).
+  useEffect(() => {
+    if (!session) return;
+    if (session.role === "investor") {
+      loadMyInvestmentsViewAction().then((result) => {
+        if (!result.error) setInvestments(result.items);
+      });
+    } else {
+      loadAllInvestmentsViewAction().then((result) => {
+        if (result.error) return;
+        const seen = new Set();
+        result.items.forEach((item) => {
+          if (item.investorProfile && !seen.has(item.investorProfile.id)) {
+            seen.add(item.investorProfile.id);
+            bridgeInvestorProfile(item.investorProfile);
+          }
+        });
+        setInvestments(result.items.map((item) => {
+          const { investorProfile, ...rest } = item;
+          return rest;
+        }));
+      });
+    }
+  }, [session?.role, session?.id]);
+
+  // Load withdrawals the same way — own list for investors, full queue + bridging for staff.
+  useEffect(() => {
+    if (!session) return;
+    if (session.role === "investor") {
+      loadMyWithdrawalsAction().then((result) => {
+        if (!result.error) setWithdrawals(normalizeWithdrawals(result.withdrawals));
+      });
+    } else {
+      loadWithdrawalsQueueAction().then((result) => {
+        if (result.error) return;
+        result.withdrawals.forEach((w) => { if (w.investor) bridgeInvestorProfile(w.investor); });
+        setWithdrawals(normalizeWithdrawals(result.withdrawals));
+      });
+    }
+  }, [session?.role, session?.id]);
+
+  function normalizeWithdrawals(rows) {
+    return rows.map((w) => ({
+      id: w.id, referenceNumber: w.reference_number, investmentId: w.investment_id,
+      investorId: w.investor?.id ?? session.id,
+      amount: w.amount_requested, penalty: w.penalty_amount, netAmount: w.net_amount,
+      paymentMethod: w.payment_method, status: w.status, requestedAt: w.created_at,
+      transactionRef: null, paidAt: null,
+    }));
+  }
+
   useEffect(() => {
     function onResize() {
       const mobile = window.innerWidth < 900;
@@ -64,8 +164,8 @@ export default function useJBDocsStore() {
   function closeModal() { setActiveModal(null); }
 
   function getInvestor(id) { return investors.find((i) => i.id === id); }
-  function getInvestorInvestments(id) { return investments.filter((p) => p.investorId === id).sort((a, b) => b.createdAt - a.createdAt); }
-  function getInvestorWithdrawals(id) { return withdrawals.filter((w) => w.investorId === id).sort((a, b) => b.requestedAt - a.requestedAt); }
+  function getInvestorInvestments(id) { return investments.filter((p) => p.investorId === id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); }
+  function getInvestorWithdrawals(id) { return withdrawals.filter((w) => w.investorId === id).sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)); }
 
   function addAudit(user, action, prev, next) {
     const id = "AUD-" + pad(counters.current.audit++, 4);
@@ -76,7 +176,57 @@ export default function useJBDocsStore() {
     setNotifications((n) => [...n, { id, investorId, type, message, timestamp: TODAY, read: false }]);
   }
 
+  /**
+   * BRIDGE (temporary, remove once investors/investments/etc. are wired to Supabase
+   * too): everything except auth is still 100% mock data. Real login now returns a
+   * real Supabase UUID that won't exist anywhere in the mock investors/
+   * financeOfficers arrays, so every downstream mock function
+   * (getInvestor(session.id), dashboards, etc.) would silently break without this.
+   * This creates a matching mock-shaped record, keyed on the REAL id, the first time
+   * a given real account is seen. It does not persist anything — it's rebuilt each
+   * session, same as the rest of the mock state.
+   */
+  function bridgeInvestorProfile(profile) {
+    setInvestors((list) => {
+      if (list.find((i) => i.id === profile.id)) return list;
+      return [...list, {
+        id: profile.id, memberId: profile.member_id, fullName: profile.full_name, email: profile.email,
+        phone: profile.phone || "", nationalId: "", address: "", occupation: "", goal: "",
+        username: profile.username || profile.email, password: null,
+        nextOfKin: { name: "", relationship: "", phone: "", address: "" },
+        dateRegistered: TODAY, notifPrefs: { email: true, sms: true }, darkMode: false,
+      }];
+    });
+  }
+  function bridgeStaffProfile(profile) {
+    if (profile.role === "super_admin") {
+      setSuperAdmin((s) => Object.assign({}, s, { id: profile.id, name: profile.full_name, email: profile.email }));
+      return;
+    }
+    setFinanceOfficers((list) => {
+      if (list.find((f) => f.id === profile.id)) return list;
+      return [...list, {
+        id: profile.id, name: profile.full_name, email: profile.email, username: profile.email,
+        password: null, mustChangePassword: profile.must_change_password, createdAt: TODAY, createdBy: "System",
+      }];
+    });
+  }
+  function bridgeProfile(profile) {
+    if (profile.role === "investor") bridgeInvestorProfile(profile);
+    else bridgeStaffProfile(profile);
+  }
+
   /* ---------------- AUTH ---------------- */
+  /**
+   * ⚠️ DEMO-ONLY, NOT WIRED TO SUPABASE, AND DELIBERATELY LEFT THAT WAY.
+   * quickLoginAdmin/quickLoginFO/switchToFO/switchToInvestor (used by
+   * RoleSwitcher.jsx) let anyone become any role with one click — that's
+   * fundamentally incompatible with real authentication. This is a product/security
+   * decision, not a coding detail: either remove RoleSwitcher entirely before any
+   * real deployment, or gate it behind an explicit dev-only build flag
+   * (e.g. NEXT_PUBLIC_ENABLE_DEMO_ROLE_SWITCHER) that is never set in production.
+   * Not deciding this silently — flag it back before shipping past a demo.
+   */
   function quickLoginAdmin() {
     setSession({ role: "super_admin", id: superAdmin.id });
     setView("dashboard"); setForcedPwSession(null);
@@ -94,178 +244,228 @@ export default function useJBDocsStore() {
   function switchToInvestor(id) {
     setSession({ role: "investor", id }); setView("dashboard");
   }
-  function completeForcedPasswordChange(newPw) {
+  async function completeForcedPasswordChange(newPw) {
     const s = forcedPwSession;
-    setFinanceOfficers((list) => list.map((f) => f.id === s.id ? Object.assign({}, f, { password: newPw, mustChangePassword: false }) : f));
-    addAudit(financeOfficers.find((f) => f.id === s.id).name, "Password Changed", "Temporary password", "New password set");
-    setSession(s); setForcedPwSession(null); setView("dashboard");
+    const result = await completeForcedPasswordChangeAction(newPw);
+    if (result.error) {
+      showToast(result.error, "error");
+      return { ok: false, error: result.error };
+    }
+    // Local bridge state (financeOfficers/investors mock records) mirrors the flag
+    // for anywhere the UI still reads it directly, but the source of truth is now
+    // `profiles.must_change_password` in Supabase, already cleared by the action above.
+    setFinanceOfficers((list) => list.map((f) => f.id === s.id ? Object.assign({}, f, { mustChangePassword: false }) : f));
+    setSession(Object.assign({}, s, { mustChangePassword: false }));
+    setForcedPwSession(null);
+    setView("dashboard");
     showToast("Password set. Welcome to Jebbidox.", "success");
-  }
-  function loginInvestor(identifier, password) {
-    const inv = investors.find((i) => i.memberId.toLowerCase() === identifier.toLowerCase() || i.username.toLowerCase() === identifier.toLowerCase() || i.email.toLowerCase() === identifier.toLowerCase());
-    if (!inv) return { ok: false, error: "No account found with that Member ID, username, or email." };
-    if (inv.password !== password) return { ok: false, error: "Incorrect password." };
-    setSession({ role: "investor", id: inv.id }); setView("dashboard");
     return { ok: true };
   }
-  function registerInvestor(form) {
-    const id = "INV" + pad(investors.length + 1, 3);
-    const memberId = "JBD-2026-" + pad(counters.current.member++, 6);
-    const newInv = {
-      id, memberId, fullName: form.fullName, email: form.email, phone: form.phone, nationalId: form.nationalId,
-      address: form.address, occupation: form.occupation, goal: form.goal, username: form.username, password: form.password,
-      nextOfKin: { name: form.nokName, relationship: form.nokRelationship, phone: form.nokPhone, address: form.nokAddress || "" },
-      dateRegistered: TODAY, notifPrefs: { email: true, sms: true }, darkMode: false,
+  async function loginInvestor(identifier, password) {
+    const result = await loginAction({ identifier, password });
+    if (result.error) return { ok: false, error: result.error };
+
+    bridgeProfile(result.profile);
+
+    const nextSession = {
+      role: result.profile.role,
+      id: result.profile.id,
+      fullName: result.profile.full_name,
+      memberId: result.profile.member_id,
     };
-    setInvestors((list) => [...list, newInv]);
-    addAudit("System", "Investor Registered", "—", newInv.fullName + " (" + memberId + ")");
-    addNotification(id, "registration", "Welcome to Jebbidox. Your account has been created — Member ID " + memberId + ".");
-    setSession({ role: "investor", id }); setView("dashboard");
-    showToast("Account created. Welcome, " + form.fullName.split(" ")[0] + "!", "success");
+
+    if (result.profile.must_change_password) {
+      setForcedPwSession(nextSession);
+      return { ok: true };
+    }
+
+    setSession(nextSession);
+    setView("dashboard");
+    return { ok: true };
   }
-  function logout() { setSession(null); setView("dashboard"); setSelectedInvestorId(null); }
+  async function registerInvestor(form) {
+    const result = await registerInvestorAction({
+      fullName: form.fullName, email: form.email, phone: form.phone, password: form.password,
+      username: form.username, nationalIdNumber: form.nationalId, address: form.address, occupation: form.occupation,
+      financialGoal: form.goal, nextOfKinName: form.nokName, nextOfKinPhone: form.nokPhone,
+      nextOfKinRelationship: form.nokRelationship,
+    });
+
+    if (result.error) {
+      showToast(result.error, "error");
+      return { ok: false, error: result.error };
+    }
+
+    if (result.pendingConfirmation) {
+      // Email confirmation is ON (the Resend/SMTP path): no session yet, nothing to
+      // log into. The investor must click the emailed link before anything else
+      // happens — app/auth/confirm/route.js finishes account creation at that point.
+      showToast("Check your email to confirm your account before logging in.", "info");
+      return { ok: true, pendingConfirmation: true };
+    }
+
+    // Email confirmation OFF: signUp() returned an active session immediately, and
+    // registerInvestorAction already created profiles/investor_details. Log them in.
+    return loginInvestor(form.email, form.password);
+  }
+  async function logout() {
+    await logoutAction();
+    setSession(null); setView("dashboard"); setSelectedInvestorId(null);
+  }
 
   /* ---------------- INVESTMENTS ---------------- */
-  function submitInvestment(data) {
-    const id = "POS-" + pad(counters.current.pos++, 4);
-    const investor = getInvestor(session.id);
-    const newPos = {
-      id, investorId: session.id, package: data.package, amount: data.amount, goal: data.goal,
-      depositStatus: "pending", status: "pending_verification", startDate: null, maturityDate: null,
-      expectedReturn: expectedReturn(data.amount, data.package), maturityValue: maturityValue(data.amount, data.package),
-      createdAt: TODAY, proofFile: "payment_proof_" + id.toLowerCase() + ".jpg", rejectionReason: null, maturityChoice: null,
-    };
-    setInvestments((list) => [...list, newPos]);
-    addAudit(investor.fullName, "Deposit Submitted", "—", fmtUGX(data.amount) + " — " + id);
-    addNotification(session.id, "deposit_submitted", "Your deposit of " + fmtUGX(data.amount) + " has been submitted and is awaiting verification.");
+  async function submitInvestment(data) {
+    const result = await submitDepositAction({
+      packageId: data.packageId,
+      amount: data.amount,
+      goal: data.goal,
+      paymentMethod: data.paymentMethod,
+      network: data.network ?? null,
+      transactionRef: data.transactionRef ?? null,
+      depositorName: data.depositorName ?? null,
+      notes: data.notes ?? null,
+      proofStoragePath: data.proofStoragePath ?? null,
+    });
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    // The DB trigger already creates the notification and audit row.
+    // Add the new deposit to local state so the investor can see it immediately
+    // without a full page reload (it won't have the joined investor/package objects
+    // yet, but that's fine — the investor's own view doesn't need those).
+    setDepositSubmissions((list) => [result.deposit, ...list]);
     showToast("Investment submitted for verification.", "success");
     setView("investments");
+    return { ok: true };
   }
 
-  function approveDeposit(posId) {
-    const staffName = currentStaffName();
-    setInvestments((list) => list.map((p) => {
-      if (p.id !== posId) return p;
-      const start = TODAY;
-      const maturity = addMonths(start, PERIOD_MONTHS);
-      return Object.assign({}, p, { depositStatus: "approved", status: "active", startDate: start, maturityDate: maturity });
-    }));
-    const pos = investments.find((p) => p.id === posId);
-    addAudit(staffName, "Deposit Approved", "Pending — " + posId, "Active — " + posId);
-    addNotification(pos.investorId, "deposit_approved", "Your investment of " + fmtUGX(pos.amount) + " has been approved and is now active.");
-    showToast("Deposit approved.", "success");
+  async function approveDeposit(depositId) {
+    const result = await approveDepositAction(depositId);
+    if (result.error) { showToast(result.error, "error"); return; }
+    // Optimistically update local state so the queue reflects the change immediately
+    setDepositSubmissions((list) =>
+      list.map((d) => d.id === depositId ? Object.assign({}, d, { status: "approved" }) : d)
+    );
+    showToast("Deposit approved. Investment position created.", "success");
   }
-  function rejectDeposit(posId, reason) {
-    const staffName = currentStaffName();
-    setInvestments((list) => list.map((p) => p.id === posId ? Object.assign({}, p, { depositStatus: "rejected", status: "rejected", rejectionReason: reason }) : p));
-    const pos = investments.find((p) => p.id === posId);
-    addAudit(staffName, "Deposit Rejected", "Pending — " + posId, "Rejected — " + posId + " (" + reason + ")");
-    addNotification(pos.investorId, "deposit_rejected", "Your deposit of " + fmtUGX(pos.amount) + " was rejected. Reason: " + reason);
+
+  async function rejectDeposit(depositId, reason) {
+    const result = await rejectDepositAction(depositId, reason);
+    if (result.error) { showToast(result.error, "error"); return; }
+    setDepositSubmissions((list) =>
+      list.map((d) => d.id === depositId ? Object.assign({}, d, { status: "rejected", clarification_note: reason }) : d)
+    );
     showToast("Deposit rejected.", "info");
   }
 
+  async function requestClarification(depositId, note) {
+    const result = await requestClarificationAction(depositId, note);
+    if (result.error) { showToast(result.error, "error"); return; }
+    setDepositSubmissions((list) =>
+      list.map((d) => d.id === depositId ? Object.assign({}, d, { status: "clarification_requested", clarification_note: note }) : d)
+    );
+    showToast("Clarification requested. Investor has been notified.", "info");
+  }
+
   /* ---------------- WITHDRAWALS ---------------- */
-  function requestWithdrawal(data) {
-    const id = "WD-" + pad(counters.current.wd++, 4);
-    const w = {
-      id, investmentId: data.investmentId, investorId: session.id, amount: data.amount, reason: data.reason,
-      paymentMethod: data.paymentMethod, details: data.details, comments: data.comments, penalty: data.penalty,
-      netAmount: data.netAmount, status: "pending", requestedAt: TODAY, transactionRef: null, paidAt: null,
-    };
-    setWithdrawals((list) => [...list, w]);
-    const investor = getInvestor(session.id);
-    addAudit(investor.fullName, "Withdrawal Requested", "—", fmtUGX(data.amount) + " — " + id);
-    addNotification(session.id, "withdrawal_submitted", "Your withdrawal request of " + fmtUGX(data.amount) + " has been submitted and is pending review.");
+  async function requestWithdrawal(data) {
+    const result = await requestWithdrawalAction({
+      investmentId: data.investmentId, amount: data.amount, reason: data.reason,
+      paymentMethod: data.paymentMethod, network: data.details?.network,
+      bankDetails: data.paymentMethod === "mobile_money"
+        ? { phone: data.details?.phone }
+        : { bankName: data.details?.bankName, accountName: data.details?.accountName, accountNumber: data.details?.accountNumber },
+      comments: data.comments,
+    });
+    if (result.error) { showToast(result.error, "error"); return; }
+    setWithdrawals((list) => [{
+      id: result.withdrawal.id, referenceNumber: result.withdrawal.reference_number, investorId: session.id,
+      amount: result.withdrawal.amount_requested, penalty: result.withdrawal.penalty_amount,
+      netAmount: result.withdrawal.net_amount, paymentMethod: result.withdrawal.payment_method,
+      status: result.withdrawal.status, requestedAt: result.withdrawal.created_at, transactionRef: null, paidAt: null,
+    }, ...list]);
     showToast("Withdrawal request submitted.", "success");
     closeModal();
     setView("withdrawals");
   }
-  function rejectWithdrawal(wdId, reason) {
-    const staffName = currentStaffName();
-    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "rejected", rejectionReason: reason }) : w));
-    const w = withdrawals.find((x) => x.id === wdId);
-    addAudit(staffName, "Withdrawal Rejected", "Pending — " + wdId, "Rejected — " + wdId);
-    addNotification(w.investorId, "withdrawal_rejected", "Your withdrawal request " + wdId + " was rejected. Reason: " + reason);
+
+  async function rejectWithdrawal(wdId, reason) {
+    const result = await rejectWithdrawalAction(wdId, reason);
+    if (result.error) { showToast(result.error, "error"); return; }
+    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "rejected" }) : w));
     showToast("Withdrawal rejected.", "info");
   }
-  function markWithdrawalPaid(wdId, ref, payDate, notes) {
-    const staffName = currentStaffName();
-    const w = withdrawals.find((x) => x.id === wdId);
-    setWithdrawals((list) => list.map((x) => x.id === wdId ? Object.assign({}, x, { status: "paid", transactionRef: ref, paidAt: TODAY, payDateNote: payDate, notes }) : x));
-    setInvestments((list) => list.map((p) => p.id === w.investmentId ? Object.assign({}, p, { status: "withdrawn" }) : p));
-    addAudit(staffName, "Withdrawal Paid", "Pending — " + wdId, "Paid — " + wdId + " (Ref: " + ref + ")");
-    addNotification(w.investorId, "withdrawal_paid", "Your withdrawal of " + fmtUGX(w.netAmount) + " has been paid. Reference: " + ref + ".");
+
+  async function markWithdrawalPaid(wdId, ref, payDate, notes) {
+    const result = await markWithdrawalPaidAction({ withdrawalId: wdId, transactionId: ref, payoutDate: payDate, notes });
+    if (result.error) { showToast(result.error, "error"); return; }
+    // Trigger closes the investment_positions row too — reflect that locally.
+    const wd = withdrawals.find((w) => w.id === wdId);
+    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "paid", transactionRef: ref, paidAt: TODAY }) : w));
+    if (wd) setInvestments((list) => list.map((p) => p.investorId === wd.investorId && p.status === "active" ? Object.assign({}, p, { status: "closed" }) : p));
     showToast("Withdrawal marked as paid.", "success");
   }
 
   /* ---------------- MATURITY ---------------- */
-  function chooseMaturityOption(posId, choice) {
-    const p = investments.find((x) => x.id === posId);
-    const newId = "POS-" + pad(counters.current.pos++, 4);
-    if (choice === "reinvest" || choice === "switch_package") {
-      const newPkg = choice === "switch_package" ? (p.package === "standard" ? "corporate" : "standard") : p.package;
-      const amt = p.maturityValue;
-      const start = TODAY;
-      const newPos = { id: newId, investorId: p.investorId, package: newPkg, amount: amt, goal: p.goal, depositStatus: "approved",
-        status: "active", startDate: start, maturityDate: addMonths(start, PERIOD_MONTHS), expectedReturn: expectedReturn(amt, newPkg),
-        maturityValue: maturityValue(amt, newPkg), createdAt: TODAY, proofFile: null, rejectionReason: null, maturityChoice: null };
-      setInvestments((list) => [...list.map((x) => x.id === posId ? Object.assign({}, x, { status: "matured", maturityChoice: choice }) : x), newPos]);
-      addAudit("System", choice === "reinvest" ? "Investment Reinvested" : "Package Switched", posId + " matured", newId + " opened (" + fmtUGX(amt) + ")");
-      addNotification(p.investorId, "maturity", "Position " + posId + " matured and was rolled into new position " + newId + ".");
-    } else if (choice === "withdraw_profit") {
-      const principal = p.amount;
-      const start = TODAY;
-      const newPos = { id: newId, investorId: p.investorId, package: p.package, amount: principal, goal: p.goal, depositStatus: "approved",
-        status: "active", startDate: start, maturityDate: addMonths(start, PERIOD_MONTHS), expectedReturn: expectedReturn(principal, p.package),
-        maturityValue: maturityValue(principal, p.package), createdAt: TODAY, proofFile: null, rejectionReason: null, maturityChoice: null };
-      const wdId = "WD-" + pad(counters.current.wd++, 4);
-      const w = { id: wdId, investmentId: posId, investorId: p.investorId, amount: p.expectedReturn, reason: "Maturity profit withdrawal",
-        paymentMethod: "mobile_money", details: {}, comments: "Profit withdrawal at maturity; principal reinvested as " + newId, penalty: 0,
-        netAmount: p.expectedReturn, status: "pending", requestedAt: TODAY, transactionRef: null, paidAt: null };
-      setInvestments((list) => [...list.map((x) => x.id === posId ? Object.assign({}, x, { status: "matured", maturityChoice: choice }) : x), newPos]);
-      setWithdrawals((list) => [...list, w]);
-      addAudit("System", "Profit Withdrawal Requested", posId + " matured", wdId + " — " + fmtUGX(p.expectedReturn));
-      addNotification(p.investorId, "maturity", "Profit of " + fmtUGX(p.expectedReturn) + " submitted for withdrawal. Principal reinvested as " + newId + ".");
-    } else if (choice === "withdraw_all") {
-      const wdId = "WD-" + pad(counters.current.wd++, 4);
-      const w = { id: wdId, investmentId: posId, investorId: p.investorId, amount: p.maturityValue, reason: "Full maturity withdrawal",
-        paymentMethod: "mobile_money", details: {}, comments: "Full withdrawal at maturity", penalty: 0, netAmount: p.maturityValue,
-        status: "pending", requestedAt: TODAY, transactionRef: null, paidAt: null };
-      setInvestments((list) => list.map((x) => x.id === posId ? Object.assign({}, x, { status: "matured", maturityChoice: choice }) : x));
-      setWithdrawals((list) => [...list, w]);
-      addAudit("System", "Full Withdrawal Requested", posId + " matured", wdId + " — " + fmtUGX(p.maturityValue));
-      addNotification(p.investorId, "maturity", "Full maturity value of " + fmtUGX(p.maturityValue) + " submitted for withdrawal.");
-    }
+  /**
+   * Wired to choose_maturity_action() (migration 015) — a single atomic Postgres
+   * function, not hand-simulated here. See that migration's comments for why
+   * reinvestment creates investment_positions rows directly instead of going
+   * through deposit_submissions.
+   *
+   * KNOWN GAP, not silently hidden: withdraw_profit/withdraw_all don't yet collect
+   * real payout details (mobile money number, bank account) the way a manual
+   * withdrawal request does — staff will need to follow up with the investor before
+   * actually paying these out. Worth fixing before this is investor-facing for real.
+   */
+  async function chooseMaturityOption(posId, choice) {
+    const result = await chooseMaturityAction(posId, choice);
+    if (result.error) { showToast(result.error, "error"); return; }
     showToast("Maturity option confirmed.", "success");
+    // The DB function did the real (atomic) work — close old position, maybe open a
+    // new one, maybe create a withdrawal. Simplest correct way to reflect that
+    // locally is to reload from Supabase rather than hand-simulate the same branching
+    // logic twice in two languages.
+    const [invResult, wdResult] = await Promise.all([
+      loadMyInvestmentsViewAction(),
+      loadMyWithdrawalsAction(),
+    ]);
+    if (!invResult.error) setInvestments(invResult.items);
+    if (!wdResult.error) setWithdrawals(normalizeWithdrawals(wdResult.withdrawals));
   }
 
   /* ---------------- FINANCE OFFICER MANAGEMENT ---------------- */
-  function createFinanceOfficer(name, email) {
-    const id = "FO" + pad(counters.current.fo++, 3);
-    const tempPassword = "Temp-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-    const username = email.split("@")[0];
-    const fo = { id, name, email, username, password: tempPassword, mustChangePassword: true, createdAt: TODAY, createdBy: superAdmin.name };
-    setFinanceOfficers((list) => [...list, fo]);
-    addAudit(superAdmin.name, "Finance Officer Created", "—", name + " (" + id + ")");
+  async function createFinanceOfficer(name, email) {
+    const result = await createStaffOrInvestorAccountAction({ role: "finance_officer", fullName: name, email });
+    if (result.error) {
+      showToast(result.error, "error");
+      return { error: result.error };
+    }
+    bridgeStaffProfile({
+      id: result.userId, role: "finance_officer", full_name: name, email, must_change_password: true,
+    });
     showToast(name + " created. Temporary password generated.", "success");
-    return { name, tempPassword };
+    return { name, tempPassword: result.tempPassword };
   }
 
   /* ---------------- STAFF ADDING INVESTOR ---------------- */
-  function addInvestorByStaff(form) {
-    const id = "INV" + pad(investors.length + 1, 3);
-    const memberId = "JBD-2026-" + pad(counters.current.member++, 6);
-    const username = form.fullName.toLowerCase().replace(/[^a-z]+/g, ".");
-    const newInv = {
-      id, memberId, fullName: form.fullName, email: form.email || "", phone: form.phone, nationalId: form.nationalId,
-      address: form.address, occupation: form.occupation, goal: form.goal, username, password: "welcome123",
-      nextOfKin: { name: form.nokName || "—", relationship: form.nokRelationship || "—", phone: form.nokPhone || "—", address: "" },
-      dateRegistered: TODAY, notifPrefs: { email: true, sms: true }, darkMode: false,
-    };
-    setInvestors((list) => [...list, newInv]);
-    addAudit(currentStaffName(), "Investor Registered (Walk-in)", "—", newInv.fullName + " (" + memberId + ")");
-    showToast(form.fullName + " added as a new investor.", "success");
+  async function addInvestorByStaff(form) {
+    if (!form.email) {
+      showToast("Email is required to create an investor account.", "error");
+      return { error: "Email is required." };
+    }
+    const username = form.username || form.fullName.toLowerCase().replace(/[^a-z]+/g, ".");
+    const result = await createStaffOrInvestorAccountAction({
+      role: "investor", fullName: form.fullName, email: form.email, phone: form.phone, username,
+    });
+    if (result.error) {
+      showToast(result.error, "error");
+      return { error: result.error };
+    }
+    bridgeInvestorProfile({
+      id: result.userId, full_name: form.fullName, email: form.email, phone: form.phone, username,
+    });
+    showToast(form.fullName + " added as a new investor. Temporary password: " + result.tempPassword, "success");
     closeModal();
+    return { success: true, tempPassword: result.tempPassword };
   }
 
   /* ---------------- PROFILE / SETTINGS ---------------- */
@@ -303,9 +503,10 @@ export default function useJBDocsStore() {
     forcedPwSession, toast,
     session, view, goTo, isMobile, sidebarOpen, setSidebarOpen,
     investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, notifications,
+    packages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
-    submitInvestment, approveDeposit, rejectDeposit, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
+    submitInvestment, approveDeposit, rejectDeposit, requestClarification, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeInvestorPassword, changeAdminPassword, toggleNotifPref, toggleDarkMode, markNotificationRead,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,
