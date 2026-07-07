@@ -28,12 +28,12 @@ export function RequestWithdrawalModal({ ctx, payload }) {
   const penalty = early ? amt * PENALTY_RATE : 0;
   const net = amt - penalty;
 
-  function submit() {
+  async function submit() {
     if (amt <= 0 || amt > position.amount) { setErr("Enter an amount up to " + fmtUGX(position.amount) + "."); return; }
     if (!reason) { setErr("Please select a reason."); return; }
     if (method === "mobile_money" && !momoPhone) { setErr("Mobile money phone number is required."); return; }
-    if (method === "bank" && (!bankName || !bankAccName || !bankAccNo)) { setErr("Complete all bank details."); return; }
-    ctx.requestWithdrawal({
+    if (method === "bank_transfer" && (!bankName || !bankAccName || !bankAccNo)) { setErr("Complete all bank details."); return; }
+    await ctx.requestWithdrawal({
       investmentId, amount: amt, reason, paymentMethod: method,
       details: method === "mobile_money" ? { phone: momoPhone, network: momoNetwork } : { bankName, accountName: bankAccName, accountNumber: bankAccNo },
       comments, penalty, netAmount: net,
@@ -60,7 +60,7 @@ export function RequestWithdrawalModal({ ctx, payload }) {
 
       <Field label="Reason"><Select value={reason} onChange={setReason} placeholder="Select a reason" options={["Business", "Savings", "Emergency", "Other"]} /></Field>
       <Field label="Payment Method">
-        <Select value={method} onChange={setMethod} options={[{ value: "mobile_money", label: "Mobile Money" }, { value: "bank", label: "Bank Transfer" }]} />
+        <Select value={method} onChange={setMethod} options={[{ value: "mobile_money", label: "Mobile Money" }, { value: "bank_transfer", label: "Bank Transfer" }]} />
       </Field>
       {method === "mobile_money" ? (
         <>

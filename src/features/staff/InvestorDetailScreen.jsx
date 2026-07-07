@@ -4,6 +4,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Card, GuidanceBanner, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
 import { fmtDate, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
+import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
 
 export function InvestorDetailScreen({ ctx }) {
   const [tab, setTab] = useState("overview");
@@ -26,7 +27,7 @@ export function InvestorDetailScreen({ ctx }) {
         </div>
       </Card>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {[["overview", "Overview"], ["investments", "Investments"], ["nextofkin", "Next of Kin"], ["deposits", "Deposit History"]].map((t) => (
+        {[["overview", "Overview"], ["investments", "Investments"], ["nextofkin", "Next of Kin"], ["deposits", "Deposit History"], ["kyc", "KYC Documents"]].map((t) => (
           <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", background: tab === t[0] ? C.brand : C.cardBg, color: tab === t[0] ? C.white : C.inkSoft }}>{t[1]}</div>
         ))}
       </div>
@@ -62,6 +63,15 @@ export function InvestorDetailScreen({ ctx }) {
           <thead><tr><Th>Position</Th><Th>Amount</Th><Th>Submitted</Th><Th>Status</Th></tr></thead>
           <tbody>{deposits.map((p) => <tr key={p.id}><Td>{p.id}</Td><Td>{fmtUGX(p.amount)}</Td><Td>{fmtDate(p.createdAt)}</Td><Td>{statusBadge(p.depositStatus)}</Td></tr>)}</tbody>
         </TableWrap>
+      )}
+      {tab === "kyc" && (
+        <Card style={{ maxWidth: 560 }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>KYC Documents — {inv.fullName}</div>
+          <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 16 }}>
+            Upload documents on behalf of this investor, or review and verify documents they have submitted.
+          </div>
+          <KYCUploadPanel investorProfileId={inv.id} staffMode={true} />
+        </Card>
       )}
     </PageShell>
   );

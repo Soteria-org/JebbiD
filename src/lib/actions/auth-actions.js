@@ -38,6 +38,7 @@ export async function createInvestorProfileRows(supabase, userId, meta) {
     full_name: meta.full_name ?? meta.fullName,
     email: meta.email,
     phone: meta.phone ?? null,
+    username: meta.username ?? null,
   });
   if (profileError) return { error: profileError.message };
 
@@ -90,6 +91,7 @@ export async function registerInvestor(input) {
       data: {
         full_name: input.fullName,
         phone: input.phone ?? null,
+        username: input.username ?? null,
         national_id_number: input.nationalIdNumber ?? null,
         address: input.address ?? null,
         occupation: input.occupation ?? null,
@@ -184,16 +186,36 @@ export async function createStaffOrInvestorAccount(input) {
     .eq("id", caller.id)
     .single();
 
-  if (!callerProfile || callerProfile.role !== "super_admin") {
-    return { error: "Only a Super Admin can create investor or finance officer accounts." };
-  }
+  if (!callerProfile) return { error: "Could not verify your account." };
 
   if (!["investor", "finance_officer"].includes(input.role)) {
     return { error: "role must be 'investor' or 'finance_officer'." };
   }
 
+  // Decision: Finance Officers can create INVESTOR accounts (normal front-desk work).
+  // Only Super Admin can create Finance Officer accounts — enforced here AND at the
+  // database level (migration 013's profiles_insert policy), so this check being
+  // buggy wouldn't be the only thing standing between a Finance Officer and creating
+  // another staff account.
+  const isAllowed =
+    callerProfile.role === "super_admin" ||
+    (callerProfile.role === "finance_officer" && input.role === "investor");
+
+  if (!isAllowed) {
+    return {
+      error:
+        callerProfile.role === "finance_officer"
+          ? "Finance Officers can create investor accounts, but not Finance Officer or Super Admin accounts."
+          : "You are not authorized to create accounts.",
+    };
+  }
+
   const tempPassword = randomTempPassword();
   const admin = createAdminClient();
+
+  if (!input.email) {
+    return { error: "Email is required — Supabase Auth cannot create an account without one, even for walk-in investors." };
+  }
 
   const { data: created, error: createError } = await admin.auth.admin.createUser({
     email: input.email,
@@ -210,6 +232,7 @@ export async function createStaffOrInvestorAccount(input) {
     full_name: input.fullName,
     email: input.email,
     phone: input.phone ?? null,
+    username: input.username ?? null,
     must_change_password: true,
     account_status: "invited",
     created_by: caller.id,

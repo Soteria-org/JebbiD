@@ -112,7 +112,35 @@ means Postgres denies it by default. Matches "never hard-delete a financial reco
   this investor field" questions haven't been pressure-tested — flag anything that
   feels too permissive as we wire real screens against it.
 
+## 8. Email confirmation flow (Resend via Supabase Custom SMTP)
+
+Decision: **Option A** — Supabase Auth still owns the confirmation token/link/email
+template; Resend just replaces Supabase's default (rate-limited, dev-only) sender.
+Nothing in this repo talks to the Resend API directly — it's pure Supabase Dashboard
+configuration (Authentication → SMTP Settings). See the setup walkthrough given
+separately; not reproduced here since it's dashboard clicks, not code.
+
+**Why `registerInvestor()` had to change**: with email confirmation ON, `auth.signUp()`
+returns a user but no session — there's no `auth.uid()` yet, so `profiles`/
+`investor_details` can't be inserted at that moment (RLS would reject it anyway, not
+just as a design choice). The fix: the intended profile fields ride along as Supabase
+Auth `user_metadata` (set via `options.data` on `signUp()`, available immediately, pre-
+confirmation), and `app/auth/confirm/route.js` — the page the emailed link actually
+points to — calls `verifyOtp()`, gets a real session, and only then creates the
+`profiles`/`investor_details` rows from that metadata. This works identically whether
+confirmation is ON or OFF: if OFF, `registerInvestor()` gets a session immediately and
+creates the rows right there instead, same as before.
+
+`app/auth/error/page.js` is the fallback for expired/invalid links — currently a bare
+functional page, not yet styled to match the rest of the app.
+
+**Required for this to work at all**: `NEXT_PUBLIC_SITE_URL` in `.env.local` must
+exactly match an entry in Supabase Dashboard → Authentication → URL Configuration →
+Redirect URLs. If that's missing, Supabase silently refuses to redirect back to
+`/auth/confirm`, regardless of anything in this repo being correct.
+
 ## 7. Local setup
+
 
 ```bash
 npm install
