@@ -115,7 +115,7 @@ export function InvestWizard({ ctx }) {
             <SectionTitle sub="Choose the package that fits your contribution.">Choose Your Package</SectionTitle>
             {ctx.packagesError ? (
               <div style={{ textAlign: "center", padding: 20 }}>
-                <div style={{ color: C.danger, fontSize: 13.5, marginBottom: 12 }}>Couldn't load investment packages: {ctx.packagesError}</div>
+                <div style={{ color: C.danger, fontSize: 13.5, marginBottom: 12 }}>Couldn&apos;t load investment packages: {ctx.packagesError}</div>
                 <Btn variant="outline" onClick={ctx.loadPackages}>Retry</Btn>
               </div>
             ) : packages.length === 0 ? (
@@ -262,7 +262,7 @@ export function InvestWizard({ ctx }) {
             </Field>
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(4)}>Back</Btn>
-              <Btn full disabled={!paymentMethod} onClick={() => setStep(6)}>I've Sent the Funds</Btn>
+              <Btn full disabled={!paymentMethod} onClick={() => setStep(6)}>I&apos;ve Sent the Funds</Btn>
             </div>
           </>
         )}
@@ -292,7 +292,7 @@ export function InvestWizard({ ctx }) {
                 </>
               )}
             </div>
-            <GuidanceBanner tone="warning">Your investment will show as "Pending Verification" until a Finance Officer reviews and approves this deposit.</GuidanceBanner>
+            <GuidanceBanner tone="warning">Your investment will show as &quot;Pending Verification&quot; until a Finance Officer reviews and approves this deposit.</GuidanceBanner>
             <div style={{ display: "flex", gap: 10 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(5)}>Back</Btn>
               <Btn full disabled={!proofFile || submitting} onClick={submit}>{submitting ? "Submitting…" : "Submit for Verification"}</Btn>

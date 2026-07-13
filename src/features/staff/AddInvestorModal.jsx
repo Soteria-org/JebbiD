@@ -14,6 +14,11 @@ export function AddInvestorModal({ ctx }) {
     if (!form.email) { setErr("Email is required to create a login account for this investor."); return; }
     setErr("");
     const r = await ctx.addInvestorByStaff(form);
+    // Previously only the success case was handled — a failure (e.g. duplicate
+    // email, or any server-side error) left the form just sitting there with no
+    // visible explanation. ctx.showToast already fires for errors, but the modal
+    // itself should say so too, since a toast can be missed.
+    if (r && r.error) { setErr(r.error); return; }
     if (r && r.tempPassword) setResult(r);
   }
 

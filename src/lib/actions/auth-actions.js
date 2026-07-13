@@ -195,7 +195,7 @@ export async function login(input) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, role, full_name, member_id, must_change_password, account_status")
+    .select("id, role, full_name, member_id, must_change_password, account_status, created_at")
     .eq("id", data.user.id)
     .single();
   if (profileError) return { error: profileError.message };
