@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { buildSeed } from "@/lib/seedData";
-import { TODAY } from "@/lib/constants";
 import { fmtUGX, pad } from "@/lib/format";
 import {
   login as loginAction,
@@ -30,6 +29,13 @@ import {
   markWithdrawalPaid as markWithdrawalPaidAction,
 } from "@/lib/actions/withdrawal-actions";
 import { chooseMaturityAction } from "@/lib/actions/maturity-actions";
+import {
+  loadAllInvestors as loadAllInvestorsAction,
+  loadAllFinanceOfficers as loadAllFinanceOfficersAction,
+  loadAuditLog as loadAuditLogAction,
+  loadMyNotifications as loadMyNotificationsAction,
+  markNotificationReadAction as markNotificationReadServerAction,
+} from "@/lib/actions/admin-actions";
 
 /**
  * useJBDocsStore
@@ -53,13 +59,18 @@ export default function useJBDocsStore() {
   const seed = seedRef.current;
   const counters = useRef({ pos: 8, wd: 1, fo: 2, audit: 7, notif: 8, member: 106 });
 
-  const [investors, setInvestors] = useState(seed.investors);
+  // NOTE: investors / financeOfficers / auditLog / notifications used to initialize
+  // from seed.* (mock demo data, including fake investors with known passwords) and
+  // were NEVER reloaded from Supabase after that — see the useEffect block below for
+  // the real loaders that now replace them. Starting empty here (rather than from
+  // seed) means real data is the only thing that ever populates these arrays.
+  const [investors, setInvestors] = useState([]);
   const [investments, setInvestments] = useState(seed.investments);
   const [withdrawals, setWithdrawals] = useState(seed.withdrawals);
-  const [financeOfficers, setFinanceOfficers] = useState(seed.financeOfficers);
+  const [financeOfficers, setFinanceOfficers] = useState([]);
   const [superAdmin, setSuperAdmin] = useState(seed.superAdmin);
-  const [auditLog, setAuditLog] = useState(seed.auditLog);
-  const [notifications, setNotifications] = useState(seed.notifications);
+  const [auditLog, setAuditLog] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const org = seed.org;
 
   const [session, setSession] = useState(null); // {role, id}
@@ -76,11 +87,15 @@ export default function useJBDocsStore() {
   const [depositSubmissions, setDepositSubmissions] = useState([]);
 
   // Load investment packages for all users (InvestWizard needs them)
-  useEffect(() => {
+  const [packagesError, setPackagesError] = useState(null);
+  function loadPackages() {
+    setPackagesError(null);
     loadPackagesAction().then((result) => {
-      if (!result.error && result.packages) setPackages(result.packages);
+      if (result.error) { setPackagesError(result.error); return; }
+      setPackages(result.packages || []);
     });
-  }, []);
+  }
+  useEffect(() => { loadPackages(); }, []);
 
   // Load deposits queue for staff whenever their session is established
   useEffect(() => {
@@ -134,6 +149,33 @@ export default function useJBDocsStore() {
     }
   }, [session?.role, session?.id]);
 
+  // Load the real staff-wide investor & finance officer rosters, plus the audit
+  // trail — the fix for "a new account doesn't show up on someone else's screen".
+  // Re-runs whenever session role changes (i.e. on login) so a fresh session always
+  // sees the current state of the world, not whatever was bridged in locally before.
+  async function reloadStaffLists() {
+    if (!session || session.role === "investor") return;
+    const [invRes, foRes, auditRes] = await Promise.all([
+      loadAllInvestorsAction(),
+      loadAllFinanceOfficersAction(),
+      loadAuditLogAction(),
+    ]);
+    if (!invRes.error) setInvestors(invRes.items);
+    if (!foRes.error) setFinanceOfficers(foRes.items);
+    if (!auditRes.error) setAuditLog(auditRes.items);
+  }
+  useEffect(() => { reloadStaffLists(); }, [session?.role, session?.id]);
+
+  // Load the signed-in user's own notifications. Works for every role — the
+  // Finance Officer "deposit awaiting review" alert the DB trigger already writes
+  // correctly was never being loaded into the UI before this.
+  async function reloadMyNotifications() {
+    if (!session) return;
+    const result = await loadMyNotificationsAction();
+    if (!result.error) setNotifications(result.items);
+  }
+  useEffect(() => { reloadMyNotifications(); }, [session?.role, session?.id]);
+
   function normalizeWithdrawals(rows) {
     return rows.map((w) => ({
       id: w.id, referenceNumber: w.reference_number, investmentId: w.investment_id,
@@ -169,11 +211,11 @@ export default function useJBDocsStore() {
 
   function addAudit(user, action, prev, next) {
     const id = "AUD-" + pad(counters.current.audit++, 4);
-    setAuditLog((l) => [...l, { id, user, action, previousValue: prev, newValue: next, timestamp: TODAY }]);
+    setAuditLog((l) => [...l, { id, user, action, previousValue: prev, newValue: next, timestamp: new Date() }]);
   }
   function addNotification(investorId, type, message) {
     const id = "NTF-" + pad(counters.current.notif++, 4);
-    setNotifications((n) => [...n, { id, investorId, type, message, timestamp: TODAY, read: false }]);
+    setNotifications((n) => [...n, { id, investorId, type, message, timestamp: new Date(), read: false }]);
   }
 
   /**
@@ -194,7 +236,7 @@ export default function useJBDocsStore() {
         phone: profile.phone || "", nationalId: "", address: "", occupation: "", goal: "",
         username: profile.username || profile.email, password: null,
         nextOfKin: { name: "", relationship: "", phone: "", address: "" },
-        dateRegistered: TODAY, notifPrefs: { email: true, sms: true }, darkMode: false,
+        dateRegistered: profile.created_at || new Date(), notifPrefs: { email: true, sms: true }, darkMode: false,
       }];
     });
   }
@@ -207,7 +249,7 @@ export default function useJBDocsStore() {
       if (list.find((f) => f.id === profile.id)) return list;
       return [...list, {
         id: profile.id, name: profile.full_name, email: profile.email, username: profile.email,
-        password: null, mustChangePassword: profile.must_change_password, createdAt: TODAY, createdBy: "System",
+        password: null, mustChangePassword: profile.must_change_password, createdAt: profile.created_at || new Date(), createdBy: "System",
       }];
     });
   }
@@ -399,25 +441,22 @@ export default function useJBDocsStore() {
     if (result.error) { showToast(result.error, "error"); return; }
     // Trigger closes the investment_positions row too — reflect that locally.
     const wd = withdrawals.find((w) => w.id === wdId);
-    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "paid", transactionRef: ref, paidAt: TODAY }) : w));
+    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "paid", transactionRef: ref, paidAt: new Date() }) : w));
     if (wd) setInvestments((list) => list.map((p) => p.investorId === wd.investorId && p.status === "active" ? Object.assign({}, p, { status: "closed" }) : p));
     showToast("Withdrawal marked as paid.", "success");
   }
 
   /* ---------------- MATURITY ---------------- */
   /**
-   * Wired to choose_maturity_action() (migration 015) — a single atomic Postgres
-   * function, not hand-simulated here. See that migration's comments for why
-   * reinvestment creates investment_positions rows directly instead of going
-   * through deposit_submissions.
-   *
-   * KNOWN GAP, not silently hidden: withdraw_profit/withdraw_all don't yet collect
-   * real payout details (mobile money number, bank account) the way a manual
-   * withdrawal request does — staff will need to follow up with the investor before
-   * actually paying these out. Worth fixing before this is investor-facing for real.
+   * Wired to choose_maturity_action() (migrations 015, 019) — a single atomic
+   * Postgres function, not hand-simulated here. See those migrations' comments for
+   * why reinvestment creates investment_positions rows directly instead of going
+   * through deposit_submissions, and why real payout details (mobile money network/
+   * phone, or bank account) are required for withdraw_profit/withdraw_all but not
+   * for reinvest/switch_package.
    */
-  async function chooseMaturityOption(posId, choice) {
-    const result = await chooseMaturityAction(posId, choice);
+  async function chooseMaturityOption(posId, choice, payoutDetails) {
+    const result = await chooseMaturityAction(posId, choice, payoutDetails);
     if (result.error) { showToast(result.error, "error"); return; }
     showToast("Maturity option confirmed.", "success");
     // The DB function did the real (atomic) work — close old position, maybe open a
@@ -439,9 +478,11 @@ export default function useJBDocsStore() {
       showToast(result.error, "error");
       return { error: result.error };
     }
-    bridgeStaffProfile({
-      id: result.userId, role: "finance_officer", full_name: name, email, must_change_password: true,
-    });
+    // Reload from Supabase rather than hand-patching local state — this is what
+    // actually fixes the new officer not showing up (previously bridgeStaffProfile
+    // only ever updated THIS browser tab's memory, never persisted view for anyone
+    // else, and never survived a refresh).
+    await reloadStaffLists();
     showToast(name + " created. Temporary password generated.", "success");
     return { name, tempPassword: result.tempPassword };
   }
@@ -460,11 +501,16 @@ export default function useJBDocsStore() {
       showToast(result.error, "error");
       return { error: result.error };
     }
-    bridgeInvestorProfile({
-      id: result.userId, full_name: form.fullName, email: form.email, phone: form.phone, username,
-    });
-    showToast(form.fullName + " added as a new investor. Temporary password: " + result.tempPassword, "success");
-    closeModal();
+    // Reload from Supabase (gets the real Member ID too — the local bridge object
+    // never had one, which is why it used to render blank/UUID instead) rather than
+    // hand-patching local state.
+    await reloadStaffLists();
+    showToast(form.fullName + " added as a new investor.", "success");
+    // NOTE: closeModal() intentionally NOT called here — AddInvestorModal needs to
+    // stay open to show the one-time temporary password screen. It used to close
+    // itself immediately on success, which meant the admin never actually saw the
+    // password (only a toast that vanishes after ~3 seconds) — closing is now the
+    // modal's own responsibility, via its "Done" button.
     return { success: true, tempPassword: result.tempPassword };
   }
 
@@ -489,7 +535,11 @@ export default function useJBDocsStore() {
     setInvestors((list) => list.map((i) => i.id === id ? Object.assign({}, i, { darkMode: !i.darkMode }) : i));
   }
   function markNotificationRead(id) {
+    // Optimistic local update, then persist — previously this never reached
+    // Supabase at all, so a notification "read" locally would still show unread
+    // after a refresh or on another device.
     setNotifications((list) => list.map((n) => n.id === id ? Object.assign({}, n, { read: true }) : n));
+    markNotificationReadServerAction(id);
   }
 
   function currentStaffName() {
@@ -503,7 +553,7 @@ export default function useJBDocsStore() {
     forcedPwSession, toast,
     session, view, goTo, isMobile, sidebarOpen, setSidebarOpen,
     investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, notifications,
-    packages, depositSubmissions,
+    packages, packagesError, loadPackages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
