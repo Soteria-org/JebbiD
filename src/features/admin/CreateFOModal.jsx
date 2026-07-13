@@ -7,10 +7,10 @@ export function CreateFOModal({ ctx }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [result, setResult] = useState(null);
-  function submit() {
+  async function submit() {
     if (!name || !email) return;
-    const r = ctx.createFinanceOfficer(name, email);
-    setResult(r);
+    const r = await ctx.createFinanceOfficer(name, email);
+    if (r && !r.error) setResult(r);
   }
   if (result) {
     return (

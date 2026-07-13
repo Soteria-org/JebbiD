@@ -11,8 +11,8 @@ export function LoginScreen({ ctx }) {
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState("");
 
-  function handleLogin() {
-    const res = ctx.loginInvestor(identifier.trim(), password);
+  async function handleLogin() {
+    const res = await ctx.loginInvestor(identifier.trim(), password);
     if (!res.ok) setErr(res.error);
   }
 

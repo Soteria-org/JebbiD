@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { ChevronDown, Edit2, Lock, LogOut, Mail, Phone } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Btn, Card, Field, TextInput, Toggle } from "@/components/ui/primitives";
-import { TODAY } from "@/lib/constants";
-import { fmtDate } from "@/lib/format";
+import { fmtDate, todayISO } from "@/lib/format";
 import { C } from "@/lib/theme";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
 
@@ -179,7 +178,7 @@ export function ProfileScreen({ ctx }) {
           <div style={{ marginTop: 26, paddingTop: 20, borderTop: "1px solid " + C.line }}>
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 12 }}>Active Session</div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: C.inkSoft }}>
-              <Lock size={15} color={C.success} /> This device · Signed in {fmtDate(TODAY)}
+              <Lock size={15} color={C.success} /> This device · Signed in {fmtDate(todayISO())}
             </div>
           </div>
         </Card>

@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { buildSeed } from "@/lib/seedData";
-import { PERIOD_MONTHS, TODAY } from "@/lib/constants";
-import { addMonths, expectedReturn, fmtUGX, maturityValue, pad } from "@/lib/format";
+import { TODAY } from "@/lib/constants";
+import { fmtUGX, pad } from "@/lib/format";
 import {
   login as loginAction,
   logout as logoutAction,
@@ -76,11 +76,15 @@ export default function useJBDocsStore() {
   const [depositSubmissions, setDepositSubmissions] = useState([]);
 
   // Load investment packages for all users (InvestWizard needs them)
-  useEffect(() => {
+  const [packagesError, setPackagesError] = useState(null);
+  function loadPackages() {
+    setPackagesError(null);
     loadPackagesAction().then((result) => {
-      if (!result.error && result.packages) setPackages(result.packages);
+      if (result.error) { setPackagesError(result.error); return; }
+      setPackages(result.packages || []);
     });
-  }, []);
+  }
+  useEffect(() => { loadPackages(); }, []);
 
   // Load deposits queue for staff whenever their session is established
   useEffect(() => {
@@ -406,18 +410,15 @@ export default function useJBDocsStore() {
 
   /* ---------------- MATURITY ---------------- */
   /**
-   * Wired to choose_maturity_action() (migration 015) — a single atomic Postgres
-   * function, not hand-simulated here. See that migration's comments for why
-   * reinvestment creates investment_positions rows directly instead of going
-   * through deposit_submissions.
-   *
-   * KNOWN GAP, not silently hidden: withdraw_profit/withdraw_all don't yet collect
-   * real payout details (mobile money number, bank account) the way a manual
-   * withdrawal request does — staff will need to follow up with the investor before
-   * actually paying these out. Worth fixing before this is investor-facing for real.
+   * Wired to choose_maturity_action() (migrations 015, 019) — a single atomic
+   * Postgres function, not hand-simulated here. See those migrations' comments for
+   * why reinvestment creates investment_positions rows directly instead of going
+   * through deposit_submissions, and why real payout details (mobile money network/
+   * phone, or bank account) are required for withdraw_profit/withdraw_all but not
+   * for reinvest/switch_package.
    */
-  async function chooseMaturityOption(posId, choice) {
-    const result = await chooseMaturityAction(posId, choice);
+  async function chooseMaturityOption(posId, choice, payoutDetails) {
+    const result = await chooseMaturityAction(posId, choice, payoutDetails);
     if (result.error) { showToast(result.error, "error"); return; }
     showToast("Maturity option confirmed.", "success");
     // The DB function did the real (atomic) work — close old position, maybe open a
@@ -503,7 +504,7 @@ export default function useJBDocsStore() {
     forcedPwSession, toast,
     session, view, goTo, isMobile, sidebarOpen, setSidebarOpen,
     investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, notifications,
-    packages, depositSubmissions,
+    packages, packagesError, loadPackages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,

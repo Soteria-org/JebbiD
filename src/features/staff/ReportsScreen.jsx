@@ -16,17 +16,18 @@ export function ReportsScreen({ ctx }) {
   const liabilityByMonth = useMemo(() => {
     const buckets = {};
     m.active.forEach((p) => {
-      const key = p.maturityDate.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
-      buckets[key] = (buckets[key] || 0) + p.expectedReturn;
+      const key = p.maturityDate ? p.maturityDate.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }) : "Pending";
+      buckets[key] = (buckets[key] || 0) + (p.expectedReturn || 0);
     });
     return Object.keys(buckets).map((k) => ({ month: k, liability: buckets[k] }))
       .sort((a, b) => new Date("1 " + a.month) - new Date("1 " + b.month)).slice(0, 8);
   }, [m.active]);
   const contributionsByMonth = useMemo(() => {
     const buckets = {};
-    ctx.investments.forEach((p) => {
-      const key = p.createdAt.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
-      buckets[key] = (buckets[key] || 0) + p.amount;
+    const investments = Array.isArray(ctx.investments) ? ctx.investments : [];
+    investments.forEach((p) => {
+      const key = p.createdAt ? p.createdAt.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }) : "Pending";
+      buckets[key] = (buckets[key] || 0) + (p.amount || 0);
     });
     return Object.keys(buckets).map((k) => ({ month: k, amount: buckets[k] }));
   }, [ctx.investments]);

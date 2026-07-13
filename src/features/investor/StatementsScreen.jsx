@@ -1,15 +1,22 @@
 import React, { useState } from "react";
 import { Download, FileText } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
-import { Btn, Card, Modal, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
+import { Btn, Card, EmptyState, Modal, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
 import { fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
 
 export function StatementsScreen({ ctx }) {
   const [viewing, setViewing] = useState(null);
   const inv = ctx.currentInvestor;
-  const positions = ctx.getInvestorInvestments(inv.id);
+  const positions = inv ? (ctx.getInvestorInvestments?.(inv.id) || []) : [];
   const months = ["June 2026", "May 2026", "April 2026", "March 2026", "Year-to-Date 2026"];
+  if (!inv) {
+    return (
+      <PageShell ctx={ctx} title="Statements">
+        <Card><EmptyState icon={FileText} title="No investor session" body="Log in as an investor to view statement history." /></Card>
+      </PageShell>
+    );
+  }
   return (
     <PageShell ctx={ctx} title="Statements">
       <Card padded={false}>

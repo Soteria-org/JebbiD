@@ -20,6 +20,10 @@ function randomTempPassword() {
   return out;
 }
 
+function isDevAuthBypassEnabled() {
+  return process.env.NODE_ENV !== "production";
+}
+
 /**
  * Creates the profiles + investor_details rows for a newly confirmed/signed-up
  * investor. Called from two places: registerInvestor() directly (email confirmation
@@ -83,6 +87,52 @@ export async function createInvestorProfileRows(supabase, userId, meta) {
  */
 export async function registerInvestor(input) {
   const supabase = await createClient();
+
+  if (isDevAuthBypassEnabled()) {
+    const admin = createAdminClient();
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email: input.email,
+      password: input.password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: input.fullName,
+        phone: input.phone ?? null,
+        username: input.username ?? null,
+        national_id_number: input.nationalIdNumber ?? null,
+        address: input.address ?? null,
+        occupation: input.occupation ?? null,
+        financial_goal: input.financialGoal ?? null,
+        next_of_kin_name: input.nextOfKinName ?? null,
+        next_of_kin_phone: input.nextOfKinPhone ?? null,
+        next_of_kin_relationship: input.nextOfKinRelationship ?? null,
+      },
+    });
+    if (createError) return { error: createError.message };
+
+    const userId = created?.user?.id;
+    if (!userId) return { error: "Registration did not return a user object at all — check Supabase Auth is enabled." };
+
+    const profileResult = await createInvestorProfileRows(supabase, userId, { ...input, email: input.email });
+    if (profileResult.error) return { error: profileResult.error };
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: input.email,
+      password: input.password,
+    });
+    if (signInError) return { error: signInError.message };
+
+    return {
+      success: true,
+      profile: {
+        id: userId,
+        role: "investor",
+        full_name: input.fullName,
+        member_id: null,
+        must_change_password: false,
+        account_status: "active",
+      },
+    };
+  }
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: input.email,
@@ -221,6 +271,11 @@ export async function createStaffOrInvestorAccount(input) {
     email: input.email,
     password: tempPassword,
     email_confirm: true,
+    user_metadata: {
+      full_name: input.fullName,
+      phone: input.phone ?? null,
+      username: input.username ?? null,
+    },
   });
   if (createError) return { error: createError.message };
 

@@ -9,20 +9,35 @@ import { C } from "@/lib/theme";
 
 export function AdminDashboard({ ctx }) {
   const m = useStaffMetrics(ctx);
+
+  // FIXED: previously called p.startDate.toLocaleDateString(...) directly, which
+  // assumed a JS Date object. Real investment_positions rows return startDate as an
+  // ISO string (no such method) — this would have crashed the moment real data
+  // reached this screen. Now explicitly wraps in `new Date(...)` first.
   const aumTrend = useMemo(() => {
-    const sorted = [...ctx.investments].filter((p) => p.status === "active").sort((a, b) => a.startDate - b.startDate);
+    const sorted = [...ctx.investments]
+      .filter((p) => p.status === "active" && p.startDate)
+      .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
     let running = 0;
-    return sorted.map((p) => { running += p.amount; return { label: p.startDate.toLocaleDateString("en-GB", { month: "short", year: "2-digit" }), aum: running }; });
+    return sorted.map((p) => {
+      running += p.amount;
+      return { label: new Date(p.startDate).toLocaleDateString("en-GB", { month: "short", year: "2-digit" }), aum: running };
+    });
   }, [ctx.investments]);
+
+  // FIXED: was reading ctx.investments.depositStatus (doesn't exist on real
+  // investment_positions — see useStaffMetrics.js comment). Real deposit backlog by
+  // month now comes from ctx.depositSubmissions.
   const depositThroughput = useMemo(() => {
     const buckets = {};
-    ctx.investments.forEach((p) => {
-      const key = p.createdAt.toLocaleDateString("en-GB", { month: "short" });
+    (ctx.depositSubmissions || []).forEach((d) => {
+      const key = new Date(d.created_at).toLocaleDateString("en-GB", { month: "short" });
       buckets[key] = buckets[key] || { approved: 0, pending: 0 };
-      if (p.depositStatus === "approved") buckets[key].approved += 1; else if (p.depositStatus === "pending") buckets[key].pending += 1;
+      if (d.status === "approved") buckets[key].approved += 1;
+      else if (d.status === "pending" || d.status === "clarification_requested") buckets[key].pending += 1;
     });
     return Object.keys(buckets).map((k) => ({ month: k, Approved: buckets[k].approved, Pending: buckets[k].pending }));
-  }, [ctx.investments]);
+  }, [ctx.depositSubmissions]);
 
   return (
     <PageShell ctx={ctx} title="Super Administrator Dashboard">

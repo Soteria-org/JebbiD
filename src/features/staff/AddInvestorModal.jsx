@@ -17,6 +17,15 @@ export function AddInvestorModal({ ctx }) {
     if (r && r.tempPassword) setResult(r);
   }
 
+  function copyPassword() {
+    if (!result?.tempPassword) return;
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(result.tempPassword).then(() => ctx.showToast("Temporary password copied.", "success"));
+      return;
+    }
+    ctx.showToast("Temporary password is shown below. Copy it now.", "info");
+  }
+
   if (result) {
     return (
       <Modal title="Investor Account Created" onClose={ctx.closeModal}>
@@ -30,7 +39,10 @@ export function AddInvestorModal({ ctx }) {
           ))}
         </div>
         <div style={{ fontSize: 12, color: C.danger, marginBottom: 16 }}>This password will not be shown again. Do not store it — share it directly and destroy any written copy.</div>
-        <Btn full onClick={ctx.closeModal}>Done</Btn>
+        <div style={{ display: "flex", gap: 10 }}>
+          <Btn full variant="outline" onClick={copyPassword}>Copy Password</Btn>
+          <Btn full onClick={ctx.closeModal}>Done</Btn>
+        </div>
       </Modal>
     );
   }

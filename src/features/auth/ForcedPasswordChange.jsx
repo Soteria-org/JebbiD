@@ -7,10 +7,10 @@ export function ForcedPasswordChange({ ctx }) {
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [err, setErr] = useState("");
-  function submit() {
+  async function submit() {
     if (pw.length < 6) { setErr("Password must be at least 6 characters."); return; }
     if (pw !== confirm) { setErr("Passwords do not match."); return; }
-    ctx.completeForcedPasswordChange(pw);
+    await ctx.completeForcedPasswordChange(pw);
   }
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: C.pageBg, fontFamily: FONT_BODY, padding: 20 }}>

@@ -113,7 +113,12 @@ export function InvestWizard({ ctx }) {
         {step === 1 && (
           <>
             <SectionTitle sub="Choose the package that fits your contribution.">Choose Your Package</SectionTitle>
-            {packages.length === 0 ? (
+            {ctx.packagesError ? (
+              <div style={{ textAlign: "center", padding: 20 }}>
+                <div style={{ color: C.danger, fontSize: 13.5, marginBottom: 12 }}>Couldn't load investment packages: {ctx.packagesError}</div>
+                <Btn variant="outline" onClick={ctx.loadPackages}>Retry</Btn>
+              </div>
+            ) : packages.length === 0 ? (
               <div style={{ color: C.inkFaint, fontSize: 13.5, padding: 20, textAlign: "center" }}>Loading packages…</div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>

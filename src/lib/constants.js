@@ -3,7 +3,15 @@ import { ArrowUpRight, Award, BarChart2, Bell, Briefcase, ClipboardList, FileTex
 
 export const RATES = { standard: 0.30, corporate: 0.40 };
 
-export const MIN_INVESTMENT = 100000;
+// ⚠️ TEMPORARY TESTING VALUE — DO NOT SHIP TO PRODUCTION LIKE THIS.
+// Real value is 100000 (matches investment_packages.min_amount for the Standard
+// package, which was ALSO temporarily lowered to 1000 in the live DB via a direct
+// execute_sql update — see chat history, not a migration file, specifically so it
+// doesn't get mistaken for permanent schema). Both this constant and that DB row
+// must be reset together before real investor money moves through this app:
+//   UPDATE investment_packages SET min_amount = 100000 WHERE code = 'standard';
+// and change the line below back to 100000.
+export const MIN_INVESTMENT = 1000;
 
 export const CORPORATE_THRESHOLD = 1000000;
 

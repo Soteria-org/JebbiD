@@ -76,6 +76,10 @@ export function HelpCircle(p) { return <Svg {...p}><circle cx="12" cy="12" r="9"
 
 export function RefreshCw(p) { return <Svg {...p}><path d="M21 12a9 9 0 01-15.5 6.3L3 16" /><polyline points="3,21 3,16 8,16" /><path d="M3 12a9 9 0 0115.5-6.3L21 8" /><polyline points="21,3 21,8 16,8" /></Svg>; }
 
+export function Camera(p) { return <Svg {...p}><path d="M4 8h3l2-3h6l2 3h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1z" /><circle cx="12" cy="13.5" r="3.5" /></Svg>; }
+
+export function Upload(p) { return <Svg {...p}><path d="M12 16V4" /><polyline points="7,9 12,4 17,9" /><path d="M5 16v3a2 2 0 002 2h10a2 2 0 002-2v-3" /></Svg>; }
+
 export function Target(p) { return <Svg {...p}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" /></Svg>; }
 
 export function UserPlus(p) { return <Svg {...p}><circle cx="9" cy="8" r="4" /><path d="M2 21c0-4 3-7 7-7s7 3 7 7" /><line x1="19" y1="8" x2="19" y2="14" /><line x1="16" y1="11" x2="22" y2="11" /></Svg>; }

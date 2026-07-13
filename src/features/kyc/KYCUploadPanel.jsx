@@ -51,13 +51,13 @@ export function KYCUploadPanel({ investorProfileId, staffMode = false, onStatusC
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    if (!investorProfileId) return;
+    if (!investorProfileId || typeof window === "undefined") return;
     getKycDocumentStatus(investorProfileId).then((res) => {
       if (res.error) { setErr(res.error); return; }
       const map = {};
-      res.documents.forEach((d) => { map[d.document_type] = d; });
+      (res.documents || []).forEach((d) => { map[d.document_type] = d; });
       setUploaded(map);
-      setStatus(res.kycStatus);
+      setStatus(res.kycStatus || "not_started");
     });
   }, [investorProfileId]);
 
@@ -213,7 +213,7 @@ export function KYCUploadPanel({ investorProfileId, staffMode = false, onStatusC
       <div style={{ display: "flex", flexDirection: "column", gap: 10, margin: "16px 0" }}>
         {DOC_TYPES.map((doc) => {
           const done = !!uploaded[doc.key];
-          const Icon = doc.icon;
+          const Icon = doc.icon || User;
           return (
             <div key={doc.key} style={{
               display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",

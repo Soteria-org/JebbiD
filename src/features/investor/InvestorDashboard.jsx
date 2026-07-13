@@ -4,19 +4,19 @@ import { Award, Calendar, Plus, TrendingUp, Wallet } from "@/components/icons/in
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
 import { PositionRow } from "@/features/investor/PositionRow";
-import { TODAY } from "@/lib/constants";
-import { clampPct, daysBetween, expectedReturn, fmtDate, fmtUGX, maturityValue } from "@/lib/format";
+import { clampPct, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 
 export function InvestorDashboard({ ctx }) {
   const inv = ctx.currentInvestor;
+  const today = todayISO();
   const positions = ctx.getInvestorInvestments(inv.id);
   const active = positions.filter((p) => p.status === "active");
   const totalInvested = active.reduce((s, p) => s + p.amount, 0);
   const projectedValue = active.reduce((s, p) => s + p.maturityValue, 0);
   const expectedReturns = active.reduce((s, p) => s + p.expectedReturn, 0);
-  const upcoming = active.filter((p) => p.maturityDate >= TODAY).sort((a, b) => a.maturityDate - b.maturityDate)[0];
-  const maturable = positions.filter((p) => p.status === "active" && p.maturityDate <= TODAY && !p.maturityChoice);
+  const upcoming = active.filter((p) => p.maturityDate >= today).sort((a, b) => new Date(a.maturityDate) - new Date(b.maturityDate))[0];
+  const maturable = positions.filter((p) => p.status === "active" && p.maturityDate <= today && !p.maturityChoice);
 
   if (positions.length === 0) {
     return (
@@ -53,7 +53,7 @@ export function InvestorDashboard({ ctx }) {
         <StatCard label="Total Invested" value={fmtUGX(totalInvested)} icon={Wallet} sub={active.length + " active position" + (active.length === 1 ? "" : "s")} />
         <StatCard label="Projected Value" value={fmtUGX(projectedValue)} icon={TrendingUp} sub="At maturity, all positions" tone="success" />
         <StatCard label="Expected Returns" value={fmtUGX(expectedReturns)} icon={Award} sub="Combined across active positions" />
-        <StatCard label="Next Maturity" value={upcoming ? fmtDate(upcoming.maturityDate) : "—"} icon={Calendar} sub={upcoming ? daysBetween(TODAY, upcoming.maturityDate) + " days remaining" : "No upcoming maturities"} />
+        <StatCard label="Next Maturity" value={upcoming ? fmtDate(upcoming.maturityDate) : "—"} icon={Calendar} sub={upcoming ? daysBetween(today, upcoming.maturityDate) + " days remaining" : "No upcoming maturities"} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 18, marginBottom: 18 }}>

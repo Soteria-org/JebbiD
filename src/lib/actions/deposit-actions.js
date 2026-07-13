@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getFallbackPackages } from "@/lib/investment-packages";
 
 /**
  * Loads active investment packages from the DB. Used by InvestWizard so that any
@@ -14,7 +15,7 @@ export async function loadPackages() {
     .select("id, code, name, min_amount, max_amount, annual_return_rate, duration_months")
     .eq("is_active", true)
     .order("min_amount", { ascending: true });
-  if (error) return { error: error.message };
+  if (error || !data?.length) return { packages: getFallbackPackages(), fallback: true };
   return { packages: data };
 }
 
