@@ -21,14 +21,16 @@ export function ProfileScreen({ ctx }) {
     setEditing(false);
   }
 
-  const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [confPw, setConfPw] = useState(""); const [pwErr, setPwErr] = useState("");
-  function changePw() {
-    if (curPw !== inv.password) { setPwErr("Current password is incorrect."); return; }
+  const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [confPw, setConfPw] = useState(""); const [pwErr, setPwErr] = useState(""); const [pwSaving, setPwSaving] = useState(false);
+  async function changePw() {
+    if (!curPw) { setPwErr("Enter your current password."); return; }
     if (newPw.length < 6) { setPwErr("New password must be at least 6 characters."); return; }
     if (newPw !== confPw) { setPwErr("Passwords do not match."); return; }
-    ctx.changeInvestorPassword(inv.id, newPw);
-    setCurPw(""); setNewPw(""); setConfPw(""); setPwErr("");
-    ctx.showToast("Password updated.", "success");
+    setPwErr(""); setPwSaving(true);
+    const result = await ctx.changeMyPassword(curPw, newPw);
+    setPwSaving(false);
+    if (!result.ok) { setPwErr(result.error); return; }
+    setCurPw(""); setNewPw(""); setConfPw("");
   }
 
   const [faqOpen, setFaqOpen] = useState(null);
@@ -173,7 +175,7 @@ export function ProfileScreen({ ctx }) {
           <Field label="New Password"><TextInput value={newPw} onChange={setNewPw} type="password" /></Field>
           <Field label="Confirm New Password"><TextInput value={confPw} onChange={setConfPw} type="password" /></Field>
           {pwErr ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{pwErr}</div> : null}
-          <Btn onClick={changePw}>Update Password</Btn>
+          <Btn onClick={changePw} disabled={pwSaving}>{pwSaving ? "Updating…" : "Update Password"}</Btn>
 
           <div style={{ marginTop: 26, paddingTop: 20, borderTop: "1px solid " + C.line }}>
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 12 }}>Active Session</div>

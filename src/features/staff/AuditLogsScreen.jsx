@@ -7,7 +7,7 @@ import { C } from "@/lib/theme";
 
 export function AuditLogsScreen({ ctx }) {
   const [q, setQ] = useState("");
-  const list = [...ctx.auditLog].sort((a, b) => b.timestamp - a.timestamp)
+  const list = [...ctx.auditLog].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .filter((a) => (a.user + a.action + a.newValue).toLowerCase().includes(q.toLowerCase()));
   return (
     <PageShell ctx={ctx} title="Audit Logs">

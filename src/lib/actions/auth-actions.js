@@ -193,9 +193,20 @@ export async function login(input) {
   });
   if (error) return { error: "Incorrect Member ID/email or password." };
 
+  // investor_details is joined here (not just fetched separately) so that
+  // ProfileScreen/StatementsScreen/InvestWizard have real National ID, Address,
+  // Occupation, Financial Goal, and Next of Kin data immediately on login instead
+  // of showing blank fields until some other screen happens to load them. For
+  // staff roles the embed simply comes back empty/null, which is fine — nothing
+  // downstream reads it for them.
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, role, full_name, member_id, must_change_password, account_status, created_at")
+    .select(`
+      id, role, full_name, member_id, must_change_password, account_status, created_at,
+      phone, username, email,
+      investor_details ( national_id_number, address, occupation, financial_goal,
+        next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
+    `)
     .eq("id", data.user.id)
     .single();
   if (profileError) return { error: profileError.message };
@@ -322,6 +333,87 @@ export async function createStaffOrInvestorAccount(input) {
   // Returned ONCE. The admin UI must show this to the admin and must not store it
   // anywhere (no logs, no notifications table, no audit_logs value column).
   return { success: true, userId, tempPassword };
+}
+
+/**
+ * Persists investor profile edits (Profile screen -> Edit). Previously
+ * updateInvestorProfile only ever patched local React state — the change looked
+ * successful in the UI but vanished on refresh and was never visible to staff.
+ * Phone lives on `profiles`; everything else here lives on `investor_details`.
+ * Only issues an update to a table if there's actually a field for it, so a
+ * partial edit (e.g. Next of Kin only) doesn't send an empty/no-op update to
+ * `profiles`.
+ */
+export async function updateMyInvestorDetails(fields) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  if (fields.phone !== undefined) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ phone: fields.phone })
+      .eq("id", user.id);
+    if (profileError) return { error: profileError.message };
+  }
+
+  const detailsUpdate = {};
+  if (fields.address !== undefined) detailsUpdate.address = fields.address;
+  if (fields.occupation !== undefined) detailsUpdate.occupation = fields.occupation;
+  if (fields.nextOfKin) {
+    if (fields.nextOfKin.name !== undefined) detailsUpdate.next_of_kin_name = fields.nextOfKin.name;
+    if (fields.nextOfKin.relationship !== undefined) detailsUpdate.next_of_kin_relationship = fields.nextOfKin.relationship;
+    if (fields.nextOfKin.phone !== undefined) detailsUpdate.next_of_kin_phone = fields.nextOfKin.phone;
+  }
+  if (Object.keys(detailsUpdate).length > 0) {
+    const { error: detailsError } = await supabase
+      .from("investor_details")
+      .update(detailsUpdate)
+      .eq("profile_id", user.id);
+    if (detailsError) return { error: detailsError.message };
+  }
+
+  await supabase.rpc("log_audit", {
+    p_action: "Profile Updated",
+    p_entity_table: "profiles",
+    p_entity_id: user.id,
+    p_previous_value: null,
+    p_new_value: fields,
+  });
+
+  return { success: true };
+}
+
+/**
+ * Voluntary password change (Settings / Security tab), for any signed-in role.
+ * Re-authenticates with the current password first — this is both how Supabase
+ * Auth requires updateUser({password}) to be trusted, and what actually replaces
+ * the old local-only check, which compared the typed password against a mock
+ * seed value that was never real (so it could never genuinely succeed or fail
+ * correctly). NOT the same code path as completeForcedPasswordChange below —
+ * that one is for the mandatory first-login change and doesn't require knowing
+ * the temp password first, since the admin who issued it already knows it.
+ */
+export async function changeMyPassword(currentPassword, newPassword) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError || !user || !user.email) return { error: "Not signed in." };
+
+  const { error: reauthError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (reauthError) return { error: "Current password is incorrect." };
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateError) return { error: updateError.message };
+
+  return { success: true };
 }
 
 /**

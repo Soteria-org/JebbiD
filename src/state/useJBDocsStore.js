@@ -8,6 +8,8 @@ import {
   registerInvestor as registerInvestorAction,
   createStaffOrInvestorAccount as createStaffOrInvestorAccountAction,
   completeForcedPasswordChange as completeForcedPasswordChangeAction,
+  changeMyPassword as changeMyPasswordAction,
+  updateMyInvestorDetails as updateMyInvestorDetailsAction,
 } from "@/lib/actions/auth-actions";
 import {
   loadPackages as loadPackagesAction,
@@ -65,8 +67,8 @@ export default function useJBDocsStore() {
   // the real loaders that now replace them. Starting empty here (rather than from
   // seed) means real data is the only thing that ever populates these arrays.
   const [investors, setInvestors] = useState([]);
-  const [investments, setInvestments] = useState(seed.investments);
-  const [withdrawals, setWithdrawals] = useState(seed.withdrawals);
+  const [investments, setInvestments] = useState([]);
+  const [withdrawals, setWithdrawals] = useState([]);
   const [financeOfficers, setFinanceOfficers] = useState([]);
   const [superAdmin, setSuperAdmin] = useState(seed.superAdmin);
   const [auditLog, setAuditLog] = useState([]);
@@ -229,15 +231,46 @@ export default function useJBDocsStore() {
    * session, same as the rest of the mock state.
    */
   function bridgeInvestorProfile(profile) {
+    // investor_details may arrive embedded (login()'s join, or the staff-wide
+    // roster's join) as either an object or a single-item array depending on the
+    // query shape — normalize both. When it's absent entirely (e.g. a bare profile
+    // row bridged in from an investments/withdrawals row that only carries
+    // id/full_name/email), every detail field below just falls back to whatever
+    // was already known about this investor, rather than blanking it out.
+    const raw = profile.investor_details;
+    const d = Array.isArray(raw) ? raw[0] : raw;
     setInvestors((list) => {
-      if (list.find((i) => i.id === profile.id)) return list;
-      return [...list, {
-        id: profile.id, memberId: profile.member_id, fullName: profile.full_name, email: profile.email,
-        phone: profile.phone || "", nationalId: "", address: "", occupation: "", goal: "",
-        username: profile.username || profile.email, password: null,
-        nextOfKin: { name: "", relationship: "", phone: "", address: "" },
-        dateRegistered: profile.created_at || new Date(), notifPrefs: { email: true, sms: true }, darkMode: false,
-      }];
+      const existingIdx = list.findIndex((i) => i.id === profile.id);
+      const prev = existingIdx >= 0 ? list[existingIdx] : null;
+      const merged = {
+        id: profile.id,
+        memberId: profile.member_id ?? prev?.memberId ?? null,
+        fullName: profile.full_name ?? prev?.fullName,
+        email: profile.email ?? prev?.email,
+        phone: profile.phone || prev?.phone || "",
+        nationalId: d?.national_id_number || prev?.nationalId || "",
+        address: d?.address || prev?.address || "",
+        occupation: d?.occupation || prev?.occupation || "",
+        goal: d?.financial_goal || prev?.goal || "",
+        kycStatus: d?.kyc_status || prev?.kycStatus || "not_started",
+        username: profile.username || profile.email || prev?.username,
+        password: null,
+        nextOfKin: {
+          name: d?.next_of_kin_name || prev?.nextOfKin?.name || "",
+          relationship: d?.next_of_kin_relationship || prev?.nextOfKin?.relationship || "",
+          phone: d?.next_of_kin_phone || prev?.nextOfKin?.phone || "",
+          address: prev?.nextOfKin?.address || "",
+        },
+        dateRegistered: profile.created_at || prev?.dateRegistered || new Date(),
+        notifPrefs: prev?.notifPrefs || { email: true, sms: true },
+        darkMode: prev?.darkMode || false,
+      };
+      if (existingIdx >= 0) {
+        const copy = list.slice();
+        copy[existingIdx] = merged;
+        return copy;
+      }
+      return [...list, merged];
     });
   }
   function bridgeStaffProfile(profile) {
@@ -515,18 +548,32 @@ export default function useJBDocsStore() {
   }
 
   /* ---------------- PROFILE / SETTINGS ---------------- */
-  function updateInvestorProfile(id, fields) {
+  /**
+   * Persists to Supabase first (audit_logs entry included, via
+   * updateMyInvestorDetails), then updates local state from what was actually
+   * saved rather than trusting the form input blindly — this is the fix for
+   * edits that looked successful but vanished on refresh and were invisible to
+   * staff (see updateMyInvestorDetails in auth-actions.js).
+   */
+  async function updateInvestorProfile(id, fields) {
+    const result = await updateMyInvestorDetailsAction(fields);
+    if (result.error) { showToast(result.error, "error"); return; }
     setInvestors((list) => list.map((i) => i.id === id ? Object.assign({}, i, fields) : i));
-    addAudit(getInvestor(id).fullName, "Profile Updated", "—", "Contact / Next of Kin details updated");
     showToast("Profile updated.", "success");
   }
-  function changeInvestorPassword(id, newPw) {
-    setInvestors((list) => list.map((i) => i.id === id ? Object.assign({}, i, { password: newPw }) : i));
-    addAudit(getInvestor(id).fullName, "Password Changed", "—", "Password updated by investor");
-  }
-  function changeAdminPassword(newPw) {
-    setSuperAdmin((a) => Object.assign({}, a, { password: newPw }));
-    addAudit(superAdmin.name, "Password Changed", "—", "Password updated by Super Administrator");
+  /**
+   * Real password change for any role, via Supabase Auth — replaces the two old
+   * functions (changeInvestorPassword/changeAdminPassword) that only ever
+   * compared against a mock seed password and patched local state, meaning
+   * "Current password is incorrect" was unavoidable for a real account and the
+   * "new" password was never actually set on the real auth.users row. One
+   * function now, since Auth password changes aren't role-specific.
+   */
+  async function changeMyPassword(currentPassword, newPassword) {
+    const result = await changeMyPasswordAction(currentPassword, newPassword);
+    if (result.error) return { ok: false, error: result.error };
+    showToast("Password updated.", "success");
+    return { ok: true };
   }
   function toggleNotifPref(id, key) {
     setInvestors((list) => list.map((i) => i.id === id ? Object.assign({}, i, { notifPrefs: Object.assign({}, i.notifPrefs, { [key]: !i.notifPrefs[key] }) }) : i));
@@ -557,10 +604,10 @@ export default function useJBDocsStore() {
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
-    createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeInvestorPassword, changeAdminPassword, toggleNotifPref, toggleDarkMode, markNotificationRead,
+    createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,
-    currentUserName: session ? (session.role === "investor" ? getInvestor(session.id).fullName : session.role === "super_admin" ? superAdmin.name : (financeOfficers.find((f) => f.id === session.id) || {}).name) : "",
+    currentUserName: session ? (session.role === "investor" ? (getInvestor(session.id) || {}).fullName || session.fullName || "" : session.role === "super_admin" ? superAdmin.name : (financeOfficers.find((f) => f.id === session.id) || {}).name) : "",
     currentInvestor: session && session.role === "investor" ? getInvestor(session.id) : null,
   };
 
