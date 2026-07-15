@@ -99,57 +99,65 @@ export default function useJBDocsStore() {
   }
   useEffect(() => { loadPackages(); }, []);
 
-  // Load deposits queue for staff whenever their session is established
-  useEffect(() => {
+  // Load deposits queue for staff. Exposed as a named function (not just inline in
+  // the effect) so it can also be called immediately after a staff action that
+  // changes a deposit's status (approve/reject/clarify), and by the poll below.
+  async function reloadDepositsQueue() {
     if (!session || session.role === "investor") return;
-    loadDepositsQueueAction().then((result) => {
-      if (!result.error) setDepositSubmissions(result.deposits);
-    });
-  }, [session?.role]);
+    const result = await loadDepositsQueueAction();
+    if (!result.error) setDepositSubmissions(result.deposits);
+  }
+  useEffect(() => { reloadDepositsQueue(); }, [session?.role, session?.id]);
 
   // Load investments: investor sees their own merged pending+active list; staff see
   // every investor's positions, with each investor bridged into mock state so
   // ctx.getInvestor(id) resolves even for investors who haven't logged in this
   // session (AllInvestments/WithdrawalsQueue depend on that lookup).
-  useEffect(() => {
+  //
+  // THIS WAS THE BUG: this used to only run once, when session.role/session.id
+  // first changed (i.e. on login). Submitting a new deposit, or anyone approving
+  // one, never re-ran it — so a brand-new deposit was correctly written to
+  // Supabase but never appeared on ANY screen (investor's own, or staff's) until
+  // that person logged out and back in. Now it's a named function, called again
+  // right after the actions that change it, and by the poll below for changes
+  // made by someone else's session.
+  async function reloadInvestments() {
     if (!session) return;
     if (session.role === "investor") {
-      loadMyInvestmentsViewAction().then((result) => {
-        if (!result.error) setInvestments(result.items);
-      });
+      const result = await loadMyInvestmentsViewAction();
+      if (!result.error) setInvestments(result.items);
     } else {
-      loadAllInvestmentsViewAction().then((result) => {
-        if (result.error) return;
-        const seen = new Set();
-        result.items.forEach((item) => {
-          if (item.investorProfile && !seen.has(item.investorProfile.id)) {
-            seen.add(item.investorProfile.id);
-            bridgeInvestorProfile(item.investorProfile);
-          }
-        });
-        setInvestments(result.items.map((item) => {
-          const { investorProfile, ...rest } = item;
-          return rest;
-        }));
+      const result = await loadAllInvestmentsViewAction();
+      if (result.error) return;
+      const seen = new Set();
+      result.items.forEach((item) => {
+        if (item.investorProfile && !seen.has(item.investorProfile.id)) {
+          seen.add(item.investorProfile.id);
+          bridgeInvestorProfile(item.investorProfile);
+        }
       });
+      setInvestments(result.items.map((item) => {
+        const { investorProfile, ...rest } = item;
+        return rest;
+      }));
     }
-  }, [session?.role, session?.id]);
+  }
+  useEffect(() => { reloadInvestments(); }, [session?.role, session?.id]);
 
   // Load withdrawals the same way — own list for investors, full queue + bridging for staff.
-  useEffect(() => {
+  async function reloadWithdrawals() {
     if (!session) return;
     if (session.role === "investor") {
-      loadMyWithdrawalsAction().then((result) => {
-        if (!result.error) setWithdrawals(normalizeWithdrawals(result.withdrawals));
-      });
+      const result = await loadMyWithdrawalsAction();
+      if (!result.error) setWithdrawals(normalizeWithdrawals(result.withdrawals));
     } else {
-      loadWithdrawalsQueueAction().then((result) => {
-        if (result.error) return;
-        result.withdrawals.forEach((w) => { if (w.investor) bridgeInvestorProfile(w.investor); });
-        setWithdrawals(normalizeWithdrawals(result.withdrawals));
-      });
+      const result = await loadWithdrawalsQueueAction();
+      if (result.error) return;
+      result.withdrawals.forEach((w) => { if (w.investor) bridgeInvestorProfile(w.investor); });
+      setWithdrawals(normalizeWithdrawals(result.withdrawals));
     }
-  }, [session?.role, session?.id]);
+  }
+  useEffect(() => { reloadWithdrawals(); }, [session?.role, session?.id]);
 
   // Load the real staff-wide investor & finance officer rosters, plus the audit
   // trail — the fix for "a new account doesn't show up on someone else's screen".
@@ -177,6 +185,26 @@ export default function useJBDocsStore() {
     if (!result.error) setNotifications(result.items);
   }
   useEffect(() => { reloadMyNotifications(); }, [session?.role, session?.id]);
+
+  // Safety-net poll: everything above reloads immediately after the CURRENT
+  // session's own actions (see submitInvestment, approveDeposit, etc. below), which
+  // covers "I just did something, do I see it." It does NOT cover "someone ELSE
+  // just did something while I already have this screen open" — an investor
+  // submitting a deposit doesn't push anything to an FO who logged in ten minutes
+  // ago. True push (Supabase Realtime channels) is the correct long-term fix and
+  // isn't set up yet; this poll is the pragmatic stand-in so cross-account changes
+  // still show up within ~20 seconds instead of requiring a manual logout/login.
+  useEffect(() => {
+    if (!session) return;
+    const interval = setInterval(() => {
+      reloadDepositsQueue();
+      reloadInvestments();
+      reloadWithdrawals();
+      reloadMyNotifications();
+      if (session.role !== "investor") reloadStaffLists();
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [session?.role, session?.id]);
 
   function normalizeWithdrawals(rows) {
     return rows.map((w) => ({
@@ -403,10 +431,16 @@ export default function useJBDocsStore() {
     });
     if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
     // The DB trigger already creates the notification and audit row.
-    // Add the new deposit to local state so the investor can see it immediately
-    // without a full page reload (it won't have the joined investor/package objects
-    // yet, but that's fine — the investor's own view doesn't need those).
-    setDepositSubmissions((list) => [result.deposit, ...list]);
+    // BUG FIX: this used to optimistically push result.deposit into
+    // depositSubmissions — but the investor's own "My Investments" screen reads
+    // from `investments` (the merged pending+active view from
+    // loadMyInvestmentsView), not depositSubmissions, which isn't even loaded for
+    // an investor session at all. The new deposit was correctly written to
+    // Supabase but never reached the screen that actually displays it. Reloading
+    // the real merged view is what actually fixes that, and also gives the
+    // investor the real record (id, goal, package code) instead of a client-side
+    // guess at the shape.
+    await reloadInvestments();
     showToast("Investment submitted for verification.", "success");
     setView("investments");
     return { ok: true };
@@ -415,28 +449,25 @@ export default function useJBDocsStore() {
   async function approveDeposit(depositId) {
     const result = await approveDepositAction(depositId);
     if (result.error) { showToast(result.error, "error"); return; }
-    // Optimistically update local state so the queue reflects the change immediately
-    setDepositSubmissions((list) =>
-      list.map((d) => d.id === depositId ? Object.assign({}, d, { status: "approved" }) : d)
-    );
+    // Reload both: the deposit's status changed (queue), AND approval creates a
+    // real investment_positions row via the DB trigger, which the staff-wide
+    // investments view needs to pick up too — an optimistic local patch of just
+    // the deposit's status wouldn't have shown the new position anywhere.
+    await Promise.all([reloadDepositsQueue(), reloadInvestments()]);
     showToast("Deposit approved. Investment position created.", "success");
   }
 
   async function rejectDeposit(depositId, reason) {
     const result = await rejectDepositAction(depositId, reason);
     if (result.error) { showToast(result.error, "error"); return; }
-    setDepositSubmissions((list) =>
-      list.map((d) => d.id === depositId ? Object.assign({}, d, { status: "rejected", clarification_note: reason }) : d)
-    );
+    await reloadDepositsQueue();
     showToast("Deposit rejected.", "info");
   }
 
   async function requestClarification(depositId, note) {
     const result = await requestClarificationAction(depositId, note);
     if (result.error) { showToast(result.error, "error"); return; }
-    setDepositSubmissions((list) =>
-      list.map((d) => d.id === depositId ? Object.assign({}, d, { status: "clarification_requested", clarification_note: note }) : d)
-    );
+    await reloadDepositsQueue();
     showToast("Clarification requested. Investor has been notified.", "info");
   }
 
@@ -451,12 +482,11 @@ export default function useJBDocsStore() {
       comments: data.comments,
     });
     if (result.error) { showToast(result.error, "error"); return; }
-    setWithdrawals((list) => [{
-      id: result.withdrawal.id, referenceNumber: result.withdrawal.reference_number, investorId: session.id,
-      amount: result.withdrawal.amount_requested, penalty: result.withdrawal.penalty_amount,
-      netAmount: result.withdrawal.net_amount, paymentMethod: result.withdrawal.payment_method,
-      status: result.withdrawal.status, requestedAt: result.withdrawal.created_at, transactionRef: null, paidAt: null,
-    }, ...list]);
+    // Reload rather than hand-build the local object — the manual version here used
+    // to omit investmentId (present in the real shape from normalizeWithdrawals),
+    // which would have broken anything that looks up the related position for a
+    // withdrawal that hasn't been refreshed from Supabase yet.
+    await reloadWithdrawals();
     showToast("Withdrawal request submitted.", "success");
     closeModal();
     setView("withdrawals");
@@ -465,17 +495,16 @@ export default function useJBDocsStore() {
   async function rejectWithdrawal(wdId, reason) {
     const result = await rejectWithdrawalAction(wdId, reason);
     if (result.error) { showToast(result.error, "error"); return; }
-    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "rejected" }) : w));
+    await reloadWithdrawals();
     showToast("Withdrawal rejected.", "info");
   }
 
   async function markWithdrawalPaid(wdId, ref, payDate, notes) {
     const result = await markWithdrawalPaidAction({ withdrawalId: wdId, transactionId: ref, payoutDate: payDate, notes });
     if (result.error) { showToast(result.error, "error"); return; }
-    // Trigger closes the investment_positions row too — reflect that locally.
-    const wd = withdrawals.find((w) => w.id === wdId);
-    setWithdrawals((list) => list.map((w) => w.id === wdId ? Object.assign({}, w, { status: "paid", transactionRef: ref, paidAt: new Date() }) : w));
-    if (wd) setInvestments((list) => list.map((p) => p.investorId === wd.investorId && p.status === "active" ? Object.assign({}, p, { status: "closed" }) : p));
+    // Trigger closes the investment_positions row too — reload both, not just
+    // hand-patch withdrawals, so the now-closed position is reflected as well.
+    await Promise.all([reloadWithdrawals(), reloadInvestments()]);
     showToast("Withdrawal marked as paid.", "success");
   }
 
@@ -496,12 +525,7 @@ export default function useJBDocsStore() {
     // new one, maybe create a withdrawal. Simplest correct way to reflect that
     // locally is to reload from Supabase rather than hand-simulate the same branching
     // logic twice in two languages.
-    const [invResult, wdResult] = await Promise.all([
-      loadMyInvestmentsViewAction(),
-      loadMyWithdrawalsAction(),
-    ]);
-    if (!invResult.error) setInvestments(invResult.items);
-    if (!wdResult.error) setWithdrawals(normalizeWithdrawals(wdResult.withdrawals));
+    await Promise.all([reloadInvestments(), reloadWithdrawals()]);
   }
 
   /* ---------------- FINANCE OFFICER MANAGEMENT ---------------- */
