@@ -6,7 +6,7 @@ import { fmtDateTime } from "@/lib/format";
 import { C } from "@/lib/theme";
 
 export function NotificationsScreen({ ctx }) {
-  const list = ctx.notifications.filter((n) => n.investorId === ctx.session.id).sort((a, b) => b.timestamp - a.timestamp);
+  const list = ctx.notifications.filter((n) => n.investorId === ctx.session.id).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   const iconFor = { registration: Sparkles, deposit_submitted: Clock, deposit_approved: CheckCircle2, deposit_rejected: XCircle,
     withdrawal_submitted: ArrowUpRight, withdrawal_paid: Banknote, maturity: Award };
   return (

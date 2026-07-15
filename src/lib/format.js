@@ -1,5 +1,5 @@
 import React from "react";
-import { CORPORATE_THRESHOLD, RATES, TODAY } from "@/lib/constants";
+import { CORPORATE_THRESHOLD, RATES } from "@/lib/constants";
 
 /**
  * The ACTUAL current date, as an ISO "YYYY-MM-DD" string — matches how Postgres
@@ -62,7 +62,14 @@ export function maturityValue(amount, pkg) {
 }
 
 export function isEarlyWithdrawal(maturityDate) {
-  return TODAY < new Date(maturityDate);
+  // This determines whether the 15% early-withdrawal penalty applies — it MUST
+  // compare against the real current date. It previously compared against the
+  // frozen TODAY demo constant (June 30, 2026), which meant every position
+  // maturing between that frozen date and whenever this actually runs would be
+  // judged "early" (and penalized) even after it had genuinely matured. Real
+  // money impact, not cosmetic — see lib/constants.js for why TODAY exists at
+  // all (seed/demo data generation only, never a real date comparison).
+  return new Date() < new Date(maturityDate);
 }
 
 export function pad(n, len) {

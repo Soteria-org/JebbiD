@@ -7,9 +7,12 @@ export function CreateFOModal({ ctx }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [result, setResult] = useState(null);
+  const [err, setErr] = useState("");
   async function submit() {
     if (!name || !email) return;
+    setErr("");
     const r = await ctx.createFinanceOfficer(name, email);
+    if (r && r.error) { setErr(r.error); return; }
     if (r && !r.error) setResult(r);
   }
   if (result) {
@@ -30,6 +33,7 @@ export function CreateFOModal({ ctx }) {
       <GuidanceBanner tone="info">Only the Super Administrator can create Finance Officer accounts. A temporary password will be generated and the officer will be forced to set their own on first login.</GuidanceBanner>
       <Field label="Full Name"><TextInput value={name} onChange={setName} /></Field>
       <Field label="Email"><TextInput value={email} onChange={setEmail} /></Field>
+      {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
       <Btn full disabled={!name || !email} onClick={submit}>Create Finance Officer</Btn>
     </Modal>
   );
