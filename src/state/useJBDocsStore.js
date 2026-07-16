@@ -81,6 +81,7 @@ export default function useJBDocsStore() {
   const [selectedInvestorId, setSelectedInvestorId] = useState(null);
   const [activeModal, setActiveModal] = useState(null);
   const [toast, setToast] = useState(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 900 : false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -107,7 +108,6 @@ export default function useJBDocsStore() {
     const result = await loadDepositsQueueAction();
     if (!result.error) setDepositSubmissions(result.deposits);
   }
-  useEffect(() => { reloadDepositsQueue(); }, [session?.role, session?.id]);
 
   // Load investments: investor sees their own merged pending+active list; staff see
   // every investor's positions, with each investor bridged into mock state so
@@ -142,7 +142,6 @@ export default function useJBDocsStore() {
       }));
     }
   }
-  useEffect(() => { reloadInvestments(); }, [session?.role, session?.id]);
 
   // Load withdrawals the same way — own list for investors, full queue + bridging for staff.
   async function reloadWithdrawals() {
@@ -157,7 +156,6 @@ export default function useJBDocsStore() {
       setWithdrawals(normalizeWithdrawals(result.withdrawals));
     }
   }
-  useEffect(() => { reloadWithdrawals(); }, [session?.role, session?.id]);
 
   // Load the real staff-wide investor & finance officer rosters, plus the audit
   // trail — the fix for "a new account doesn't show up on someone else's screen".
@@ -174,7 +172,6 @@ export default function useJBDocsStore() {
     if (!foRes.error) setFinanceOfficers(foRes.items);
     if (!auditRes.error) setAuditLog(auditRes.items);
   }
-  useEffect(() => { reloadStaffLists(); }, [session?.role, session?.id]);
 
   // Load the signed-in user's own notifications. Works for every role — the
   // Finance Officer "deposit awaiting review" alert the DB trigger already writes
@@ -184,7 +181,6 @@ export default function useJBDocsStore() {
     const result = await loadMyNotificationsAction();
     if (!result.error) setNotifications(result.items);
   }
-  useEffect(() => { reloadMyNotifications(); }, [session?.role, session?.id]);
 
   // Safety-net poll: everything above reloads immediately after the CURRENT
   // session's own actions (see submitInvestment, approveDeposit, etc. below), which
@@ -194,15 +190,26 @@ export default function useJBDocsStore() {
   // ago. True push (Supabase Realtime channels) is the correct long-term fix and
   // isn't set up yet; this poll is the pragmatic stand-in so cross-account changes
   // still show up within ~20 seconds instead of requiring a manual logout/login.
+  // Single entry point that reloads everything relevant to the current role, and
+  // stamps lastSyncedAt — used by both the background poll and the manual "Sync now"
+  // control in the header, so the person never has to wonder "is this actually
+  // current, or am I looking at something stale."
+  async function refreshAll() {
+    if (!session) return;
+    await Promise.all([
+      reloadDepositsQueue(),
+      reloadInvestments(),
+      reloadWithdrawals(),
+      reloadMyNotifications(),
+      session.role !== "investor" ? reloadStaffLists() : Promise.resolve(),
+    ]);
+    setLastSyncedAt(new Date());
+  }
+
   useEffect(() => {
     if (!session) return;
-    const interval = setInterval(() => {
-      reloadDepositsQueue();
-      reloadInvestments();
-      reloadWithdrawals();
-      reloadMyNotifications();
-      if (session.role !== "investor") reloadStaffLists();
-    }, 20000);
+    refreshAll();
+    const interval = setInterval(refreshAll, 20000);
     return () => clearInterval(interval);
   }, [session?.role, session?.id]);
 
@@ -553,6 +560,8 @@ export default function useJBDocsStore() {
     const username = form.username || form.fullName.toLowerCase().replace(/[^a-z]+/g, ".");
     const result = await createStaffOrInvestorAccountAction({
       role: "investor", fullName: form.fullName, email: form.email, phone: form.phone, username,
+      nationalId: form.nationalId, address: form.address, occupation: form.occupation, goal: form.goal,
+      nokName: form.nokName, nokRelationship: form.nokRelationship, nokPhone: form.nokPhone,
     });
     if (result.error) {
       showToast(result.error, "error");
@@ -629,6 +638,7 @@ export default function useJBDocsStore() {
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead,
+    lastSyncedAt, refreshAll,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,
     currentUserName: session ? (session.role === "investor" ? (getInvestor(session.id) || {}).fullName || session.fullName || "" : session.role === "super_admin" ? superAdmin.name : (financeOfficers.find((f) => f.id === session.id) || {}).name) : "",

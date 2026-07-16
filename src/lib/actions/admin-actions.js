@@ -100,21 +100,79 @@ export async function loadAuditLog() {
     id: a.id,
     user: a.actor_name_snapshot || "System",
     action: a.action,
-    previousValue: stringifyValue(a.previous_value),
-    newValue: stringifyValue(a.new_value),
+    previousValue: summarizeAuditValue(a.action, a.previous_value),
+    newValue: summarizeAuditValue(a.action, a.new_value),
     timestamp: a.created_at,
   }));
   return { items };
 }
 
-function stringifyValue(v) {
+const UGX = (n) => (n === null || n === undefined) ? "?" : "UGX " + Number(n).toLocaleString("en-UG");
+
+/**
+ * Turns the raw JSONB audit payload (usually a full row, via to_jsonb(new)/to_jsonb(old)
+ * in the DB triggers — see handle_deposit_submitted, handle_deposit_status_change, etc.)
+ * into one readable line, instead of dumping the entire row as JSON text. Every action
+ * string that any trigger or server action actually writes is covered explicitly;
+ * anything unrecognized falls back to a short key:value summary (still never raw JSON)
+ * so a future action type someone adds doesn't silently regress back to a wall of text.
+ */
+function summarizeAuditValue(action, v) {
   if (v === null || v === undefined) return "—";
   if (typeof v === "string") return v;
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return String(v);
+  if (typeof v !== "object") return String(v);
+
+  if (action === "Deposit Submitted" || (action && action.startsWith("Deposit "))) {
+    const parts = [UGX(v.amount)];
+    if (v.network) parts.push("via " + v.network + " Mobile Money");
+    else if (v.payment_method) parts.push("via " + String(v.payment_method).replace("_", " "));
+    if (v.status) parts.push("— " + v.status.replace(/_/g, " "));
+    if (v.clarification_note) parts.push('(" ' + v.clarification_note + '")');
+    return parts.join(" ");
   }
+
+  if (action === "Withdrawal Requested" || (action && action.startsWith("Withdrawal ") && action !== "Withdrawal Paid")) {
+    const parts = [UGX(v.amount_requested ?? v.net_amount)];
+    if (v.reference_number) parts.push("ref " + v.reference_number);
+    if (v.status) parts.push("— " + v.status);
+    return parts.join(" ");
+  }
+
+  if (action === "Withdrawal Paid") {
+    const parts = [UGX(v.amount_paid), "paid"];
+    if (v.transaction_reference) parts.push("ref " + v.transaction_reference);
+    return parts.join(" ");
+  }
+
+  if (action === "Package Switched" || action === "Investment Reinvested") {
+    return v.new_position_id ? "New position created" : "—";
+  }
+
+  if (action === "KYC Document Uploaded") {
+    return (v.document_type || "Document") + " uploaded";
+  }
+
+  if (action === "KYC Status Updated") {
+    return "Set to " + (v.new_kyc_status || "?") + (v.reason ? " — " + v.reason : "");
+  }
+
+  if (action === "Profile Updated") {
+    const fields = Object.keys(v).filter((k) => v[k] !== undefined);
+    return fields.length ? "Changed: " + fields.join(", ") : "—";
+  }
+
+  if (action === "Finance Officer Created" || action === "Investor Registered" || action === "Investor Registered (Admin)") {
+    return (v.full_name || "?") + (v.email ? " (" + v.email + ")" : "");
+  }
+
+  // Generic fallback for anything not covered above — still a readable line, never
+  // a raw JSON dump, and skips internal id/timestamp noise nobody reading the log
+  // actually needs.
+  const skip = new Set(["id", "created_at", "updated_at", "reviewed_at", "reviewed_by", "package_id", "investor_id", "profile_id", "investment_id", "deposit_submission_id"]);
+  const pairs = Object.entries(v)
+    .filter(([k, val]) => !skip.has(k) && val !== null && val !== undefined)
+    .map(([k, val]) => k.replace(/_/g, " ") + ": " + val);
+  return pairs.length ? pairs.join(", ") : "—";
 }
 
 /**

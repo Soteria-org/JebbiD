@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, Check, Clock, XCircle } from "@/components/icons/index";
+import { AlertTriangle, Check, Clock, RefreshCw, XCircle } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Field, Modal, TableWrap, Td, TextArea, Th, statusBadge } from "@/components/ui/primitives";
 import { fmtDate, fmtUGX } from "@/lib/format";
@@ -55,6 +55,13 @@ export function DepositsQueue({ ctx }) {
   const [clarifying, setClarifying] = useState(null);
   const [actionText, setActionText] = useState("");
   const [acting, setActing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function doRefresh() {
+    setRefreshing(true);
+    await ctx.refreshAll();
+    setRefreshing(false);
+  }
 
   const displayed = filter === "all" ? deposits : deposits.filter((d) => d.status === filter);
 
@@ -85,8 +92,8 @@ export function DepositsQueue({ ctx }) {
 
   return (
     <PageShell ctx={ctx} title="Deposits">
-      {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      {/* Filter tabs + manual refresh */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
         {[["all", "All"], ["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"], ["clarification_requested", "Awaiting Clarification"]].map(([key, label]) => {
           const count = key === "all" ? deposits.length : deposits.filter((d) => d.status === key).length;
           return (
@@ -97,6 +104,14 @@ export function DepositsQueue({ ctx }) {
             }}>{label}{count > 0 ? ` (${count})` : ""}</div>
           );
         })}
+        <div onClick={doRefresh} style={{
+          marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
+          borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", background: C.cardBg, color: C.inkSoft,
+        }}>
+          <RefreshCw size={14} style={refreshing ? { animation: "spin 0.8s linear infinite" } : undefined} />
+          {refreshing ? "Refreshing…" : "Refresh"}
+          <style>{"@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }"}</style>
+        </div>
       </div>
 
       {displayed.length === 0 ? (
