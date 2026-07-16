@@ -2,6 +2,28 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 /**
+ * THIS IS THE FIX FOR "refresh works but the data never changes":
+ *
+ * Next.js's App Router patches the global fetch() so that, by default, GET
+ * requests made anywhere in server-side code (Server Components, Server
+ * Actions, Route Handlers) go through its own Data Cache — cached
+ * indefinitely unless told otherwise. Supabase's JS client makes its REST
+ * calls via fetch(), so every .select() a Server Action ran was silently
+ * being intercepted: the FIRST call for a given query got cached, and every
+ * later call for that same query — including every "Refresh" click and every
+ * poll tick — was served that same frozen response straight from Next's
+ * cache, never actually reaching Supabase again. The refresh button and the
+ * poll were both working exactly as written; the data underneath them was
+ * just never allowed to change.
+ *
+ * noStoreFetch forces cache: "no-store" on every request this client makes,
+ * opting every Supabase call out of Next's Data Cache.
+ */
+function noStoreFetch(url, options = {}) {
+  return fetch(url, { ...options, cache: "no-store" });
+}
+
+/**
  * Use inside Server Components, Server Actions, and Route Handlers. Reads/writes the
  * session via cookies so the user stays logged in across requests.
  *
@@ -19,6 +41,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     {
+      global: { fetch: noStoreFetch },
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -52,6 +75,6 @@ export function createAdminClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    { auth: { autoRefreshToken: false, persistSession: false }, global: { fetch: noStoreFetch } }
   );
 }
