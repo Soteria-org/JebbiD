@@ -86,84 +86,88 @@ export async function createInvestorProfileRows(supabase, userId, meta) {
  *    emailed link and a session exists.
  */
 export async function registerInvestor(input) {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  if (isDevAuthBypassEnabled()) {
-    const admin = createAdminClient();
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
+    if (isDevAuthBypassEnabled()) {
+      const admin = createAdminClient();
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        email: input.email,
+        password: input.password,
+        email_confirm: true,
+        user_metadata: {
+          full_name: input.fullName,
+          phone: input.phone ?? null,
+          username: input.username ?? null,
+          national_id_number: input.nationalIdNumber ?? null,
+          address: input.address ?? null,
+          occupation: input.occupation ?? null,
+          financial_goal: input.financialGoal ?? null,
+          next_of_kin_name: input.nextOfKinName ?? null,
+          next_of_kin_phone: input.nextOfKinPhone ?? null,
+          next_of_kin_relationship: input.nextOfKinRelationship ?? null,
+        },
+      });
+      if (createError) return { error: createError.message };
+
+      const userId = created?.user?.id;
+      if (!userId) return { error: "Registration did not return a user object at all — check Supabase Auth is enabled." };
+
+      const profileResult = await createInvestorProfileRows(supabase, userId, { ...input, email: input.email });
+      if (profileResult.error) return { error: profileResult.error };
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: input.email,
+        password: input.password,
+      });
+      if (signInError) return { error: signInError.message };
+
+      return {
+        success: true,
+        profile: {
+          id: userId,
+          role: "investor",
+          full_name: input.fullName,
+          member_id: null,
+          must_change_password: false,
+          account_status: "active",
+        },
+      };
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email: input.email,
       password: input.password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: input.fullName,
-        phone: input.phone ?? null,
-        username: input.username ?? null,
-        national_id_number: input.nationalIdNumber ?? null,
-        address: input.address ?? null,
-        occupation: input.occupation ?? null,
-        financial_goal: input.financialGoal ?? null,
-        next_of_kin_name: input.nextOfKinName ?? null,
-        next_of_kin_phone: input.nextOfKinPhone ?? null,
-        next_of_kin_relationship: input.nextOfKinRelationship ?? null,
+      options: {
+        data: {
+          full_name: input.fullName,
+          phone: input.phone ?? null,
+          username: input.username ?? null,
+          national_id_number: input.nationalIdNumber ?? null,
+          address: input.address ?? null,
+          occupation: input.occupation ?? null,
+          financial_goal: input.financialGoal ?? null,
+          next_of_kin_name: input.nextOfKinName ?? null,
+          next_of_kin_phone: input.nextOfKinPhone ?? null,
+          next_of_kin_relationship: input.nextOfKinRelationship ?? null,
+        },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
       },
     });
-    if (createError) return { error: createError.message };
+    if (authError) return { error: authError.message };
 
-    const userId = created?.user?.id;
+    const userId = authData.user?.id;
     if (!userId) return { error: "Registration did not return a user object at all — check Supabase Auth is enabled." };
 
-    const profileResult = await createInvestorProfileRows(supabase, userId, { ...input, email: input.email });
-    if (profileResult.error) return { error: profileResult.error };
+    if (!authData.session) {
+      // Email confirmation is ON. No profile row yet — that's correct, not a bug.
+      return { success: true, pendingConfirmation: true, email: input.email };
+    }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: input.email,
-      password: input.password,
-    });
-    if (signInError) return { error: signInError.message };
-
-    return {
-      success: true,
-      profile: {
-        id: userId,
-        role: "investor",
-        full_name: input.fullName,
-        member_id: null,
-        must_change_password: false,
-        account_status: "active",
-      },
-    };
+    return createInvestorProfileRows(supabase, userId, { ...input, email: input.email });
+  } catch (err) {
+    return { error: "Registration failed unexpectedly: " + (err?.message || String(err)) };
   }
-
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: {
-      data: {
-        full_name: input.fullName,
-        phone: input.phone ?? null,
-        username: input.username ?? null,
-        national_id_number: input.nationalIdNumber ?? null,
-        address: input.address ?? null,
-        occupation: input.occupation ?? null,
-        financial_goal: input.financialGoal ?? null,
-        next_of_kin_name: input.nextOfKinName ?? null,
-        next_of_kin_phone: input.nextOfKinPhone ?? null,
-        next_of_kin_relationship: input.nextOfKinRelationship ?? null,
-      },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`,
-    },
-  });
-  if (authError) return { error: authError.message };
-
-  const userId = authData.user?.id;
-  if (!userId) return { error: "Registration did not return a user object at all — check Supabase Auth is enabled." };
-
-  if (!authData.session) {
-    // Email confirmation is ON. No profile row yet — that's correct, not a bug.
-    return { success: true, pendingConfirmation: true, email: input.email };
-  }
-
-  return createInvestorProfileRows(supabase, userId, { ...input, email: input.email });
 }
 
 /**
@@ -234,105 +238,148 @@ export async function logout() {
  * is not something any RLS-scoped session can do, by design.
  */
 export async function createStaffOrInvestorAccount(input) {
-  const supabase = await createClient();
+  try {
+    const supabase = await createClient();
 
-  const {
-    data: { user: caller },
-  } = await supabase.auth.getUser();
-  if (!caller) return { error: "Not signed in." };
+    const {
+      data: { user: caller },
+    } = await supabase.auth.getUser();
+    if (!caller) return { error: "Not signed in." };
 
-  const { data: callerProfile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", caller.id)
-    .single();
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", caller.id)
+      .single();
 
-  if (!callerProfile) return { error: "Could not verify your account." };
+    if (!callerProfile) return { error: "Could not verify your account." };
 
-  if (!["investor", "finance_officer"].includes(input.role)) {
-    return { error: "role must be 'investor' or 'finance_officer'." };
-  }
+    if (!["investor", "finance_officer"].includes(input.role)) {
+      return { error: "role must be 'investor' or 'finance_officer'." };
+    }
 
-  // Decision: Finance Officers can create INVESTOR accounts (normal front-desk work).
-  // Only Super Admin can create Finance Officer accounts — enforced here AND at the
-  // database level (migration 013's profiles_insert policy), so this check being
-  // buggy wouldn't be the only thing standing between a Finance Officer and creating
-  // another staff account.
-  const isAllowed =
-    callerProfile.role === "super_admin" ||
-    (callerProfile.role === "finance_officer" && input.role === "investor");
+    // Decision: Finance Officers can create INVESTOR accounts (normal front-desk work).
+    // Only Super Admin can create Finance Officer accounts — enforced here AND at the
+    // database level (migration 013's profiles_insert policy), so this check being
+    // buggy wouldn't be the only thing standing between a Finance Officer and creating
+    // another staff account.
+    const isAllowed =
+      callerProfile.role === "super_admin" ||
+      (callerProfile.role === "finance_officer" && input.role === "investor");
 
-  if (!isAllowed) {
-    return {
-      error:
-        callerProfile.role === "finance_officer"
-          ? "Finance Officers can create investor accounts, but not Finance Officer or Super Admin accounts."
-          : "You are not authorized to create accounts.",
-    };
-  }
+    if (!isAllowed) {
+      return {
+        error:
+          callerProfile.role === "finance_officer"
+            ? "Finance Officers can create investor accounts, but not Finance Officer or Super Admin accounts."
+            : "You are not authorized to create accounts.",
+      };
+    }
 
-  const tempPassword = randomTempPassword();
-  const admin = createAdminClient();
+    if (!input.email) {
+      return { error: "Email is required — Supabase Auth cannot create an account without one, even for walk-in investors." };
+    }
 
-  if (!input.email) {
-    return { error: "Email is required — Supabase Auth cannot create an account without one, even for walk-in investors." };
-  }
+    // Self-diagnosing check: without this, a missing/wrong SUPABASE_SERVICE_ROLE_KEY
+    // in the deploy environment doesn't fail cleanly — createAdminClient() builds a
+    // client that LOOKS valid, and the failure only surfaces later, deep inside the
+    // Supabase Auth Admin API call, sometimes as a raw/opaque error that never
+    // reaches the browser as readable text (Next.js strips unhandled Server Action
+    // exception details in production). Checking for the key's presence up front
+    // turns that into an immediate, specific, actionable error instead.
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return { error: "Server is not configured for account creation (missing SUPABASE_SERVICE_ROLE_KEY in the deploy environment). This is a deployment configuration issue, not something retrying will fix — check Netlify's environment variables." };
+    }
 
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email: input.email,
-    password: tempPassword,
-    email_confirm: true,
-    user_metadata: {
+    const tempPassword = randomTempPassword();
+    const admin = createAdminClient();
+
+    const { data: created, error: createError } = await admin.auth.admin.createUser({
+      email: input.email,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: {
+        full_name: input.fullName,
+        phone: input.phone ?? null,
+        username: input.username ?? null,
+      },
+    });
+    if (createError) return { error: createError.message };
+
+    const userId = created.user.id;
+
+    const { error: profileError } = await admin.from("profiles").insert({
+      id: userId,
+      role: input.role,
       full_name: input.fullName,
+      email: input.email,
       phone: input.phone ?? null,
       username: input.username ?? null,
-    },
-  });
-  if (createError) return { error: createError.message };
-
-  const userId = created.user.id;
-
-  const { error: profileError } = await admin.from("profiles").insert({
-    id: userId,
-    role: input.role,
-    full_name: input.fullName,
-    email: input.email,
-    phone: input.phone ?? null,
-    username: input.username ?? null,
-    must_change_password: true,
-    account_status: "invited",
-    created_by: caller.id,
-  });
-  if (profileError) return { error: profileError.message };
-
-  if (input.role === "finance_officer") {
-    const { error: staffError } = await admin.from("staff_details").insert({
-      profile_id: userId,
+      must_change_password: true,
+      account_status: "invited",
       created_by: caller.id,
-      department: input.department ?? null,
     });
-    if (staffError) return { error: staffError.message };
-  } else {
-    const { error: investorError } = await admin.from("investor_details").insert({
-      profile_id: userId,
+    if (profileError) {
+      // The auth.users row now exists with no matching profile — a ghost account
+      // that will block this same email from ever being retried (Supabase Auth
+      // won't allow a duplicate email) without ever showing up anywhere in the app.
+      // Clean it up before returning the error, so a retry with the same email
+      // actually has a chance of working.
+      await admin.auth.admin.deleteUser(userId).catch(() => {});
+      return { error: profileError.message };
+    }
+
+    if (input.role === "finance_officer") {
+      const { error: staffError } = await admin.from("staff_details").insert({
+        profile_id: userId,
+        created_by: caller.id,
+        department: input.department ?? null,
+      });
+      if (staffError) {
+        await admin.auth.admin.deleteUser(userId).catch(() => {});
+        return { error: staffError.message };
+      }
+    } else {
+      // Previously only profile_id was ever inserted here — National ID, Address,
+      // Occupation, Financial Goal, and Next of Kin were all collected on the
+      // "Add Walk-in Investor" form and then silently discarded. Now actually saved.
+      const { error: investorError } = await admin.from("investor_details").insert({
+        profile_id: userId,
+        national_id_number: input.nationalId ?? null,
+        address: input.address ?? null,
+        occupation: input.occupation ?? null,
+        financial_goal: input.goal ?? null,
+        next_of_kin_name: input.nokName ?? null,
+        next_of_kin_relationship: input.nokRelationship ?? null,
+        next_of_kin_phone: input.nokPhone ?? null,
+      });
+      if (investorError) {
+        await admin.auth.admin.deleteUser(userId).catch(() => {});
+        return { error: investorError.message };
+      }
+    }
+
+    // Uses the CALLER's own session (not the admin client) so auth.uid() inside
+    // log_audit() correctly resolves to the acting admin, not "System" — the admin
+    // client has no user context, since it authenticates as the service role.
+    await supabase.rpc("log_audit", {
+      p_action: input.role === "finance_officer" ? "Finance Officer Created" : "Investor Registered (Admin)",
+      p_entity_table: "profiles",
+      p_entity_id: userId,
+      p_previous_value: null,
+      p_new_value: { full_name: input.fullName, email: input.email, role: input.role },
     });
-    if (investorError) return { error: investorError.message };
+
+    // Returned ONCE. The admin UI must show this to the admin and must not store it
+    // anywhere client-side beyond the current session/component state.
+    return { success: true, userId, tempPassword };
+  } catch (err) {
+    // Last-resort safety net: no matter what throws above (a malformed input, an
+    // unexpected Supabase SDK error shape, anything), this guarantees the caller
+    // gets back a real, readable { error } instead of an unhandled exception that
+    // Next.js reduces to a generic, undebuggable message in production.
+    return { error: "Account creation failed unexpectedly: " + (err?.message || String(err)) };
   }
-
-  // Uses the CALLER's own session (not the admin client) so auth.uid() inside
-  // log_audit() correctly resolves to the acting admin, not "System" — the admin
-  // client has no user context, since it authenticates as the service role.
-  await supabase.rpc("log_audit", {
-    p_action: input.role === "finance_officer" ? "Finance Officer Created" : "Investor Registered (Admin)",
-    p_entity_table: "profiles",
-    p_entity_id: userId,
-    p_previous_value: null,
-    p_new_value: { full_name: input.fullName, email: input.email, role: input.role },
-  });
-
-  // Returned ONCE. The admin UI must show this to the admin and must not store it
-  // anywhere (no logs, no notifications table, no audit_logs value column).
-  return { success: true, userId, tempPassword };
 }
 
 /**

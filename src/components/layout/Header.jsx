@@ -1,8 +1,34 @@
-import React from "react";
-import { Bell, Menu } from "@/components/icons/index";
+import React, { useEffect, useState } from "react";
+import { Bell, Menu, RefreshCw } from "@/components/icons/index";
 import { Badge } from "@/components/ui/primitives";
 import { fmtDate } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
+
+function SyncIndicator({ ctx }) {
+  const [syncing, setSyncing] = useState(false);
+  const [, forceTick] = useState(0);
+  // Re-render once a second purely so "Synced Xs ago" counts up live, instead of
+  // being frozen at whatever it said when this component last happened to render.
+  useEffect(() => {
+    const t = setInterval(() => forceTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  async function doSync() {
+    setSyncing(true);
+    await ctx.refreshAll();
+    setSyncing(false);
+  }
+  const secsAgo = ctx.lastSyncedAt ? Math.max(0, Math.round((Date.now() - new Date(ctx.lastSyncedAt).getTime()) / 1000)) : null;
+  const label = secsAgo === null ? "Not synced yet" : secsAgo < 5 ? "Synced just now" : "Synced " + secsAgo + "s ago";
+  return (
+    <div onClick={doSync} title="Reload deposits, investments, withdrawals, notifications and (for staff) rosters and audit log right now"
+      style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: C.inkFaint, fontSize: 11.5 }}>
+      <RefreshCw size={14} style={syncing ? { animation: "spin 0.8s linear infinite" } : undefined} />
+      <span>{syncing ? "Syncing…" : label}</span>
+      <style>{"@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }"}</style>
+    </div>
+  );
+}
 
 export function Header({ ctx, title }) {
   // Previously hardcoded to investors only, and against a frozen June 30 2026
@@ -20,6 +46,7 @@ export function Header({ ctx, title }) {
       ) : null}
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.ink }}>{title}</div>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+        <SyncIndicator ctx={ctx} />
         <div onClick={() => ctx.goTo("notifications")} style={{ position: "relative", cursor: "pointer", color: C.inkSoft }}>
           <Bell size={19} />
           {unread > 0 ? <div style={{ position: "absolute", top: -4, right: -4, background: C.brand, color: C.white, fontSize: 10,
