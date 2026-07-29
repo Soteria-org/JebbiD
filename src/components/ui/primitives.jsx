@@ -3,7 +3,7 @@ import { AlertCircle, CheckCircle2, Sparkles, User, X } from "@/components/icons
 import { clampPct, initials } from "@/lib/format";
 import { C, FONT_BODY, FONT_DISPLAY } from "@/lib/theme";
 
-export function Btn({ children, onClick, variant, size, icon: Icon, full, disabled, type }) {
+export function Btn({ children, onClick, variant, size, icon: Icon, full, disabled, type, testId }) {
   const base = {
     border: "1px solid transparent", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer",
     fontFamily: FONT_BODY, fontWeight: 600, display: "inline-flex", alignItems: "center",
@@ -27,7 +27,7 @@ export function Btn({ children, onClick, variant, size, icon: Icon, full, disabl
   const v = variants[variant || "primary"];
   const s = sizes[size || "md"];
   return (
-    <button type={type || "button"} disabled={disabled} onClick={disabled ? undefined : onClick}
+    <button type={type || "button"} disabled={disabled} onClick={disabled ? undefined : onClick} data-testid={testId}
       style={Object.assign({}, base, s, v)}>
       {Icon ? <Icon size={s.fontSize + 2} /> : null}
       {children}
@@ -90,13 +90,14 @@ export const inputStyle = {
 };
 
 export function TextInput(props) {
-  const { value, onChange, placeholder, type, errorState } = props;
+  const { value, onChange, placeholder, type, errorState, testId } = props;
   return (
     <input
       type={type || "text"}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
+      data-testid={testId}
       style={Object.assign({}, inputStyle, errorState ? { border: "1px solid " + C.danger } : {})}
     />
   );

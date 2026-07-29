@@ -30,7 +30,7 @@ export function Sidebar({ ctx }) {
           {items.map((it) => {
             const active = ctx.view === it.key;
             return (
-              <div key={it.key} onClick={() => { ctx.goTo(it.key); if (ctx.isMobile) ctx.setSidebarOpen(false); }} style={{
+              <div key={it.key} data-testid={"nav-" + it.key} onClick={() => { ctx.goTo(it.key); if (ctx.isMobile) ctx.setSidebarOpen(false); }} style={{
                 display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 9, cursor: "pointer",
                 marginBottom: 3, background: active ? C.sidebarActive : "transparent", color: active ? C.white : C.sidebarText,
                 fontSize: 13.5, fontWeight: 600, transition: "background 0.12s",
@@ -50,7 +50,7 @@ export function Sidebar({ ctx }) {
             </div>
           </div>
           {process.env.NEXT_PUBLIC_ENABLE_DEMO_SWITCHER === "true" && <RoleSwitcher ctx={ctx} />}
-          <div onClick={ctx.logout} style={Object.assign({}, navItemPickerStyle, { color: C.sidebarText, background: "transparent" })}>
+          <div onClick={ctx.logout} data-testid="nav-signout" style={Object.assign({}, navItemPickerStyle, { color: C.sidebarText, background: "transparent" })}>
             <LogOut size={15} /> Sign Out
           </div>
         </div>
