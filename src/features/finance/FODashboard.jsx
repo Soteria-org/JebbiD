@@ -11,7 +11,7 @@ export function FODashboard({ ctx }) {
   const today = todayISO();
   // auditLog is still mock (not wired yet) — "approved this week" isn't reliable
   // against real data until it is, so this stays a soft/approximate figure.
-  const weeklyApproved = ctx.auditLog.filter((a) => a.action === "Deposit Approved" && daysAgo(a.timestamp, today) <= 7).length;
+  const weeklyApproved = ctx.auditLog.filter((a) => a.action === "Deposit approved" && daysAgo(a.timestamp, today) <= 7).length;
   const sortedDeposits = [...m.pendingDeposits].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const upcoming30 = m.upcomingMaturities.filter((p) => daysAgo(today, p.maturityDate) <= 30);
 

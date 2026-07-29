@@ -23,7 +23,7 @@ export function WithdrawalsScreen({ ctx }) {
             <tbody>
               {withdrawals.map((w) => (
                 <tr key={w.id}>
-                  <Td><strong>{w.id}</strong></Td>
+                  <Td><strong>{w.referenceNumber || "—"}</strong></Td>
                   <Td>{w.investmentId}</Td>
                   <Td>{fmtUGX(w.amount)}</Td>
                   <Td>{w.penalty > 0 ? fmtUGX(w.penalty) : "None"}</Td>

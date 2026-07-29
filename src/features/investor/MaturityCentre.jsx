@@ -54,7 +54,7 @@ export function MaturityCentre({ ctx }) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <div style={{ width: 40, height: 40, borderRadius: 11, background: C.successBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.success }}><Award size={20} /></div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: C.ink }}>Congratulations — {p.id} has matured</div>
+              <div style={{ fontWeight: 700, fontSize: 15, color: C.ink }}>Congratulations — {p.referenceNumber || "your investment"} has matured</div>
               <div style={{ fontSize: 12.5, color: C.inkSoft }}>Matured {fmtDate(p.maturityDate)}</div>
             </div>
           </div>
