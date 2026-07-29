@@ -53,33 +53,32 @@ export function LoginScreen({ ctx }) {
               <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 26 }}>Sign in to your investor account.</div>
 
               <Field label="Member ID, username, or email">
-                <TextInput value={identifier} onChange={setIdentifier} placeholder="e.g. JBD-2026-000101" />
+                <TextInput value={identifier} onChange={setIdentifier} placeholder="e.g. JBD-2026-000101" testId="login-identifier" />
               </Field>
               <Field label="Password">
                 <div style={{ position: "relative" }}>
-                  <TextInput value={password} onChange={setPassword} placeholder="Enter password" type={showPw ? "text" : "password"} />
+                  <TextInput value={password} onChange={setPassword} placeholder="Enter password" type={showPw ? "text" : "password"} testId="login-password" />
                   <div onClick={() => setShowPw(!showPw)} style={{ position: "absolute", right: 13, top: 12, cursor: "pointer", color: C.inkFaint }}>
                     {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
                   </div>
                 </div>
               </Field>
-              {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
-              <Btn full size="lg" onClick={handleLogin}>Sign In</Btn>
-              <div style={{ fontSize: 12.5, color: C.inkFaint, marginTop: 10, lineHeight: 1.5 }}>
-                Demo investor: JBD-2026-000101 / password123
-              </div>
+              {err ? <div data-testid="login-error" style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
+              <Btn full size="lg" onClick={handleLogin} testId="login-submit">Sign In</Btn>
               <div style={{ textAlign: "center", margin: "18px 0", fontSize: 13, color: C.inkFaint }}>New to Jebbidox?</div>
               <Btn full variant="outline" onClick={() => setMode("register")}>Create an Investor Account</Btn>
 
-              <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid " + C.line }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
-                  Quick Demo Access
+              {process.env.NEXT_PUBLIC_ENABLE_DEMO_SWITCHER === "true" ? (
+                <div style={{ marginTop: 32, paddingTop: 24, borderTop: "1px solid " + C.line }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: C.inkFaint, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 12 }}>
+                    Quick Demo Access
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <Btn variant="dark" icon={ShieldCheck} onClick={ctx.quickLoginAdmin}>Continue as Super Admin</Btn>
+                    <Btn variant="subtle" icon={UserCog} onClick={ctx.quickLoginFO}>Continue as Finance Officer</Btn>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <Btn variant="dark" icon={ShieldCheck} onClick={ctx.quickLoginAdmin}>Continue as Super Admin</Btn>
-                  <Btn variant="subtle" icon={UserCog} onClick={ctx.quickLoginFO}>Continue as Finance Officer</Btn>
-                </div>
-              </div>
+              ) : null}
             </>
           ) : (
             <RegisterWizard ctx={ctx} onBackToLogin={() => setMode("login")} />

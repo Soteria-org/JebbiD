@@ -1,0 +1,51 @@
+name: E2E Tests
+
+# Deliberately NOT run on every push — these tests hit your REAL production
+# Supabase backend and create real (clearly-tagged) data. Run them on demand
+# (whenever you want a definitive answer, e.g. after merging a fix) and on a
+# daily schedule as a standing health check, rather than on every commit.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "URL to test against (defaults to the secret E2E_BASE_URL / your live domain)"
+        required: false
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily — adjust to your timezone/preference
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests
+        env:
+          E2E_BASE_URL: ${{ github.event.inputs.base_url || secrets.E2E_BASE_URL }}
+          E2E_SUPERADMIN_EMAIL: ${{ secrets.E2E_SUPERADMIN_EMAIL }}
+          E2E_SUPERADMIN_PASSWORD: ${{ secrets.E2E_SUPERADMIN_PASSWORD }}
+          E2E_FO_EMAIL: ${{ secrets.E2E_FO_EMAIL }}
+          E2E_FO_PASSWORD: ${{ secrets.E2E_FO_PASSWORD }}
+          E2E_INVESTOR_EMAIL: ${{ secrets.E2E_INVESTOR_EMAIL }}
+          E2E_INVESTOR_PASSWORD: ${{ secrets.E2E_INVESTOR_PASSWORD }}
+        run: npx playwright test
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14

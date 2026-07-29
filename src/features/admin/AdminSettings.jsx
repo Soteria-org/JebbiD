@@ -26,7 +26,7 @@ export function AdminSettings({ ctx }) {
     <PageShell ctx={ctx} title="Settings">
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         {[["organisation", "Organisation"], ["packages", "Packages & Rates"], ["officers", "Finance Officers"], ["security", "Security"]].map((t) => (
-          <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", background: tab === t[0] ? C.brand : C.cardBg, color: tab === t[0] ? C.white : C.inkSoft }}>{t[1]}</div>
+          <div key={t[0]} onClick={() => setTab(t[0])} data-testid={"settings-tab-" + t[0]} style={{ padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", background: tab === t[0] ? C.brand : C.cardBg, color: tab === t[0] ? C.white : C.inkSoft }}>{t[1]}</div>
         ))}
       </div>
 
@@ -60,7 +60,7 @@ export function AdminSettings({ ctx }) {
       {tab === "officers" && (
         <>
           <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
-            <Btn icon={UserPlus} onClick={() => ctx.openModal("createFO", {})}>Create Finance Officer</Btn>
+            <Btn icon={UserPlus} onClick={() => ctx.openModal("createFO", {})} testId="open-create-fo">Create Finance Officer</Btn>
           </div>
           <TableWrap>
             <thead><tr><Th>Name</Th><Th>Email</Th><Th>Created</Th><Th>Password Status</Th></tr></thead>
