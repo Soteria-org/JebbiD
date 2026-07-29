@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { ChevronDown, Edit2, Lock, LogOut, Mail, Phone } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Btn, Card, Field, TextInput, Toggle } from "@/components/ui/primitives";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 import { fmtDate, todayISO } from "@/lib/format";
+import { checkPasswordStrength } from "@/lib/password-policy";
 import { C } from "@/lib/theme";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
 
@@ -24,7 +26,7 @@ export function ProfileScreen({ ctx }) {
   const [curPw, setCurPw] = useState(""); const [newPw, setNewPw] = useState(""); const [confPw, setConfPw] = useState(""); const [pwErr, setPwErr] = useState(""); const [pwSaving, setPwSaving] = useState(false);
   async function changePw() {
     if (!curPw) { setPwErr("Enter your current password."); return; }
-    if (newPw.length < 6) { setPwErr("New password must be at least 6 characters."); return; }
+    if (!checkPasswordStrength(newPw).valid) { setPwErr("New password doesn't meet the requirements shown below yet."); return; }
     if (newPw !== confPw) { setPwErr("Passwords do not match."); return; }
     setPwErr(""); setPwSaving(true);
     const result = await ctx.changeMyPassword(curPw, newPw);
@@ -173,6 +175,7 @@ export function ProfileScreen({ ctx }) {
           <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 14 }}>Change Password</div>
           <Field label="Current Password"><TextInput value={curPw} onChange={setCurPw} type="password" /></Field>
           <Field label="New Password"><TextInput value={newPw} onChange={setNewPw} type="password" /></Field>
+          <PasswordStrengthMeter password={newPw} />
           <Field label="Confirm New Password"><TextInput value={confPw} onChange={setConfPw} type="password" /></Field>
           {pwErr ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{pwErr}</div> : null}
           <Btn onClick={changePw} disabled={pwSaving}>{pwSaving ? "Updating…" : "Update Password"}</Btn>
