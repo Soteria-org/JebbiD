@@ -39,7 +39,7 @@ export function AddInvestorModal({ ctx }) {
           {[["Email", form.email], ["Temporary Password", result.tempPassword]].map(([label, val]) => (
             <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px solid " + C.line, fontSize: 13.5 }}>
               <span style={{ color: C.inkSoft }}>{label}</span>
-              <strong style={{ fontFamily: "monospace", color: C.ink }}>{val}</strong>
+              <strong data-testid={label === "Temporary Password" ? "investor-temp-password" : undefined} style={{ fontFamily: "monospace", color: C.ink }}>{val}</strong>
             </div>
           ))}
         </div>
@@ -55,11 +55,11 @@ export function AddInvestorModal({ ctx }) {
   return (
     <Modal title="Add Walk-in Investor" onClose={ctx.closeModal}>
       <GuidanceBanner tone="info">Use this for investors who register in person. A Member ID is generated automatically. The investor will be emailed to set their own password.</GuidanceBanner>
-      <Field label="Full Name"><TextInput value={form.fullName} onChange={(v) => set("fullName", v)} /></Field>
-      <Field label="Phone Number"><TextInput value={form.phone} onChange={(v) => set("phone", v)} /></Field>
-      <Field label="Email" hint="Required for login"><TextInput value={form.email} onChange={(v) => set("email", v)} type="email" /></Field>
+      <Field label="Full Name"><TextInput value={form.fullName} onChange={(v) => set("fullName", v)} testId="investor-fullname" /></Field>
+      <Field label="Phone Number"><TextInput value={form.phone} onChange={(v) => set("phone", v)} testId="investor-phone" /></Field>
+      <Field label="Email" hint="Required for login"><TextInput value={form.email} onChange={(v) => set("email", v)} type="email" testId="investor-email" /></Field>
       <Field label="Username" hint="Optional — auto-generated from name if left blank"><TextInput value={form.username} onChange={(v) => set("username", v)} placeholder="e.g. john.doe" /></Field>
-      <Field label="National ID"><TextInput value={form.nationalId} onChange={(v) => set("nationalId", v)} /></Field>
+      <Field label="National ID"><TextInput value={form.nationalId} onChange={(v) => set("nationalId", v)} testId="investor-nationalid" /></Field>
       <Field label="Address"><TextInput value={form.address} onChange={(v) => set("address", v)} /></Field>
       <Field label="Occupation"><TextInput value={form.occupation} onChange={(v) => set("occupation", v)} /></Field>
       <Field label="Financial Goal"><Select value={form.goal} onChange={(v) => set("goal", v)} options={GOALS} /></Field>
@@ -67,8 +67,8 @@ export function AddInvestorModal({ ctx }) {
       <Field label="Name"><TextInput value={form.nokName} onChange={(v) => set("nokName", v)} /></Field>
       <Field label="Relationship"><TextInput value={form.nokRelationship} onChange={(v) => set("nokRelationship", v)} /></Field>
       <Field label="Phone"><TextInput value={form.nokPhone} onChange={(v) => set("nokPhone", v)} /></Field>
-      {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
-      <Btn full onClick={submit}>Create Investor Account</Btn>
+      {err ? <div data-testid="investor-form-error" style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
+      <Btn full onClick={submit} testId="investor-submit">Create Investor Account</Btn>
     </Modal>
   );
 }

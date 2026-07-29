@@ -18,11 +18,11 @@ export function CreateFOModal({ ctx }) {
   if (result) {
     return (
       <Modal title="Finance Officer Created" onClose={ctx.closeModal}>
-        <GuidanceBanner tone="success" icon={CheckCircle2}>{result.name} has been created and now appears in the role switcher.</GuidanceBanner>
+        <GuidanceBanner tone="success" icon={CheckCircle2}>{result.name} has been created and now appears in the Finance Officers list.</GuidanceBanner>
         <div style={{ fontSize: 13, color: C.inkSoft, marginBottom: 10 }}>Share this temporary password securely. It must be changed on first login.</div>
         <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, textAlign: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 4 }}>Temporary Password</div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.brand, letterSpacing: 1 }}>{result.tempPassword}</div>
+          <div data-testid="fo-temp-password" style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.brand, letterSpacing: 1 }}>{result.tempPassword}</div>
         </Card>
         <Btn full onClick={ctx.closeModal}>Done</Btn>
       </Modal>
@@ -31,10 +31,10 @@ export function CreateFOModal({ ctx }) {
   return (
     <Modal title="Create Finance Officer" onClose={ctx.closeModal}>
       <GuidanceBanner tone="info">Only the Super Administrator can create Finance Officer accounts. A temporary password will be generated and the officer will be forced to set their own on first login.</GuidanceBanner>
-      <Field label="Full Name"><TextInput value={name} onChange={setName} /></Field>
-      <Field label="Email"><TextInput value={email} onChange={setEmail} /></Field>
-      {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
-      <Btn full disabled={!name || !email} onClick={submit}>Create Finance Officer</Btn>
+      <Field label="Full Name"><TextInput value={name} onChange={setName} testId="fo-fullname" /></Field>
+      <Field label="Email"><TextInput value={email} onChange={setEmail} testId="fo-email" /></Field>
+      {err ? <div data-testid="fo-form-error" style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
+      <Btn full disabled={!name || !email} onClick={submit} testId="fo-submit">Create Finance Officer</Btn>
     </Modal>
   );
 }

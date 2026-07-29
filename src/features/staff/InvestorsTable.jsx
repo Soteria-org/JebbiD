@@ -15,7 +15,7 @@ export function InvestorsTable({ ctx }) {
           <Search size={15} style={{ position: "absolute", left: 12, top: 12, color: C.inkFaint }} />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search investors..." style={Object.assign({}, inputStyle, { paddingLeft: 36 })} />
         </div>
-        <Btn icon={UserPlus} onClick={() => ctx.openModal("addInvestor", {})}>Add Investor</Btn>
+        <Btn icon={UserPlus} onClick={() => ctx.openModal("addInvestor", {})} testId="open-add-investor">Add Investor</Btn>
       </div>
       <TableWrap>
         <thead><tr><Th>Investor</Th><Th>Member ID</Th><Th>Phone</Th><Th>Positions</Th><Th>Total Invested</Th><Th></Th></tr></thead>

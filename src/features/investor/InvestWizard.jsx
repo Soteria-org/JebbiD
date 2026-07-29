@@ -123,7 +123,7 @@ export function InvestWizard({ ctx }) {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
                 {packages.map((p) => (
-                  <div key={p.id} onClick={() => setSelectedPkg(p)} style={{
+                  <div key={p.id} onClick={() => setSelectedPkg(p)} data-testid={"package-" + p.code} style={{
                     border: "1.5px solid " + (selectedPkg?.id === p.id ? C.brand : C.line),
                     borderRadius: 12, padding: 18, cursor: "pointer",
                     background: selectedPkg?.id === p.id ? C.cardBg : C.white,
@@ -140,7 +140,7 @@ export function InvestWizard({ ctx }) {
                 ))}
               </div>
             )}
-            <div style={{ marginTop: 20 }}><Btn full disabled={!selectedPkg} onClick={() => setStep(2)}>Continue</Btn></div>
+            <div style={{ marginTop: 20 }}><Btn full disabled={!selectedPkg} onClick={() => setStep(2)} testId="wizard-step1-continue">Continue</Btn></div>
           </>
         )}
 
@@ -149,7 +149,7 @@ export function InvestWizard({ ctx }) {
             <SectionTitle sub="This personalises your investment journey — it does not affect your return rate.">Choose Your Financial Goal</SectionTitle>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
               {GOALS.map((g) => (
-                <div key={g} onClick={() => setGoal(g)} style={{
+                <div key={g} onClick={() => setGoal(g)} data-testid={"goal-" + g} style={{
                   padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontSize: 13.5, fontWeight: 600,
                   border: "1.5px solid " + (goal === g ? C.brand : C.line),
                   background: goal === g ? C.cardBg : C.white, color: goal === g ? C.brand : C.ink,
@@ -158,7 +158,7 @@ export function InvestWizard({ ctx }) {
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(1)}>Back</Btn>
-              <Btn full disabled={!goal} onClick={() => setStep(3)}>Continue</Btn>
+              <Btn full disabled={!goal} onClick={() => setStep(3)} testId="wizard-step2-continue">Continue</Btn>
             </div>
           </>
         )}
@@ -168,7 +168,7 @@ export function InvestWizard({ ctx }) {
             <SectionTitle sub={"Minimum investment is " + fmtUGX(MIN_INVESTMENT) + "."}>Enter Your Amount</SectionTitle>
             {hasExisting ? <GuidanceBanner tone="info">This will create a separate investment position with its own start and maturity date — it will not merge with any existing investment.</GuidanceBanner> : null}
             <Field label="Investment Amount (UGX)" error={amountErr}>
-              <TextInput value={amount} onChange={(v) => { setAmount(v.replace(/[^0-9]/g, "")); setAmountErr(""); }} placeholder="e.g. 500000" />
+              <TextInput value={amount} onChange={(v) => { setAmount(v.replace(/[^0-9]/g, "")); setAmountErr(""); }} placeholder="e.g. 500000" testId="wizard-amount" />
             </Field>
             {amt >= MIN_INVESTMENT && selectedPkg ? (
               <Card style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, marginBottom: 16 }}>
@@ -179,7 +179,7 @@ export function InvestWizard({ ctx }) {
             ) : null}
             <div style={{ display: "flex", gap: 10 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(2)}>Back</Btn>
-              <Btn full onClick={continueFromAmount}>Continue</Btn>
+              <Btn full onClick={continueFromAmount} testId="wizard-step3-continue">Continue</Btn>
             </div>
           </>
         )}
@@ -201,7 +201,7 @@ export function InvestWizard({ ctx }) {
             ))}
             <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(3)}>Back</Btn>
-              <Btn full onClick={() => setStep(5)}>Confirm &amp; Continue</Btn>
+              <Btn full onClick={() => setStep(5)} testId="wizard-step4-continue">Confirm &amp; Continue</Btn>
             </div>
           </>
         )}
@@ -223,7 +223,7 @@ export function InvestWizard({ ctx }) {
                     <div key={opt.key} onClick={() => {
                       setPaymentMethod(opt.method);
                       setNetwork(opt.method === "mobile_money" ? opt.key : null);
-                    }} style={{
+                    }} data-testid={"paymethod-" + opt.key} style={{
                       padding: "14px 10px", borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 700, textAlign: "center",
                       border: "1.5px solid " + (selected ? C.brand : C.line),
                       background: selected ? C.cardBg : C.white,
@@ -262,7 +262,7 @@ export function InvestWizard({ ctx }) {
             </Field>
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(4)}>Back</Btn>
-              <Btn full disabled={!paymentMethod} onClick={() => setStep(6)}>I&apos;ve Sent the Funds</Btn>
+              <Btn full disabled={!paymentMethod} onClick={() => setStep(6)} testId="wizard-step5-continue">I&apos;ve Sent the Funds</Btn>
             </div>
           </>
         )}
@@ -270,7 +270,7 @@ export function InvestWizard({ ctx }) {
         {step === 6 && (
           <>
             <SectionTitle sub="Attach a screenshot or transaction receipt as proof of your payment.">Upload Proof of Payment</SectionTitle>
-            <input ref={fileInputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={onFileSelected} />
+            <input ref={fileInputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={onFileSelected} data-testid="wizard-proof-file" />
             <div onClick={() => fileInputRef.current?.click()} style={{
               border: "1.5px dashed " + (proofFile ? C.success : C.line), borderRadius: 12, padding: 28, textAlign: "center",
               cursor: "pointer", background: proofFile ? C.successBg : C.cardBg, marginBottom: 16,
@@ -295,7 +295,7 @@ export function InvestWizard({ ctx }) {
             <GuidanceBanner tone="warning">Your investment will show as &quot;Pending Verification&quot; until a Finance Officer reviews and approves this deposit.</GuidanceBanner>
             <div style={{ display: "flex", gap: 10 }}>
               <Btn variant="ghost" icon={ChevronLeft} onClick={() => setStep(5)}>Back</Btn>
-              <Btn full disabled={!proofFile || submitting} onClick={submit}>{submitting ? "Submitting…" : "Submit for Verification"}</Btn>
+              <Btn full disabled={!proofFile || submitting} onClick={submit} testId="wizard-submit">{submitting ? "Submitting…" : "Submit for Verification"}</Btn>
             </div>
           </>
         )}

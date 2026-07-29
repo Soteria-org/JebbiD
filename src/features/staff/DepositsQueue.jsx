@@ -104,7 +104,7 @@ export function DepositsQueue({ ctx }) {
             }}>{label}{count > 0 ? ` (${count})` : ""}</div>
           );
         })}
-        <div onClick={doRefresh} style={{
+        <div onClick={doRefresh} data-testid="deposits-refresh" style={{
           marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
           borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", background: C.cardBg, color: C.inkSoft,
         }}>
@@ -139,7 +139,7 @@ export function DepositsQueue({ ctx }) {
                 <Td>
                   {d.status === "pending" || d.status === "clarification_requested" ? (
                     <div style={{ display: "flex", gap: 6 }}>
-                      <Btn size="sm" variant="outline" onClick={() => setReviewing(d)}>Review</Btn>
+                      <Btn size="sm" variant="outline" onClick={() => setReviewing(d)} testId={"review-deposit-" + d.id}>Review</Btn>
                     </div>
                   ) : (
                     <span style={{ fontSize: 12, color: C.inkFaint }}>Resolved</span>
@@ -192,7 +192,7 @@ export function DepositsQueue({ ctx }) {
               <Btn variant="danger" icon={XCircle}
                 onClick={() => { setReviewing(null); setRejecting(reviewing); setActionText(""); }}
                 style={{ flex: 1, fontSize: 12.5 }}>Reject</Btn>
-              <Btn icon={Check} onClick={() => doApprove(reviewing.id)} disabled={acting}
+              <Btn icon={Check} onClick={() => doApprove(reviewing.id)} disabled={acting} testId="approve-deposit"
                 style={{ flex: 1, fontSize: 12.5, background: C.success, color: C.white }}>
                 {acting ? "Approving…" : "Approve"}
               </Btn>

@@ -21,7 +21,7 @@ function SyncIndicator({ ctx }) {
   const secsAgo = ctx.lastSyncedAt ? Math.max(0, Math.round((Date.now() - new Date(ctx.lastSyncedAt).getTime()) / 1000)) : null;
   const label = secsAgo === null ? "Not synced yet" : secsAgo < 5 ? "Synced just now" : "Synced " + secsAgo + "s ago";
   return (
-    <div onClick={doSync} title="Reload deposits, investments, withdrawals, notifications and (for staff) rosters and audit log right now"
+    <div onClick={doSync} data-testid="header-sync" title="Reload deposits, investments, withdrawals, notifications and (for staff) rosters and audit log right now"
       style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", color: C.inkFaint, fontSize: 11.5 }}>
       <RefreshCw size={14} style={syncing ? { animation: "spin 0.8s linear infinite" } : undefined} />
       <span>{syncing ? "Syncing…" : label}</span>
