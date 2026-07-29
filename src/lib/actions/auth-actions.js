@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { passwordStrengthError } from "@/lib/password-policy";
+import { randomBytes } from "crypto";
 
 /**
  * All functions here are Server Actions — they run only on the server, never ship to
@@ -11,13 +13,28 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
  */
 
 function randomTempPassword() {
-  // Good enough for a V1 demo/admin-issued temp password (forced change on first
-  // login anyway). If this ever needs to be cryptographically strong for compliance,
-  // swap for crypto.randomBytes-based generation — flagging as a known simplification.
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
-  let out = "";
-  for (let i = 0; i < 12; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
+  // Cryptographically random (Node's crypto, not Math.random()), and guaranteed
+  // — by construction, not by chance — to satisfy the same PASSWORD_REQUIREMENTS
+  // enforced everywhere else (src/lib/password-policy.js): one char from each
+  // required category is placed first, then the rest is filled randomly, then
+  // the whole thing is shuffled so the guaranteed characters aren't always in
+  // the same position.
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%&*";
+  const all = upper + lower + digits + symbols;
+
+  const randChar = (set) => set[randomBytes(1)[0] % set.length];
+  const chars = [randChar(upper), randChar(lower), randChar(digits), randChar(symbols)];
+  while (chars.length < 12) chars.push(randChar(all));
+
+  // Fisher-Yates shuffle using crypto-random indices
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = randomBytes(1)[0] % (i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+  return chars.join("");
 }
 
 function isDevAuthBypassEnabled() {
@@ -88,6 +105,9 @@ export async function createInvestorProfileRows(supabase, userId, meta) {
 export async function registerInvestor(input) {
   try {
     const supabase = await createClient();
+
+    const pwError = passwordStrengthError(input.password);
+    if (pwError) return { error: pwError };
 
     if (isDevAuthBypassEnabled()) {
       const admin = createAdminClient();
@@ -445,6 +465,10 @@ export async function updateMyInvestorDetails(fields) {
  */
 export async function changeMyPassword(currentPassword, newPassword) {
   const supabase = await createClient();
+
+  const pwError = passwordStrengthError(newPassword);
+  if (pwError) return { error: pwError };
+
   const {
     data: { user },
     error: userError,
@@ -472,6 +496,9 @@ export async function changeMyPassword(currentPassword, newPassword) {
  */
 export async function completeForcedPasswordChange(newPassword) {
   const supabase = await createClient();
+
+  const strengthError = passwordStrengthError(newPassword);
+  if (strengthError) return { error: strengthError };
 
   const {
     data: { user },

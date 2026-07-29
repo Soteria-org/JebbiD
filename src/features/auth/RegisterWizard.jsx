@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { ChevronLeft } from "@/components/icons/index";
 import { Btn, Field, GuidanceBanner, TextInput } from "@/components/ui/primitives";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 import { GOALS } from "@/lib/constants";
+import { checkPasswordStrength } from "@/lib/password-policy";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 
 export function RegisterWizard({ ctx, onBackToLogin }) {
@@ -29,7 +31,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
     }
     if (step === 5) {
       if (!form.username || !form.password) return "Choose a username and password.";
-      if (form.password.length < 6) return "Password must be at least 6 characters.";
+      if (!checkPasswordStrength(form.password).valid) return "Password doesn't meet the requirements shown below yet.";
       if (form.password !== form.confirmPassword) return "Passwords do not match.";
     }
     return "";
@@ -99,7 +101,10 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
       {step === 5 && (
         <>
           <Field label="Username"><TextInput value={form.username} onChange={(v) => set("username", v)} placeholder="Used with your Member ID to sign in" /></Field>
-          <Field label="Password"><TextInput value={form.password} onChange={(v) => set("password", v)} type="password" /></Field>
+          <Field label="Password">
+            <TextInput value={form.password} onChange={(v) => set("password", v)} type="password" testId="register-password" />
+          </Field>
+          <PasswordStrengthMeter password={form.password} />
           <Field label="Confirm Password"><TextInput value={form.confirmPassword} onChange={(v) => set("confirmPassword", v)} type="password" /></Field>
         </>
       )}
