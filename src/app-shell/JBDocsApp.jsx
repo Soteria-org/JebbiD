@@ -73,6 +73,7 @@ export default function JBDocsApp() {
       else if (view === "investorDetail") screen = <InvestorDetailScreen ctx={ctx} />;
       else if (view === "deposits") screen = <DepositsQueue ctx={ctx} />;
       else if (view === "withdrawals") screen = <WithdrawalsQueue ctx={ctx} />;
+      else if (view === "notifications") screen = <NotificationsScreen ctx={ctx} />;
       else if (view === "reports") screen = <ReportsScreen ctx={ctx} />;
       else if (view === "auditlogs") screen = <AuditLogsScreen ctx={ctx} />;
       else screen = <FODashboard ctx={ctx} />;
@@ -83,6 +84,7 @@ export default function JBDocsApp() {
       else if (view === "allinvestments") screen = <AllInvestments ctx={ctx} />;
       else if (view === "deposits") screen = <DepositsQueue ctx={ctx} />;
       else if (view === "withdrawals") screen = <WithdrawalsQueue ctx={ctx} />;
+      else if (view === "notifications") screen = <NotificationsScreen ctx={ctx} />;
       else if (view === "reports") screen = <ReportsScreen ctx={ctx} />;
       else if (view === "auditlogs") screen = <AuditLogsScreen ctx={ctx} />;
       else if (view === "settings") screen = <AdminSettings ctx={ctx} />;

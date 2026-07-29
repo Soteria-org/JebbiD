@@ -24,7 +24,7 @@ export function AllInvestments({ ctx }) {
           const investor = ctx.getInvestor(p.investorId);
           return (
             <tr key={p.id}>
-              <Td><strong>{p.id}</strong></Td>
+              <Td><strong>{p.referenceNumber || "—"}</strong></Td>
               <Td><span onClick={() => { ctx.setSelectedInvestorId(investor.id); ctx.goTo("investorDetail"); }} style={{ cursor: "pointer", color: C.brand, fontWeight: 600 }}>{investor.fullName}</span></Td>
               <Td style={{ textTransform: "capitalize" }}>{p.package}</Td>
               <Td>{fmtUGX(p.amount)}</Td>

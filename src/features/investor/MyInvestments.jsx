@@ -19,7 +19,7 @@ export function MyInvestments({ ctx }) {
         <Card style={{ maxWidth: 640 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
             <div>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 600, color: C.ink }}>{p.id}</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 20, fontWeight: 600, color: C.ink }}>{p.referenceNumber || "Pending reference"}</div>
               <div style={{ fontSize: 13, color: C.inkSoft, textTransform: "capitalize" }}>{p.package} Package · {p.goal}</div>
             </div>
             {statusBadge(p.status)}
@@ -54,7 +54,7 @@ export function MyInvestments({ ctx }) {
           <tbody>
             {positions.map((p) => (
               <tr key={p.id}>
-                <Td><strong>{p.id}</strong></Td>
+                <Td><strong>{p.referenceNumber || "—"}</strong></Td>
                 <Td style={{ textTransform: "capitalize" }}>{p.package}</Td>
                 <Td>{fmtUGX(p.amount)}</Td>
                 <Td>{p.goal}</Td>

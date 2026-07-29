@@ -17,7 +17,7 @@ export async function loadMyInvestmentsView() {
 
   const { data: pendingDeposits, error: depErr } = await supabase
     .from("deposit_submissions")
-    .select("id, amount, financial_goal, status, clarification_note, created_at, package:investment_packages(code)")
+    .select("id, reference_number, amount, financial_goal, status, clarification_note, created_at, package:investment_packages(code)")
     .eq("investor_id", user.id)
     .neq("status", "approved")
     .order("created_at", { ascending: false });
@@ -26,7 +26,7 @@ export async function loadMyInvestmentsView() {
   const { data: positions, error: posErr } = await supabase
     .from("investment_positions")
     .select(`
-      id, principal_amount, start_date, maturity_date, expected_return, maturity_value,
+      id, reference_number, principal_amount, start_date, maturity_date, expected_return, maturity_value,
       status, maturity_action, created_at,
       package:investment_packages(code),
       deposit:deposit_submissions(financial_goal)
@@ -36,7 +36,7 @@ export async function loadMyInvestmentsView() {
   if (posErr) return { error: posErr.message };
 
   const pendingItems = (pendingDeposits || []).map((d) => ({
-    id: d.id, investorId: user.id, package: d.package?.code, amount: d.amount, goal: d.financial_goal,
+    id: d.id, referenceNumber: d.reference_number, investorId: user.id, package: d.package?.code, amount: d.amount, goal: d.financial_goal,
     status: d.status === "pending" ? "pending_verification" : d.status,
     rejectionReason: d.status === "rejected" ? d.clarification_note : null,
     clarificationNote: d.status === "clarification_requested" ? d.clarification_note : null,
@@ -45,7 +45,7 @@ export async function loadMyInvestmentsView() {
   }));
 
   const positionItems = (positions || []).map((p) => ({
-    id: p.id, investorId: user.id, package: p.package?.code, amount: p.principal_amount,
+    id: p.id, referenceNumber: p.reference_number, investorId: user.id, package: p.package?.code, amount: p.principal_amount,
     goal: p.deposit?.financial_goal || "—", status: p.status, rejectionReason: null, clarificationNote: null,
     createdAt: p.created_at, startDate: p.start_date, maturityDate: p.maturity_date,
     expectedReturn: p.expected_return, maturityValue: p.maturity_value, maturityChoice: p.maturity_action,
@@ -70,7 +70,7 @@ export async function loadAllInvestmentsView() {
   const { data, error } = await supabase
     .from("investment_positions")
     .select(`
-      id, principal_amount, start_date, maturity_date, expected_return, maturity_value,
+      id, reference_number, principal_amount, start_date, maturity_date, expected_return, maturity_value,
       status, maturity_action, created_at,
       package:investment_packages(code),
       deposit:deposit_submissions(financial_goal),
@@ -81,7 +81,7 @@ export async function loadAllInvestmentsView() {
   if (error) return { error: error.message };
 
   const items = (data || []).map((p) => ({
-    id: p.id, investorId: p.investor?.id, package: p.package?.code, amount: p.principal_amount,
+    id: p.id, referenceNumber: p.reference_number, investorId: p.investor?.id, package: p.package?.code, amount: p.principal_amount,
     goal: p.deposit?.financial_goal || "—", status: p.status, rejectionReason: null,
     createdAt: p.created_at, startDate: p.start_date, maturityDate: p.maturity_date,
     expectedReturn: p.expected_return, maturityValue: p.maturity_value, maturityChoice: p.maturity_action,

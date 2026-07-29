@@ -11,7 +11,7 @@ export function PositionRow({ p }) {
     <div style={{ padding: "13px 0", borderBottom: "1px solid " + C.line }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
         <div>
-          <span style={{ fontWeight: 700, fontSize: 13.5, color: C.ink }}>{p.id}</span>
+          <span style={{ fontWeight: 700, fontSize: 13.5, color: C.ink }}>{p.referenceNumber || "Pending"}</span>
           <span style={{ marginLeft: 8, fontSize: 12.5, color: C.inkFaint, textTransform: "capitalize" }}>{p.package} · {p.goal}</span>
         </div>
         {statusBadge(p.status === "pending_verification" ? "pending_verification" : p.status)}
