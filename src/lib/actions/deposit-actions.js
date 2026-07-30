@@ -111,10 +111,10 @@ export async function loadDepositsQueue() {
   const { data, error } = await supabase
     .from("deposit_submissions")
     .select(`
-      id, amount, payment_method, network, transaction_reference, depositor_name,
+      id, reference_number, amount, payment_method, network, transaction_reference, depositor_name,
       date_paid, financial_goal, notes, status, clarification_note,
       created_at, reviewed_at,
-      investor:profiles(id, full_name, member_id, email, phone),
+      investor:profiles!deposit_submissions_investor_id_fkey(id, full_name, member_id, email, phone),
       package:investment_packages(id, code, name, annual_return_rate),
       reviewer:profiles!deposit_submissions_reviewed_by_fkey(full_name)
     `)
