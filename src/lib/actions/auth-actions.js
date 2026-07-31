@@ -109,17 +109,6 @@ export async function registerInvestor(input) {
     const pwError = passwordStrengthError(input.password);
     if (pwError) return { error: pwError };
 
-    // If this env var isn't set, `${process.env.NEXT_PUBLIC_SITE_URL}/auth/confirm`
-    // below silently becomes the literal string "undefined/auth/confirm" — not a
-    // thrown error, just a malformed URL that Supabase then rejects as an
-    // unallowed redirect target. That produces an error message with the word
-    // "undefined" sitting in it, and — critically — Supabase refuses the signUp
-    // before ever creating the auth.users row, so it looks like nothing happened
-    // at all. Catching it here turns that into an explicit, correct diagnosis.
-    if (!process.env.NEXT_PUBLIC_SITE_URL) {
-      return { error: "Server is not configured correctly (missing NEXT_PUBLIC_SITE_URL in the deploy environment). This is a deployment configuration issue — check Vercel's environment variables, not something retrying will fix." };
-    }
-
     if (isDevAuthBypassEnabled()) {
       const admin = createAdminClient();
       const { data: created, error: createError } = await admin.auth.admin.createUser({
