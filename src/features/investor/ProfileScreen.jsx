@@ -6,11 +6,13 @@ import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 import { fmtDate, todayISO } from "@/lib/format";
 import { checkPasswordStrength } from "@/lib/password-policy";
 import { C } from "@/lib/theme";
+import { useDarkMode } from "@/lib/useDarkMode";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
 
 export function ProfileScreen({ ctx }) {
   const [tab, setTab] = useState("profile");
   const inv = ctx.currentInvestor;
+  const { isDark, toggle: toggleDarkMode } = useDarkMode();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ phone: inv.phone, address: inv.address, occupation: inv.occupation,
     nokName: inv.nextOfKin.name, nokRelationship: inv.nextOfKin.relationship, nokPhone: inv.nextOfKin.phone, nokAddress: inv.nextOfKin.address });
@@ -146,9 +148,9 @@ export function ProfileScreen({ ctx }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", marginBottom: 18 }}>
             <div>
               <span style={{ fontSize: 13.5, color: C.ink }}>Dark Mode</span>
-              <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 2 }}>Coming soon</div>
+              <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 2 }}>Applies across the whole platform</div>
             </div>
-            <Toggle on={false} onChange={() => ctx.showToast("Dark mode is coming in a future update.", "info")} disabled />
+            <Toggle on={isDark} onChange={toggleDarkMode} />
           </div>
 
           <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 10 }}>Help &amp; Support</div>

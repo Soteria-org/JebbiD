@@ -105,7 +105,7 @@ export function MaturityCentre({ ctx }) {
                       <div key={opt.key} onClick={() => { setPaymentMethod(opt.method); setNetwork(opt.method === "mobile_money" ? opt.key : null); }} style={{
                         padding: "12px 8px", borderRadius: 9, cursor: "pointer", fontSize: 12, fontWeight: 700, textAlign: "center",
                         border: "1.5px solid " + (selected ? C.brand : C.line),
-                        background: selected ? C.cardBg : C.white, color: selected ? C.brand : C.ink,
+                        background: selected ? C.cardBg : C.surface, color: selected ? C.brand : C.ink,
                       }}>{opt.label}</div>
                     );
                   })}

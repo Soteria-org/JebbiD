@@ -21,9 +21,9 @@ export function NotificationsScreen({ ctx }) {
           return (
             <div key={n.id} onClick={() => ctx.goToNotificationTarget(n)} data-testid={"notification-" + n.id} style={{
               display: "flex", gap: 12, padding: "15px 20px", borderBottom: i === list.length - 1 ? "none" : "1px solid " + C.line,
-              cursor: "pointer", background: n.read ? C.white : C.cardBg,
+              cursor: "pointer", background: n.read ? C.surface : C.cardBg,
             }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: C.white, border: "1px solid " + C.line, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand, flexShrink: 0 }}><Ic size={16} /></div>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: C.surface, border: "1px solid " + C.line, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand, flexShrink: 0 }}><Ic size={16} /></div>
               <div style={{ flex: 1 }}>
                 {n.title ? <div style={{ fontSize: 11.5, fontWeight: 700, color: C.brand, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 2 }}>{n.title}</div> : null}
                 <div style={{ fontSize: 13.5, color: C.ink, fontWeight: n.read ? 500 : 700 }}>{n.message}</div>

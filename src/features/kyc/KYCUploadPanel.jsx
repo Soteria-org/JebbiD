@@ -217,13 +217,13 @@ export function KYCUploadPanel({ investorProfileId, staffMode = false, onStatusC
           return (
             <div key={doc.key} style={{
               display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
-              borderRadius: 12, border: "1.5px solid " + (done ? "#16A34A" : C.line),
-              background: done ? "#F0FDF4" : C.white,
+              borderRadius: 12, border: "1.5px solid " + (done ? C.success : C.line),
+              background: done ? C.successBg : C.surface,
             }}>
               <div style={{
                 width: 40, height: 40, borderRadius: 10, flexShrink: 0, display: "flex",
                 alignItems: "center", justifyContent: "center",
-                background: done ? "#DCFCE7" : C.cardBg,
+                background: done ? C.successBg : C.cardBg,
               }}>
                 {done
                   ? <CheckCircle2 size={22} color="#16A34A" />

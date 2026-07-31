@@ -1,0 +1,141 @@
+/* ============================================================
+   JebbiDox Design System — "Digital Passbook"
+   Every color is a CSS custom property so the same JS token
+   object (src/lib/theme.js) resolves to a different value under
+   light vs. dark — no component needs to know which theme is
+   active.
+   ============================================================ */
+
+:root {
+  --ink: #1c1410;
+  --ink-soft: #5c4f44;
+  --ink-faint: #9c8d7c;
+
+  --paper: #f6efe0;
+  --paper-soft: #fbf6ea;
+  --white: #ffffff;
+  --surface-raised: #ffffff;
+
+  --garnet: #7a1220;
+  --garnet-deep: #4e0b15;
+  --garnet-soft: #f3e1df;
+
+  --gold: #b98a2e;
+  --gold-soft: #ede0be;
+  --gold-line: #d8bd82;
+
+  --sage: #3f5d42;
+  --sage-soft: #e4ebe1;
+
+  --line: #dccca8;
+  --line-soft: #eae0c8;
+
+  --sidebar-bg: #4e0b15;
+  --sidebar-hover: #5f1622;
+  --sidebar-active-bg: #b98a2e;
+  --sidebar-active-fg: #3a2a0a;
+  --sidebar-text: #d9c2a8;
+  --sidebar-text-dim: #b8987a;
+
+  --shadow-card: 0 1px 2px rgba(28, 20, 16, 0.05), 0 12px 28px -14px rgba(28, 20, 16, 0.22);
+  --shadow-modal: 0 24px 64px -12px rgba(28, 20, 16, 0.45);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --ink: #f1e6d3;
+  --ink-soft: #cdbea3;
+  --ink-faint: #8f7f68;
+
+  --paper: #15100c;
+  --paper-soft: #1c1611;
+  --white: #ffffff;
+  --surface-raised: #241c15;
+
+  --garnet: #b03246;
+  --garnet-deep: #6e1522;
+  --garnet-soft: #37191c;
+
+  --gold: #d4a44c;
+  --gold-soft: #3a2e18;
+  --gold-line: #7a5c2c;
+
+  --sage: #71a377;
+  --sage-soft: #1c2a1e;
+
+  --line: #3a3024;
+  --line-soft: #2a2319;
+
+  --sidebar-bg: #100608;
+  --sidebar-hover: #24101a;
+  --sidebar-active-bg: #d4a44c;
+  --sidebar-active-fg: #241a08;
+  --sidebar-text: #d9c2a8;
+  --sidebar-text-dim: #8a7059;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 36px -14px rgba(0, 0, 0, 0.65);
+  --shadow-modal: 0 24px 64px -12px rgba(0, 0, 0, 0.75);
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gold-line);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Ledger tables use a dashed rule between rows, like a printed statement */
+.jbd-ledger-row {
+  border-bottom: 1px dashed var(--line);
+}
+.jbd-ledger-row:last-child {
+  border-bottom: none;
+}
+
+@keyframes jbd-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jbd-logo-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(185, 138, 46, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(185, 138, 46, 0); }
+}
+
+@keyframes jbd-count-fade {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

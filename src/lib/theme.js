@@ -1,31 +1,57 @@
 import React from "react";
 
+/**
+ * Every value here is a CSS custom property, not a literal color. The
+ * properties themselves are defined twice in app/globals.css — once under
+ * :root (light) and once under :root[data-theme="dark"] — so flipping the
+ * `data-theme` attribute on <html> (see src/lib/useDarkMode.js) re-themes
+ * every screen in the app without any component needing to know which mode
+ * is active. Key names are unchanged from the original palette so none of
+ * the ~40 files that already do `C.brand`, `C.pageBg`, etc. needed to change.
+ */
 export const C = {
-  sidebarBg: "#1B0808",
-  sidebarActive: "#521A1A",
-  sidebarHover: "#2E1010",
-  sidebarText: "#C49090",
-  sidebarTextDim: "#8A6363",
-  brand: "#C41E1E",
-  brandDark: "#9C1818",
-  cardBg: "#FFF5F5",
-  cardBorder: "#FDDEDE",
-  white: "#FFFFFF",
-  pageBg: "#FAF7F7",
-  ink: "#241112",
-  inkSoft: "#5B4444",
-  inkFaint: "#8A7474",
-  line: "#EFD9D9",
-  success: "#1E7A45",
-  successBg: "#E8F6EC",
-  warning: "#A86A12",
-  warningBg: "#FFF3DF",
-  danger: "#B3211E",
-  dangerBg: "#FCEAEA",
-  info: "#2A5C8A",
-  infoBg: "#E9F1F8",
+  sidebarBg: "var(--sidebar-bg)",
+  sidebarActive: "var(--sidebar-active-bg)",
+  sidebarActiveText: "var(--sidebar-active-fg)",
+  sidebarHover: "var(--sidebar-hover)",
+  sidebarText: "var(--sidebar-text)",
+  sidebarTextDim: "var(--sidebar-text-dim)",
+
+  brand: "var(--garnet)",
+  brandDark: "var(--garnet-deep)",
+
+  cardBg: "var(--paper-soft)",
+  cardBorder: "var(--line-soft)",
+  // `white` stays LITERALLY white in both themes — every existing usage in
+  // features/* is `color: C.white` (button/badge/avatar text sitting on a
+  // brand-colored or always-dark background), which must not go dark-brown
+  // in dark mode. Anything that instead wants an elevated PANEL surface
+  // (cards, inputs, modals, dropdowns — which do need to go dark) uses the
+  // separate `surface` token below.
+  white: "#ffffff",
+  surface: "var(--surface-raised)",
+  pageBg: "var(--paper)",
+
+  ink: "var(--ink)",
+  inkSoft: "var(--ink-soft)",
+  inkFaint: "var(--ink-faint)",
+  line: "var(--line)",
+
+  success: "var(--sage)",
+  successBg: "var(--sage-soft)",
+  warning: "var(--gold)",
+  warningBg: "var(--gold-soft)",
+  danger: "var(--garnet)",
+  dangerBg: "var(--garnet-soft)",
+  info: "var(--ink-soft)",
+  infoBg: "var(--line-soft)",
+
+  gold: "var(--gold)",
+  goldLine: "var(--gold-line)",
+  shadowCard: "var(--shadow-card)",
+  shadowModal: "var(--shadow-modal)",
 };
 
-export const FONT_DISPLAY = "'Iowan Old Style','Georgia','Times New Roman',serif";
-
-export const FONT_BODY = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+export const FONT_DISPLAY = "'Fraunces','Georgia','Times New Roman',serif";
+export const FONT_BODY = "'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+export const FONT_MONO = "'IBM Plex Mono','SFMono-Regular',Consolas,monospace";

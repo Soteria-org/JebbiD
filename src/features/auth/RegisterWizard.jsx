@@ -96,7 +96,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
               <div key={g} onClick={() => set("goal", g)} style={{
                 padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontSize: 13.5, fontWeight: 600,
                 border: "1.5px solid " + (form.goal === g ? C.brand : C.line),
-                background: form.goal === g ? C.cardBg : C.white, color: form.goal === g ? C.brand : C.ink,
+                background: form.goal === g ? C.cardBg : C.surface, color: form.goal === g ? C.brand : C.ink,
               }}>{g}</div>
             ))}
           </div>

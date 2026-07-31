@@ -126,7 +126,7 @@ export function InvestWizard({ ctx }) {
                   <div key={p.id} onClick={() => setSelectedPkg(p)} data-testid={"package-" + p.code} style={{
                     border: "1.5px solid " + (selectedPkg?.id === p.id ? C.brand : C.line),
                     borderRadius: 12, padding: 18, cursor: "pointer",
-                    background: selectedPkg?.id === p.id ? C.cardBg : C.white,
+                    background: selectedPkg?.id === p.id ? C.cardBg : C.surface,
                   }}>
                     <div style={{ fontWeight: 700, fontSize: 15, color: C.ink, marginBottom: 4 }}>{p.name}</div>
                     <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 600, color: C.brand, marginBottom: 6 }}>
@@ -152,7 +152,7 @@ export function InvestWizard({ ctx }) {
                 <div key={g} onClick={() => setGoal(g)} data-testid={"goal-" + g} style={{
                   padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontSize: 13.5, fontWeight: 600,
                   border: "1.5px solid " + (goal === g ? C.brand : C.line),
-                  background: goal === g ? C.cardBg : C.white, color: goal === g ? C.brand : C.ink,
+                  background: goal === g ? C.cardBg : C.surface, color: goal === g ? C.brand : C.ink,
                 }}>{g}</div>
               ))}
             </div>
@@ -226,7 +226,7 @@ export function InvestWizard({ ctx }) {
                     }} data-testid={"paymethod-" + opt.key} style={{
                       padding: "14px 10px", borderRadius: 10, cursor: "pointer", fontSize: 12.5, fontWeight: 700, textAlign: "center",
                       border: "1.5px solid " + (selected ? C.brand : C.line),
-                      background: selected ? C.cardBg : C.white,
+                      background: selected ? C.cardBg : C.surface,
                       color: selected ? C.brand : C.ink,
                     }}>{opt.label}</div>
                   );
