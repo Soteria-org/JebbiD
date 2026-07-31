@@ -15,8 +15,8 @@ const DOC_TYPES = [
 
 const STATUS_COLORS = {
   not_started: C.inkFaint,
-  pending:     "#D97706",
-  approved:    "#16A34A",
+  pending:     C.warning,
+  approved:    C.success,
   rejected:    C.danger,
 };
 const STATUS_LABELS = {
@@ -226,7 +226,7 @@ export function KYCUploadPanel({ investorProfileId, staffMode = false, onStatusC
                 background: done ? C.successBg : C.cardBg,
               }}>
                 {done
-                  ? <CheckCircle2 size={22} color="#16A34A" />
+                  ? <CheckCircle2 size={22} color={C.success} />
                   : <Icon size={20} color={C.inkFaint} />}
               </div>
               <div style={{ flex: 1 }}>

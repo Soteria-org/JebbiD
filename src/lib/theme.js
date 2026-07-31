@@ -41,6 +41,7 @@ export const C = {
   successBg: "var(--sage-soft)",
   warning: "var(--gold)",
   warningBg: "var(--gold-soft)",
+  warningText: "var(--warning-text)",
   danger: "var(--garnet)",
   dangerBg: "var(--garnet-soft)",
   info: "var(--ink-soft)",

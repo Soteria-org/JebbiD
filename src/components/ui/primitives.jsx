@@ -43,7 +43,7 @@ export function Card({ children, style, padded }) {
 export function Badge({ children, tone }) {
   const tones = {
     success: { bg: C.successBg, fg: C.success },
-    warning: { bg: C.warningBg, fg: "#7A5C10" },
+    warning: { bg: C.warningBg, fg: C.warningText },
     danger: { bg: C.dangerBg, fg: C.danger },
     info: { bg: C.infoBg, fg: C.info },
     neutral: { bg: C.cardBg, fg: C.inkSoft },
@@ -139,7 +139,7 @@ export function Toggle({ on, onChange }) {
 export function GuidanceBanner({ children, tone, icon: Icon }) {
   const tones = {
     info: { bg: C.infoBg, fg: C.ink, border: C.line },
-    warning: { bg: C.warningBg, fg: "#7A5C10", border: C.goldLine },
+    warning: { bg: C.warningBg, fg: C.warningText, border: C.goldLine },
     success: { bg: C.successBg, fg: C.success, border: C.line },
   };
   const t = tones[tone || "info"];
