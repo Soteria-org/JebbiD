@@ -34,6 +34,7 @@ import { AdminDashboard } from "@/features/admin/AdminDashboard";
 import { AllInvestments } from "@/features/admin/AllInvestments";
 import { AdminSettings } from "@/features/admin/AdminSettings";
 import { CreateFOModal } from "@/features/admin/CreateFOModal";
+import { SystemHealthCenter } from "@/features/admin/SystemHealthCenter";
 
 /**
  * JBDocsApp
@@ -80,6 +81,7 @@ export default function JBDocsApp() {
       else screen = <FODashboard ctx={ctx} />;
     } else if (role === "super_admin") {
       if (view === "dashboard") screen = <AdminDashboard ctx={ctx} />;
+      else if (view === "health") screen = <SystemHealthCenter ctx={ctx} />;
       else if (view === "investors") screen = <InvestorsTable ctx={ctx} />;
       else if (view === "investorDetail") screen = <InvestorDetailScreen ctx={ctx} />;
       else if (view === "allinvestments") screen = <AllInvestments ctx={ctx} />;

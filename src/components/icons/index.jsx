@@ -121,3 +121,9 @@ export function IdCard(p) { return <Svg {...p}><rect x="2" y="5" width="20" heig
 export function UserCog(p) { return <Svg {...p}><circle cx="9" cy="9" r="3.5" /><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6" /><circle cx="18" cy="16" r="2.2" /><line x1="18" y1="12.5" x2="18" y2="13.5" /><line x1="18" y1="18.5" x2="18" y2="19.5" /><line x1="14.5" y1="16" x2="15.5" y2="16" /><line x1="20.5" y1="16" x2="21.5" y2="16" /></Svg>; }
 
 export function KeyRound(p) { return <Svg {...p}><circle cx="8" cy="15" r="4.5" /><path d="M11.5 11.5L21 2" /><path d="M17 6l3 3" /><path d="M14 9l2.5 2.5" /></Svg>; }
+
+export function Moon(p) { return <Svg {...p}><path d="M20 14.5A8.5 8.5 0 1110 3.3 6.8 6.8 0 0020 14.5z" /></Svg>; }
+
+export function Sun(p) { return <Svg {...p}><circle cx="12" cy="12" r="4.5" /><line x1="12" y1="2" x2="12" y2="4.5" /><line x1="12" y1="19.5" x2="12" y2="22" /><line x1="4.2" y1="4.2" x2="6" y2="6" /><line x1="18" y1="18" x2="19.8" y2="19.8" /><line x1="2" y1="12" x2="4.5" y2="12" /><line x1="19.5" y1="12" x2="22" y2="12" /><line x1="4.2" y1="19.8" x2="6" y2="18" /><line x1="18" y1="6" x2="19.8" y2="4.2" /></Svg>; }
+
+export function Server(p) { return <Svg {...p}><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7.01" y2="7.5" /><line x1="7" y1="16.5" x2="7.01" y2="16.5" /></Svg>; }

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Bell, Menu, RefreshCw } from "@/components/icons/index";
+import { Bell, Menu, Moon, RefreshCw, Sun } from "@/components/icons/index";
 import { Badge } from "@/components/ui/primitives";
 import { fmtDate } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
+import { useDarkMode } from "@/lib/useDarkMode";
 
 function SyncIndicator({ ctx }) {
   const [syncing, setSyncing] = useState(false);
@@ -37,8 +38,9 @@ export function Header({ ctx, title }) {
   // too — this is part of what makes a Finance Officer actually see "deposit
   // awaiting review" alerts instead of only finding them by checking the queue.
   const unread = ctx.notifications.filter((n) => n.investorId === ctx.session.id && !n.read).length;
+  const { isDark, toggle } = useDarkMode();
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 24px", borderBottom: "1px solid " + C.line, background: C.white, position: "sticky", top: 0, zIndex: 100 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 24px", borderBottom: "1px solid " + C.line, background: C.surface, position: "sticky", top: 0, zIndex: 100 }}>
       {ctx.isMobile ? (
         <div onClick={() => ctx.setSidebarOpen(!ctx.sidebarOpen)} style={{ cursor: "pointer", color: C.ink, padding: 4 }}>
           <Menu size={22} />
@@ -47,6 +49,10 @@ export function Header({ ctx, title }) {
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.ink }}>{title}</div>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
         <SyncIndicator ctx={ctx} />
+        <div onClick={toggle} title={isDark ? "Switch to light mode" : "Switch to dark mode"} data-testid="header-theme-toggle"
+          style={{ cursor: "pointer", color: C.inkSoft, display: "flex", alignItems: "center" }}>
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </div>
         <div onClick={() => ctx.goTo("notifications")} style={{ position: "relative", cursor: "pointer", color: C.inkSoft }}>
           <Bell size={19} />
           {unread > 0 ? <div style={{ position: "absolute", top: -4, right: -4, background: C.brand, color: C.white, fontSize: 10,

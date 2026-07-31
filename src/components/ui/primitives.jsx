@@ -1,13 +1,13 @@
 import React from "react";
 import { AlertCircle, CheckCircle2, Sparkles, User, X } from "@/components/icons/index";
 import { clampPct, initials } from "@/lib/format";
-import { C, FONT_BODY, FONT_DISPLAY } from "@/lib/theme";
+import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 
 export function Btn({ children, onClick, variant, size, icon: Icon, full, disabled, type, testId }) {
   const base = {
     border: "1px solid transparent", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer",
     fontFamily: FONT_BODY, fontWeight: 600, display: "inline-flex", alignItems: "center",
-    justifyContent: "center", gap: 8, transition: "background 0.15s, opacity 0.15s",
+    justifyContent: "center", gap: 8, transition: "background 0.15s, opacity 0.15s, border-color 0.15s",
     opacity: disabled ? 0.55 : 1, width: full ? "100%" : "auto", whiteSpace: "nowrap",
   };
   const sizes = {
@@ -18,11 +18,11 @@ export function Btn({ children, onClick, variant, size, icon: Icon, full, disabl
   const variants = {
     primary: { background: C.brand, color: C.white },
     dark: { background: C.sidebarBg, color: C.white },
-    outline: { background: C.white, color: C.brand, border: "1px solid " + C.brand },
+    outline: { background: "transparent", color: C.brand, border: "1.5px solid " + C.brand },
     ghost: { background: "transparent", color: C.inkSoft, border: "1px solid " + C.line },
     success: { background: C.success, color: C.white },
     danger: { background: C.danger, color: C.white },
-    subtle: { background: C.cardBg, color: C.brand, border: "1px solid " + C.cardBorder },
+    subtle: { background: C.warningBg, color: C.brand, border: "1px solid " + C.goldLine },
   };
   const v = variants[variant || "primary"];
   const s = sizes[size || "md"];
@@ -36,21 +36,21 @@ export function Btn({ children, onClick, variant, size, icon: Icon, full, disabl
 }
 
 export function Card({ children, style, padded }) {
-  const s = { background: C.white, border: "1px solid " + C.line, borderRadius: 14, padding: padded === false ? 0 : 20 };
+  const s = { background: C.surface, border: "1px solid " + C.line, borderRadius: 12, padding: padded === false ? 0 : 20, boxShadow: C.shadowCard };
   return <div style={Object.assign({}, s, style || {})}>{children}</div>;
 }
 
 export function Badge({ children, tone }) {
   const tones = {
     success: { bg: C.successBg, fg: C.success },
-    warning: { bg: C.warningBg, fg: C.warning },
+    warning: { bg: C.warningBg, fg: C.warningText },
     danger: { bg: C.dangerBg, fg: C.danger },
     info: { bg: C.infoBg, fg: C.info },
     neutral: { bg: C.cardBg, fg: C.inkSoft },
   };
   const t = tones[tone || "neutral"];
   return (
-    <span style={{ background: t.bg, color: t.fg, fontSize: 12, fontWeight: 700, padding: "3px 10px",
+    <span style={{ background: t.bg, color: t.fg, fontSize: 11.5, fontWeight: 700, padding: "4px 11px",
       borderRadius: 100, display: "inline-flex", alignItems: "center", gap: 5, letterSpacing: 0.2 }}>
       {children}
     </span>
@@ -69,13 +69,13 @@ export function statusBadge(status) {
     paid: { label: "Paid", tone: "success" },
   };
   const m = map[status] || { label: status, tone: "neutral" };
-  return <Badge tone={m.tone}>{m.label}</Badge>;
+  return <Badge tone={m.tone}>● {m.label}</Badge>;
 }
 
 export function Field({ label, children, hint, error }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      {label ? <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 6 }}>{label}</div> : null}
+      {label ? <div style={{ fontSize: 12.5, fontWeight: 700, color: C.inkSoft, marginBottom: 7, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</div> : null}
       {children}
       {hint && !error ? <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 5 }}>{hint}</div> : null}
       {error ? <div style={{ fontSize: 12, color: C.danger, marginTop: 5, display: "flex", alignItems: "center", gap: 5 }}>
@@ -85,8 +85,8 @@ export function Field({ label, children, hint, error }) {
 }
 
 export const inputStyle = {
-  width: "100%", padding: "11px 13px", borderRadius: 9, border: "1px solid " + C.line,
-  fontSize: 14, fontFamily: FONT_BODY, color: C.ink, background: C.white, boxSizing: "border-box",
+  width: "100%", padding: "11px 13px", borderRadius: 8, border: "1px solid " + C.line,
+  fontSize: 14, fontFamily: FONT_BODY, color: C.ink, background: C.surface, boxSizing: "border-box",
 };
 
 export function TextInput(props) {
@@ -138,9 +138,9 @@ export function Toggle({ on, onChange }) {
 
 export function GuidanceBanner({ children, tone, icon: Icon }) {
   const tones = {
-    info: { bg: C.infoBg, fg: C.info, border: "#CFE0EE" },
-    warning: { bg: C.warningBg, fg: C.warning, border: "#F0DDB3" },
-    success: { bg: C.successBg, fg: C.success, border: "#C8E8D2" },
+    info: { bg: C.infoBg, fg: C.ink, border: C.line },
+    warning: { bg: C.warningBg, fg: C.warningText, border: C.goldLine },
+    success: { bg: C.successBg, fg: C.success, border: C.line },
   };
   const t = tones[tone || "info"];
   const Ic = Icon || Sparkles;
@@ -155,28 +155,28 @@ export function GuidanceBanner({ children, tone, icon: Icon }) {
 
 export function StatCard({ label, value, icon: Icon, sub, tone }) {
   return (
-    <div style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, borderRadius: 14, padding: 18, flex: 1, minWidth: 180 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 700, color: C.inkSoft, textTransform: "uppercase", letterSpacing: 0.4 }}>{label}</span>
-        {Icon ? <div style={{ width: 30, height: 30, borderRadius: 9, background: C.white, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand }}>
-          <Icon size={16} /></div> : null}
+    <div style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, borderRadius: 12, padding: 18, flex: 1, minWidth: 180 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 10.5, fontWeight: 600, color: C.inkFaint, textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
+        {Icon ? <div style={{ width: 28, height: 28, borderRadius: 8, background: C.surface, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand, border: "1px solid " + C.line }}>
+          <Icon size={15} /></div> : null}
       </div>
-      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 25, fontWeight: 600, color: C.ink, letterSpacing: 0.2 }}>{value}</div>
-      {sub ? <div style={{ fontSize: 12.5, color: tone === "danger" ? C.danger : tone === "success" ? C.success : C.inkFaint, marginTop: 5 }}>{sub}</div> : null}
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, color: C.ink, letterSpacing: 0.2, animation: "jbd-count-fade 0.3s ease" }}>{value}</div>
+      {sub ? <div style={{ fontSize: 12, color: tone === "danger" ? C.danger : tone === "success" ? C.success : C.inkFaint, marginTop: 6 }}>{sub}</div> : null}
     </div>
   );
 }
 
 export function Modal({ title, onClose, children, width }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(27,8,8,0.55)", zIndex: 500, display: "flex",
+    <div style={{ position: "fixed", inset: 0, background: "rgba(20,12,8,0.6)", zIndex: 500, display: "flex",
       alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{
-        background: C.white, borderRadius: 16, width: width || 480, maxWidth: "100%", maxHeight: "88vh",
-        overflowY: "auto", boxShadow: "0 20px 60px rgba(27,8,8,0.35)",
+        background: C.surface, borderRadius: 14, width: width || 480, maxWidth: "100%", maxHeight: "88vh",
+        overflowY: "auto", boxShadow: C.shadowModal, border: "1px solid " + C.line,
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px",
-          borderBottom: "1px solid " + C.line, position: "sticky", top: 0, background: C.white, borderRadius: "16px 16px 0 0" }}>
+          borderBottom: "1px solid " + C.line, position: "sticky", top: 0, background: C.surface, borderRadius: "14px 14px 0 0" }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.ink }}>{title}</div>
           <div onClick={onClose} style={{ cursor: "pointer", color: C.inkFaint, padding: 4 }}><X size={20} /></div>
         </div>
@@ -187,10 +187,10 @@ export function Modal({ title, onClose, children, width }) {
 }
 
 export function ProgressBar({ pct, tone }) {
-  const color = tone === "warning" ? C.warning : tone === "danger" ? C.danger : C.brand;
+  const color = tone === "warning" ? C.warning : tone === "danger" ? C.danger : C.gold;
   return (
-    <div style={{ width: "100%", height: 8, borderRadius: 100, background: C.cardBg, overflow: "hidden" }}>
-      <div style={{ height: "100%", width: clampPct(pct) + "%", background: color, borderRadius: 100, transition: "width 0.3s" }} />
+    <div style={{ width: "100%", height: 8, borderRadius: 100, background: C.cardBg, overflow: "hidden", border: "1px solid " + C.line }}>
+      <div style={{ height: "100%", width: clampPct(pct) + "%", background: color, borderRadius: 100, transition: "width 0.4s ease" }} />
     </div>
   );
 }
@@ -198,11 +198,11 @@ export function ProgressBar({ pct, tone }) {
 export function EmptyState({ icon: Icon, title, body, action }) {
   return (
     <div style={{ textAlign: "center", padding: "48px 20px", color: C.inkSoft }}>
-      <div style={{ width: 56, height: 56, borderRadius: 16, background: C.cardBg, display: "flex", alignItems: "center",
+      <div style={{ width: 56, height: 56, borderRadius: "50%", background: C.cardBg, border: "1px solid " + C.line, display: "flex", alignItems: "center",
         justifyContent: "center", margin: "0 auto 16px", color: C.brand }}>
         <Icon size={26} />
       </div>
-      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.ink, marginBottom: 6 }}>{title}</div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 600, color: C.ink, marginBottom: 6 }}>{title}</div>
       <div style={{ fontSize: 13.5, marginBottom: 18, maxWidth: 360, marginLeft: "auto", marginRight: "auto" }}>{body}</div>
       {action}
     </div>
@@ -215,8 +215,8 @@ export function Toast({ toast }) {
   const t = tones[toast.type || "success"];
   return (
     <div style={{ position: "fixed", bottom: 22, right: 22, zIndex: 700, background: t.bg, color: C.white,
-      padding: "13px 18px", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-      fontSize: 14, fontWeight: 600, maxWidth: 360 }}>
+      padding: "13px 18px", borderRadius: 10, display: "flex", alignItems: "center", gap: 10, boxShadow: C.shadowModal,
+      fontSize: 14, fontWeight: 600, maxWidth: 360, border: "1px solid rgba(255,255,255,0.1)" }}>
       <t.Ic size={18} />{toast.message}
     </div>
   );
@@ -225,7 +225,7 @@ export function Toast({ toast }) {
 export function SectionTitle({ children, sub }) {
   return (
     <div style={{ marginBottom: 20 }}>
-      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, color: C.ink }}>{children}</div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 23, fontWeight: 600, color: C.ink }}>{children}</div>
       {sub ? <div style={{ fontSize: 13.5, color: C.inkSoft, marginTop: 4 }}>{sub}</div> : null}
     </div>
   );
@@ -243,16 +243,16 @@ export function Avatar({ name, size }) {
 }
 
 export function Th({ children }) {
-  return <th style={{ textAlign: "left", padding: "10px 14px", fontSize: 11.5, fontWeight: 700, color: C.inkFaint,
-    textTransform: "uppercase", letterSpacing: 0.4, borderBottom: "1px solid " + C.line, whiteSpace: "nowrap" }}>{children}</th>;
+  return <th style={{ textAlign: "left", padding: "10px 14px", fontFamily: FONT_MONO, fontSize: 10.5, fontWeight: 600, color: C.inkFaint,
+    textTransform: "uppercase", letterSpacing: 0.8, borderBottom: "1.5px solid " + C.ink, whiteSpace: "nowrap" }}>{children}</th>;
 }
 
 export function Td({ children, style }) {
-  return <td style={Object.assign({ padding: "13px 14px", fontSize: 13.5, color: C.ink, borderBottom: "1px solid " + C.line, verticalAlign: "middle" }, style || {})}>{children}</td>;
+  return <td className="jbd-ledger-row" style={Object.assign({ padding: "13px 14px", fontSize: 13.5, color: C.ink, verticalAlign: "middle" }, style || {})}>{children}</td>;
 }
 
 export function TableWrap({ children }) {
-  return <div style={{ overflowX: "auto", borderRadius: 14, border: "1px solid " + C.line }}>
+  return <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid " + C.line, background: C.surface }}>
     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>{children}</table>
   </div>;
 }

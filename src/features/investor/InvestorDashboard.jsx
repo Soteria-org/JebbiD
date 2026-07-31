@@ -5,7 +5,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
 import { PositionRow } from "@/features/investor/PositionRow";
 import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
-import { C, FONT_DISPLAY } from "@/lib/theme";
+import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 
 export function InvestorDashboard({ ctx }) {
   const inv = ctx.currentInvestor;
@@ -33,13 +33,45 @@ export function InvestorDashboard({ ctx }) {
 
   const chartData = active.map((p) => ({ name: p.referenceNumber || "Pending", Principal: p.amount, Projected: p.maturityValue }));
 
+  const latestPackage = active.length ? active[active.length - 1].package : null;
+
   return (
     <PageShell ctx={ctx} title="Dashboard">
-      <div style={{ marginBottom: 4, fontFamily: FONT_DISPLAY, fontSize: 21, fontWeight: 600, color: C.ink }}>
-        Welcome back, {inv.fullName.split(" ")[0]}
-      </div>
-      <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 20 }}>
-        Goal: {inv.goal} · Member since {fmtDate(inv.dateRegistered)}
+      <div style={{ display: "flex", gap: 26, flexWrap: "wrap", marginBottom: 22 }}>
+        {/* Member Ledger — the "hero wallet" this member's whole account lives inside */}
+        <div style={{ flex: "0 0 300px" }}>
+          <div style={{
+            background: "linear-gradient(135deg, " + C.brand + ", " + C.brandDark + ")",
+            borderRadius: 14, padding: 24, color: C.white, position: "relative", overflow: "hidden", boxShadow: C.shadowCard,
+          }}>
+            <div style={{ position: "absolute", right: -30, bottom: -30, width: 140, height: 140, border: "1px solid rgba(216,189,130,0.25)", borderRadius: "50%" }} />
+            <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: 1.5, color: C.sidebarText, position: "relative" }}>MEMBER LEDGER</div>
+            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 600, margin: "14px 0 26px", position: "relative" }}>{inv.fullName}</div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: 15, letterSpacing: 1.5, position: "relative" }}>{inv.memberId || "—"}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 22, fontSize: 11, color: C.sidebarText, position: "relative" }}>
+              <span style={{ textTransform: "uppercase" }}>{latestPackage || "No Package Yet"}</span>
+              <span>Since {fmtDate(inv.dateRegistered)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+            Welcome back, {inv.fullName.split(" ")[0]}
+          </div>
+          <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 16 }}>
+            Goal: {inv.goal}
+          </div>
+          {maturable.length === 0 ? (
+            <Card style={{ background: C.cardBg }}>
+              <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: FONT_MONO }}>Portfolio at a glance</div>
+              <div style={{ fontSize: 13.5, color: C.inkSoft, lineHeight: 1.6 }}>
+                {active.length} active position{active.length === 1 ? "" : "s"} · projected to reach{" "}
+                <strong style={{ color: C.ink }}>{fmtUGX(projectedValue)}</strong> at maturity.
+              </div>
+            </Card>
+          ) : null}
+        </div>
       </div>
 
       {maturable.length > 0 ? (
@@ -96,7 +128,7 @@ export function InvestorDashboard({ ctx }) {
 
       <Card>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink }}>Active Positions</div>
+          <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink }}>Digital Passbook · Active Positions</div>
           <Btn size="sm" variant="ghost" onClick={() => ctx.goTo("investments")}>View All</Btn>
         </div>
         {positions.slice(0, 4).map((p) => <PositionRow key={p.id} p={p} />)}

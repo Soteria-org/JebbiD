@@ -1,9 +1,10 @@
 import React from "react";
-import { LogOut, TrendingUp, X } from "@/components/icons/index";
+import { LogOut, X } from "@/components/icons/index";
 import { RoleSwitcher, navItemPickerStyle } from "@/components/layout/RoleSwitcher";
 import { Avatar } from "@/components/ui/primitives";
+import { Logo } from "@/components/ui/Logo";
 import { NAV, ROLE_LABEL } from "@/lib/constants";
-import { C, FONT_DISPLAY } from "@/lib/theme";
+import { C, FONT_MONO } from "@/lib/theme";
 
 export function Sidebar({ ctx }) {
   const items = NAV[ctx.session.role];
@@ -19,10 +20,8 @@ export function Sidebar({ ctx }) {
       <div style={Object.assign({ background: C.sidebarBg, color: C.sidebarText, display: "flex", flexDirection: "column",
         padding: "20px 14px", boxSizing: "border-box" }, sidebarStyle)}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px 22px" }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: C.brand, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <TrendingUp size={17} color={C.white} />
-          </div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 17, fontWeight: 600, color: C.white }}>Jebbidox</div>
+          <Logo size={30} />
+          <div style={{ fontFamily: FONT_MONO, fontSize: 12, letterSpacing: 1.6, color: C.gold }}>JEBBIDOX</div>
           {ctx.isMobile ? <div onClick={() => ctx.setSidebarOpen(false)} style={{ marginLeft: "auto", cursor: "pointer", color: C.sidebarText }}><X size={20} /></div> : null}
         </div>
 
@@ -32,8 +31,8 @@ export function Sidebar({ ctx }) {
             return (
               <div key={it.key} data-testid={"nav-" + it.key} onClick={() => { ctx.goTo(it.key); if (ctx.isMobile) ctx.setSidebarOpen(false); }} style={{
                 display: "flex", alignItems: "center", gap: 11, padding: "10px 12px", borderRadius: 9, cursor: "pointer",
-                marginBottom: 3, background: active ? C.sidebarActive : "transparent", color: active ? C.white : C.sidebarText,
-                fontSize: 13.5, fontWeight: 600, transition: "background 0.12s",
+                marginBottom: 3, background: active ? C.sidebarActive : "transparent", color: active ? C.sidebarActiveText : C.sidebarText,
+                fontWeight: active ? 700 : 600, fontSize: 13.5, transition: "background 0.12s",
               }}>
                 <it.icon size={16} /> {it.label}
               </div>

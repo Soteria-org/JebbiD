@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { Eye, EyeOff, ShieldCheck, TrendingUp, UserCog } from "@/components/icons/index";
+import { Eye, EyeOff, ShieldCheck, UserCog } from "@/components/icons/index";
 import { Btn, Field, TextInput } from "@/components/ui/primitives";
+import { Logo } from "@/components/ui/Logo";
 import { RegisterWizard } from "@/features/auth/RegisterWizard";
-import { C, FONT_BODY, FONT_DISPLAY } from "@/lib/theme";
+import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 
 export function LoginScreen({ ctx }) {
   const [mode, setMode] = useState("login");
@@ -18,24 +19,26 @@ export function LoginScreen({ ctx }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: C.pageBg, fontFamily: FONT_BODY }}>
-      <div style={{ flex: 1, background: C.sidebarBg, color: C.white, padding: "56px 48px", display: "flex",
-        flexDirection: "column", justifyContent: "space-between", minWidth: 320 }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 40 }}>
-            <div style={{ width: 38, height: 38, borderRadius: 10, background: C.brand, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <TrendingUp size={20} color={C.white} />
-            </div>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 600, letterSpacing: 0.3 }}>Jebbidox</div>
+      <div style={{ flex: 1, background: "radial-gradient(circle at 18% 12%, " + C.brand + ", " + C.brandDark + " 62%)",
+        color: C.white, padding: "56px 48px", display: "flex", flexDirection: "column", justifyContent: "space-between",
+        minWidth: 320, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", right: -60, top: -60, width: 280, height: 280, border: "1.5px solid rgba(216,189,130,0.25)", borderRadius: "50%" }} />
+        <div style={{ position: "absolute", right: -10, top: 30, width: 180, height: 180, border: "1.5px solid rgba(216,189,130,0.18)", borderRadius: "50%" }} />
+        <div style={{ position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 44 }}>
+            <Logo size={38} />
+            <div style={{ fontFamily: FONT_MONO, fontSize: 13, letterSpacing: 2, color: C.sidebarText }}>JEBBIDOX</div>
           </div>
-          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 34, fontWeight: 600, lineHeight: 1.25, marginBottom: 18, color: C.white }}>
-            A guided investment journey, not a balance sheet.
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 36, fontWeight: 500, lineHeight: 1.22, marginBottom: 18, color: C.white, maxWidth: 440 }}>
+            Small, consistent investments build great wealth.
           </div>
-          <div style={{ fontSize: 14.5, color: C.sidebarText, lineHeight: 1.65, maxWidth: 420 }}>
-            Jebbidox Youth Investment Club helps members build wealth through structured, transparent
-            investment packages — with every deposit, approval, and maturity tracked and explained.
+          <div style={{ height: 1, width: 64, background: C.gold, margin: "24px 0" }} />
+          <div style={{ fontSize: 14, color: C.sidebarText, lineHeight: 1.65, maxWidth: 400 }}>
+            A member-owned investment ledger — every deposit, approval, and maturity tracked, verified,
+            and explained. Not a balance sheet. A guided investment journey.
           </div>
         </div>
-        <div style={{ display: "flex", gap: 28, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", display: "flex", gap: 28, flexWrap: "wrap" }}>
           {[["30%", "Standard package return"], ["40%", "Corporate package return"], ["12mo", "Investment period"]].map((s) => (
             <div key={s[0]}>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 600, color: C.white }}>{s[0]}</div>
@@ -49,8 +52,8 @@ export function LoginScreen({ ctx }) {
         <div style={{ width: "100%", maxWidth: 420 }}>
           {mode === "login" ? (
             <>
-              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, color: C.ink, marginBottom: 6 }}>Welcome back</div>
-              <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 26 }}>Sign in to your investor account.</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 11, letterSpacing: 2, color: C.inkFaint, marginBottom: 10 }}>MEMBER SIGN IN</div>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 600, color: C.ink, marginBottom: 26 }}>Welcome back.</div>
 
               <Field label="Member ID, username, or email">
                 <TextInput value={identifier} onChange={setIdentifier} placeholder="e.g. JBD-2026-000101" testId="login-identifier" />

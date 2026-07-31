@@ -17,7 +17,7 @@ export function RoleSwitcher({ ctx }) {
         <RefreshCw size={14} /> Switch Demo Role <ChevronDown size={13} style={{ marginLeft: "auto" }} />
       </div>
       {open ? (
-        <div style={{ position: "absolute", bottom: "110%", left: 0, width: 250, background: C.white, borderRadius: 12,
+        <div style={{ position: "absolute", bottom: "110%", left: 0, width: 250, background: C.surface, borderRadius: 12,
           boxShadow: "0 12px 36px rgba(0,0,0,0.3)", padding: 8, zIndex: 600, maxHeight: 320, overflowY: "auto" }}>
           {!pickInvestor ? (
             <>

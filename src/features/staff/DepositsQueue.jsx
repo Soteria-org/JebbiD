@@ -175,9 +175,9 @@ export function DepositsQueue({ ctx }) {
           </div>
 
           {reviewing.clarification_note && (
-            <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 10, padding: "12px 14px", margin: "12px 0" }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E", marginBottom: 4 }}>Previous Note</div>
-              <div style={{ fontSize: 13.5, color: "#78350F" }}>{reviewing.clarification_note}</div>
+            <div style={{ background: C.warningBg, border: "1px solid " + C.goldLine, borderRadius: 10, padding: "12px 14px", margin: "12px 0" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.warningText, marginBottom: 4 }}>Previous Note</div>
+              <div style={{ fontSize: 13.5, color: C.ink }}>{reviewing.clarification_note}</div>
             </div>
           )}
 
