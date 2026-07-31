@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { PageShell } from "@/components/layout/PageShell";
 import { TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
-import { fmtDate, fmtUGX } from "@/lib/format";
+import { currentValue, fmtDate, fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
 
 export function AllInvestments({ ctx }) {
@@ -19,15 +19,16 @@ export function AllInvestments({ ctx }) {
         ))}
       </div>
       <TableWrap>
-        <thead><tr><Th>Position</Th><Th>Investor</Th><Th>Package</Th><Th>Amount</Th><Th>Maturity</Th><Th>Status</Th></tr></thead>
+        <thead><tr><Th>Position</Th><Th>Investor</Th><Th>Package</Th><Th>Amount</Th><Th>Current Value</Th><Th>Maturity</Th><Th>Status</Th></tr></thead>
         <tbody>{list.map((p) => {
           const investor = ctx.getInvestor(p.investorId);
           return (
             <tr key={p.id}>
-              <Td><strong>{p.id}</strong></Td>
+              <Td><strong>{p.referenceNumber || "—"}</strong></Td>
               <Td><span onClick={() => { ctx.setSelectedInvestorId(investor.id); ctx.goTo("investorDetail"); }} style={{ cursor: "pointer", color: C.brand, fontWeight: 600 }}>{investor.fullName}</span></Td>
               <Td style={{ textTransform: "capitalize" }}>{p.package}</Td>
               <Td>{fmtUGX(p.amount)}</Td>
+              <Td>{p.status === "active" ? fmtUGX(currentValue(p.amount, p.package, p.startDate, p.maturityDate)) : "—"}</Td>
               <Td>{p.maturityDate ? fmtDate(p.maturityDate) : "—"}</Td>
               <Td>{statusBadge(p.status)}</Td>
             </tr>

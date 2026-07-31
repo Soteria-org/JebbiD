@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { ChevronLeft } from "@/components/icons/index";
 import { Btn, Field, GuidanceBanner, TextInput } from "@/components/ui/primitives";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 import { GOALS } from "@/lib/constants";
+import { checkPasswordStrength } from "@/lib/password-policy";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 
 export function RegisterWizard({ ctx, onBackToLogin }) {
@@ -29,18 +31,22 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
     }
     if (step === 5) {
       if (!form.username || !form.password) return "Choose a username and password.";
-      if (form.password.length < 6) return "Password must be at least 6 characters.";
+      if (!checkPasswordStrength(form.password).valid) return "Password doesn't meet the requirements shown below yet.";
       if (form.password !== form.confirmPassword) return "Passwords do not match.";
     }
     return "";
   }
 
+  const [submitting, setSubmitting] = useState(false);
   async function next() {
     const v = validateStep();
     if (v) { setErr(v); return; }
     setErr("");
     if (step === 5) {
-      await ctx.registerInvestor(form);
+      setSubmitting(true);
+      const result = await ctx.registerInvestor(form);
+      setSubmitting(false);
+      if (result && !result.ok) { setErr(result.error || "Registration failed. Please try again."); return; }
       return;
     }
     setStep(step + 1);
@@ -99,7 +105,10 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
       {step === 5 && (
         <>
           <Field label="Username"><TextInput value={form.username} onChange={(v) => set("username", v)} placeholder="Used with your Member ID to sign in" /></Field>
-          <Field label="Password"><TextInput value={form.password} onChange={(v) => set("password", v)} type="password" /></Field>
+          <Field label="Password">
+            <TextInput value={form.password} onChange={(v) => set("password", v)} type="password" testId="register-password" />
+          </Field>
+          <PasswordStrengthMeter password={form.password} />
           <Field label="Confirm Password"><TextInput value={form.confirmPassword} onChange={(v) => set("confirmPassword", v)} type="password" /></Field>
         </>
       )}
@@ -107,7 +116,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
       {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
       <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
         {step > 1 ? <Btn variant="ghost" onClick={() => setStep(step - 1)} icon={ChevronLeft}>Back</Btn> : null}
-        <Btn full onClick={next}>{step === 5 ? "Create Account" : "Continue"}</Btn>
+        <Btn full onClick={next} disabled={submitting}>{submitting ? "Creating Account…" : step === 5 ? "Create Account" : "Continue"}</Btn>
       </div>
     </div>
   );

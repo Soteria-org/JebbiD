@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { todayISO } from "@/lib/format";
+import { currentValue, todayISO } from "@/lib/format";
 
 /**
  * Shared metrics for FODashboard and AdminDashboard.
@@ -18,6 +18,7 @@ export function useStaffMetrics(ctx) {
     const today = todayISO();
     const active = ctx.investments.filter((p) => p.status === "active");
     const aum = active.reduce((s, p) => s + p.amount, 0);
+    const currentAUM = active.reduce((s, p) => s + currentValue(p.amount, p.package, p.startDate, p.maturityDate), 0);
 
     const pendingDeposits = (ctx.depositSubmissions || []).filter(
       (d) => d.status === "pending" || d.status === "clarification_requested"
@@ -32,7 +33,7 @@ export function useStaffMetrics(ctx) {
     const standardCount = active.filter((p) => p.package === "standard").length;
     const corporateCount = active.filter((p) => p.package === "corporate").length;
 
-    return { active, aum, pendingDeposits, pendingWithdrawals, upcomingMaturities, overdueMaturities, standardCount, corporateCount };
+    return { active, aum, currentAUM, pendingDeposits, pendingWithdrawals, upcomingMaturities, overdueMaturities, standardCount, corporateCount };
   }, [ctx.investments, ctx.withdrawals, ctx.depositSubmissions]);
 }
 

@@ -8,6 +8,7 @@ import { C } from "@/lib/theme";
 export function WithdrawalsScreen({ ctx }) {
   const withdrawals = ctx.getInvestorWithdrawals(ctx.session.id);
   const eligible = ctx.getInvestorInvestments(ctx.session.id).filter((p) => p.status === "active");
+  const allPositions = ctx.getInvestorInvestments(ctx.session.id);
   return (
     <PageShell ctx={ctx} title="Withdrawals">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -23,8 +24,8 @@ export function WithdrawalsScreen({ ctx }) {
             <tbody>
               {withdrawals.map((w) => (
                 <tr key={w.id}>
-                  <Td><strong>{w.id}</strong></Td>
-                  <Td>{w.investmentId}</Td>
+                  <Td><strong>{w.referenceNumber || "—"}</strong></Td>
+                  <Td>{allPositions.find((p) => p.id === w.investmentId)?.referenceNumber || "—"}</Td>
                   <Td>{fmtUGX(w.amount)}</Td>
                   <Td>{w.penalty > 0 ? fmtUGX(w.penalty) : "None"}</Td>
                   <Td><strong>{fmtUGX(w.netAmount)}</strong></Td>

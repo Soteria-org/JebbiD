@@ -11,13 +11,14 @@ export function FODashboard({ ctx }) {
   const today = todayISO();
   // auditLog is still mock (not wired yet) — "approved this week" isn't reliable
   // against real data until it is, so this stays a soft/approximate figure.
-  const weeklyApproved = ctx.auditLog.filter((a) => a.action === "Deposit Approved" && daysAgo(a.timestamp, today) <= 7).length;
+  const weeklyApproved = ctx.auditLog.filter((a) => a.action === "Deposit approved" && daysAgo(a.timestamp, today) <= 7).length;
   const sortedDeposits = [...m.pendingDeposits].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   const upcoming30 = m.upcomingMaturities.filter((p) => daysAgo(today, p.maturityDate) <= 30);
 
   return (
     <PageShell ctx={ctx} title="Finance Officer Dashboard">
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
+        <StatCard label="Current Portfolio Value" value={fmtUGX(m.currentAUM)} icon={Wallet} tone="success" sub="Accrued value as of today" />
         <StatCard label="Pending Deposits" value={String(m.pendingDeposits.length)} icon={Wallet} sub="Awaiting your review" tone={m.pendingDeposits.length > 0 ? "warning" : undefined} />
         <StatCard label="Pending Withdrawals" value={String(m.pendingWithdrawals.length)} icon={ArrowUpRight} />
         <StatCard label="Maturities (90 days)" value={String(m.upcomingMaturities.length)} icon={Calendar} />
