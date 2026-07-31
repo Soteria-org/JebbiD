@@ -45,7 +45,7 @@ export function InvestorDetailScreen({ ctx }) {
       {tab === "investments" && (
         <TableWrap>
           <thead><tr><Th>Position</Th><Th>Package</Th><Th>Amount</Th><Th>Maturity</Th><Th>Status</Th></tr></thead>
-          <tbody>{positions.map((p) => <tr key={p.id}><Td>{p.id}</Td><Td style={{ textTransform: "capitalize" }}>{p.package}</Td><Td>{fmtUGX(p.amount)}</Td><Td>{p.maturityDate ? fmtDate(p.maturityDate) : "—"}</Td><Td>{statusBadge(p.status)}</Td></tr>)}</tbody>
+          <tbody>{positions.map((p) => <tr key={p.id}><Td>{p.referenceNumber || "Pending"}</Td><Td style={{ textTransform: "capitalize" }}>{p.package}</Td><Td>{fmtUGX(p.amount)}</Td><Td>{p.maturityDate ? fmtDate(p.maturityDate) : "—"}</Td><Td>{statusBadge(p.status)}</Td></tr>)}</tbody>
         </TableWrap>
       )}
       {tab === "nextofkin" && (
@@ -61,7 +61,7 @@ export function InvestorDetailScreen({ ctx }) {
       {tab === "deposits" && (
         <TableWrap>
           <thead><tr><Th>Position</Th><Th>Amount</Th><Th>Submitted</Th><Th>Status</Th></tr></thead>
-          <tbody>{deposits.map((p) => <tr key={p.id}><Td>{p.id}</Td><Td>{fmtUGX(p.amount)}</Td><Td>{fmtDate(p.createdAt)}</Td><Td>{statusBadge(p.depositStatus)}</Td></tr>)}</tbody>
+          <tbody>{deposits.map((p) => <tr key={p.id}><Td>{p.referenceNumber || "Pending"}</Td><Td>{fmtUGX(p.amount)}</Td><Td>{fmtDate(p.createdAt)}</Td><Td>{statusBadge(p.depositStatus)}</Td></tr>)}</tbody>
         </TableWrap>
       )}
       {tab === "kyc" && (
