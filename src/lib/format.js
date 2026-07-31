@@ -61,6 +61,29 @@ export function maturityValue(amount, pkg) {
   return amount + expectedReturn(amount, pkg);
 }
 
+/**
+ * The actual value of a position AS OF TODAY — not the unchanging principal, and
+ * not the full value as if it had already matured. Previously nowhere in the app
+ * (investor, FO, or Super Admin view) showed this; only those two fixed endpoints
+ * existed. Pro-rates linearly across the 12-month term: a position halfway to
+ * maturity shows roughly half its total return accrued so far.
+ *
+ * startDate/maturityDate come from Supabase as "YYYY-MM-DD" strings — new Date()
+ * handles that correctly the same way the rest of this file already relies on.
+ */
+export function currentValue(amount, pkg, startDate, maturityDateOrToday) {
+  if (!startDate) return amount; // not yet approved/active — nothing has started accruing
+  const start = new Date(startDate);
+  const now = new Date();
+  const end = new Date(maturityDateOrToday || now);
+  const totalMs = end - start;
+  if (totalMs <= 0) return amount;
+  const elapsedMs = Math.min(Math.max(now - start, 0), totalMs);
+  const fraction = elapsedMs / totalMs;
+  const accrued = expectedReturn(amount, pkg) * fraction;
+  return Math.round(amount + accrued);
+}
+
 export function isEarlyWithdrawal(maturityDate) {
   // This determines whether the 15% early-withdrawal penalty applies — it MUST
   // compare against the real current date. It previously compared against the

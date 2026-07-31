@@ -43,7 +43,8 @@ export function AdminDashboard({ ctx }) {
     <PageShell ctx={ctx} title="Super Administrator Dashboard">
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
         <StatCard label="Total Investors" value={String(ctx.investors.length)} icon={Users} />
-        <StatCard label="Assets Under Management" value={fmtUGX(m.aum)} icon={Wallet} tone="success" />
+        <StatCard label="Assets Under Management" value={fmtUGX(m.aum)} icon={Wallet} sub="Principal invested" />
+        <StatCard label="Current Portfolio Value" value={fmtUGX(m.currentAUM)} icon={Wallet} tone="success" sub="Accrued value as of today" />
         <StatCard label="Pending Approvals" value={String(m.pendingDeposits.length)} icon={Clock} tone={m.pendingDeposits.length > 0 ? "danger" : undefined} />
         <StatCard label="Pending Withdrawals" value={String(m.pendingWithdrawals.length)} icon={ArrowUpRight} />
         <StatCard label="Maturities (90 days)" value={String(m.upcomingMaturities.length)} icon={Calendar} />

@@ -43,7 +43,7 @@ export function RequestWithdrawalModal({ ctx, payload }) {
   return (
     <Modal title="Request Withdrawal" onClose={ctx.closeModal}>
       <Field label="Investment Position">
-        <Select value={investmentId} onChange={setInvestmentId} options={eligible.map((p) => ({ value: p.id, label: p.id + " — " + fmtUGX(p.amount) + " (" + p.package + ")" }))} />
+        <Select value={investmentId} onChange={setInvestmentId} options={eligible.map((p) => ({ value: p.id, label: (p.referenceNumber || "Pending") + " — " + fmtUGX(p.amount) + " (" + p.package + ")" }))} />
       </Field>
       <Field label="Amount to Withdraw (UGX)"><TextInput value={amount} onChange={(v) => setAmount(v.replace(/[^0-9]/g, ""))} /></Field>
 

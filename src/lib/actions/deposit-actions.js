@@ -100,6 +100,72 @@ export async function submitDeposit({
 }
 
 /**
+ * Investor: respond to a clarification request by uploading a new proof document
+ * and (optionally) an updated transaction reference, then putting the deposit back
+ * into the review queue. Relies on the deposits_investor_respond RLS policy, which
+ * only allows this while status = 'clarification_requested' and only on the
+ * investor's own row — this was already correctly set up at the database level,
+ * this action is what was actually missing.
+ */
+export async function resubmitDepositProof({ depositId, proofStoragePath, transactionRef, responseNote }) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+
+  const { data: deposit, error: fetchError } = await supabase
+    .from("deposit_submissions")
+    .select("id, status, clarification_note, investor_id")
+    .eq("id", depositId)
+    .single();
+  if (fetchError) return { error: fetchError.message };
+  if (deposit.investor_id !== user.id) return { error: "This deposit does not belong to your account." };
+  if (deposit.status !== "clarification_requested") {
+    return { error: "This deposit is not currently awaiting clarification." };
+  }
+
+  const update = {
+    status: "pending",
+    // Keep the original request visible to staff (prefixed), rather than silently
+    // replacing it — the reviewer should still see what they originally asked for,
+    // with the investor's response appended alongside it.
+    clarification_note: responseNote
+      ? (deposit.clarification_note || "") + "\n\n— Investor response: " + responseNote
+      : deposit.clarification_note,
+    reviewed_by: null,
+    reviewed_at: null,
+  };
+  if (transactionRef) update.transaction_reference = transactionRef;
+
+  const { error: updateError } = await supabase
+    .from("deposit_submissions")
+    .update(update)
+    .eq("id", depositId);
+  if (updateError) return { error: updateError.message };
+
+  if (proofStoragePath) {
+    const { error: docError } = await supabase.from("uploaded_documents").insert({
+      owner_profile_id: user.id,
+      document_type: "deposit_proof",
+      storage_bucket: "payment-proofs",
+      storage_path: proofStoragePath,
+      related_table: "deposit_submissions",
+      related_id: depositId,
+    });
+    if (docError) console.error("Proof document record failed after resubmission:", docError.message);
+  }
+
+  await supabase.rpc("log_audit", {
+    p_action: "Deposit Clarification Resubmitted",
+    p_entity_table: "deposit_submissions",
+    p_entity_id: depositId,
+    p_previous_value: { status: "clarification_requested" },
+    p_new_value: { status: "pending", note: responseNote ?? null },
+  });
+
+  return { success: true };
+}
+
+/**
  * Loads the deposit queue for staff. Returns all deposits with investor and package
  * info joined so the FO doesn't have to make separate lookups per row.
  * Also returns the proof document path (if any) for each deposit so the review

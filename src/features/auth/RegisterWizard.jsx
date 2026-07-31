@@ -37,12 +37,16 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
     return "";
   }
 
+  const [submitting, setSubmitting] = useState(false);
   async function next() {
     const v = validateStep();
     if (v) { setErr(v); return; }
     setErr("");
     if (step === 5) {
-      await ctx.registerInvestor(form);
+      setSubmitting(true);
+      const result = await ctx.registerInvestor(form);
+      setSubmitting(false);
+      if (result && !result.ok) { setErr(result.error || "Registration failed. Please try again."); return; }
       return;
     }
     setStep(step + 1);
@@ -112,7 +116,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
       {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
       <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
         {step > 1 ? <Btn variant="ghost" onClick={() => setStep(step - 1)} icon={ChevronLeft}>Back</Btn> : null}
-        <Btn full onClick={next}>{step === 5 ? "Create Account" : "Continue"}</Btn>
+        <Btn full onClick={next} disabled={submitting}>{submitting ? "Creating Account…" : step === 5 ? "Create Account" : "Continue"}</Btn>
       </div>
     </div>
   );

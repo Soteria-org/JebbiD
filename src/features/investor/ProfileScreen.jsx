@@ -144,8 +144,11 @@ export function ProfileScreen({ ctx }) {
             </div>
           ))}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "11px 0", marginBottom: 18 }}>
-            <span style={{ fontSize: 13.5, color: C.ink }}>Dark Mode</span>
-            <Toggle on={inv.darkMode} onChange={() => ctx.toggleDarkMode(inv.id)} />
+            <div>
+              <span style={{ fontSize: 13.5, color: C.ink }}>Dark Mode</span>
+              <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 2 }}>Coming soon</div>
+            </div>
+            <Toggle on={false} onChange={() => ctx.showToast("Dark mode is coming in a future update.", "info")} disabled />
           </div>
 
           <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 10 }}>Help &amp; Support</div>

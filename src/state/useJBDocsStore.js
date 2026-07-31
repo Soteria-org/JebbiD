@@ -17,6 +17,7 @@ import {
   approveDeposit as approveDepositAction,
   rejectDeposit as rejectDepositAction,
   requestClarification as requestClarificationAction,
+  resubmitDepositProof as resubmitDepositProofAction,
   loadDepositsQueue as loadDepositsQueueAction,
 } from "@/lib/actions/deposit-actions";
 import {
@@ -394,12 +395,26 @@ export default function useJBDocsStore() {
     return { ok: true };
   }
   async function registerInvestor(form) {
-    const result = await registerInvestorAction({
-      fullName: form.fullName, email: form.email, phone: form.phone, password: form.password,
-      username: form.username, nationalIdNumber: form.nationalId, address: form.address, occupation: form.occupation,
-      financialGoal: form.goal, nextOfKinName: form.nokName, nextOfKinPhone: form.nokPhone,
-      nextOfKinRelationship: form.nokRelationship,
-    });
+    let result;
+    try {
+      result = await registerInvestorAction({
+        fullName: form.fullName, email: form.email, phone: form.phone, password: form.password,
+        username: form.username, nationalIdNumber: form.nationalId, address: form.address, occupation: form.occupation,
+        financialGoal: form.goal, nextOfKinName: form.nokName, nextOfKinPhone: form.nokPhone,
+        nextOfKinRelationship: form.nokRelationship,
+      });
+    } catch (err) {
+      // The Server Action's OWN try/catch (in auth-actions.js) only covers what
+      // happens inside that function — it can't catch a failure at the RPC
+      // boundary itself (the network call Next.js makes to invoke the Server
+      // Action). Without this, a failure at that layer was an unhandled promise
+      // rejection with no message the UI could show — which is exactly what
+      // "the error is undefined" was: not a real error message, but the absence
+      // of one being displayed as literal text.
+      const message = "Could not reach the server to create your account: " + (err?.message || "connection failed") + ". Please check your connection and try again.";
+      showToast(message, "error");
+      return { ok: false, error: message };
+    }
 
     if (result.error) {
       showToast(result.error, "error");
@@ -476,6 +491,20 @@ export default function useJBDocsStore() {
     if (result.error) { showToast(result.error, "error"); return; }
     await reloadDepositsQueue();
     showToast("Clarification requested. Investor has been notified.", "info");
+  }
+
+  /**
+   * Investor: respond to a clarification request with a new proof file. Reloads
+   * the investor's own investments view (the deposit goes back to "pending" and
+   * needs to show that immediately, not after a poll cycle) — same reasoning as
+   * submitInvestment above.
+   */
+  async function resubmitDepositProof(data) {
+    const result = await resubmitDepositProofAction(data);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    await reloadInvestments();
+    showToast("Resubmitted for review.", "success");
+    return { ok: true };
   }
 
   /* ---------------- WITHDRAWALS ---------------- */
@@ -622,6 +651,39 @@ export default function useJBDocsStore() {
     markNotificationReadServerAction(id);
   }
 
+  /**
+   * Click-through: takes the person from a notification straight to whatever it's
+   * actually about, instead of leaving them to go hunt for it. Built directly from
+   * the DB trigger source (every notify() call in the migrations) rather than
+   * guessed, so every type the system can actually produce is covered.
+   *
+   * Special case: a clarification-request notification doesn't just navigate to
+   * Investments — it opens the actual reupload flow for that exact deposit, since
+   * that's the specific action the notification exists to prompt.
+   */
+  function goToNotificationTarget(n) {
+    if (!n.read) markNotificationRead(n.id);
+
+    const investorTypes = new Set([
+      "deposit_submitted", "investment_activated", "deposit_rejected",
+      "withdrawal_submitted", "withdrawal_approved", "withdrawal_rejected", "withdrawal_paid",
+      "investment_matured",
+    ]);
+    const staffTypes = new Set(["deposit_awaiting_review", "withdrawal_request"]);
+
+    if (n.type === "deposit_submitted" && n.title === "Clarification Requested") {
+      setView("investments");
+      openModal("resubmitDeposit", { depositId: n.relatedId });
+      return;
+    }
+    if (n.type === "investment_matured") { setView("maturity"); return; }
+    if (n.relatedTable === "withdrawal_requests" || n.relatedTable === "payout_records") { setView("withdrawals"); return; }
+    if (staffTypes.has(n.type)) { setView("deposits"); return; }
+    if (investorTypes.has(n.type) || n.relatedTable === "deposit_submissions") { setView("investments"); return; }
+    // Unknown/future type — land somewhere useful rather than nowhere.
+    setView("notifications");
+  }
+
   function currentStaffName() {
     if (!session) return "System";
     if (session.role === "super_admin") return superAdmin.name;
@@ -636,9 +698,9 @@ export default function useJBDocsStore() {
     packages, packagesError, loadPackages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
-    submitInvestment, approveDeposit, rejectDeposit, requestClarification, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
+    submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead,
-    lastSyncedAt, refreshAll,
+    lastSyncedAt, refreshAll, goToNotificationTarget,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,
     currentUserName: session ? (session.role === "investor" ? (getInvestor(session.id) || {}).fullName || session.fullName || "" : session.role === "super_admin" ? superAdmin.name : (financeOfficers.find((f) => f.id === session.id) || {}).name) : "",

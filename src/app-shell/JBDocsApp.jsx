@@ -14,6 +14,7 @@ import { MyInvestments } from "@/features/investor/MyInvestments";
 import { TransactionHistory } from "@/features/investor/TransactionHistory";
 import { WithdrawalsScreen } from "@/features/investor/WithdrawalsScreen";
 import { RequestWithdrawalModal } from "@/features/investor/RequestWithdrawalModal";
+import { ResubmitDepositModal } from "@/features/investor/ResubmitDepositModal";
 import { MaturityCentre } from "@/features/investor/MaturityCentre";
 import { NotificationsScreen } from "@/features/investor/NotificationsScreen";
 import { StatementsScreen } from "@/features/investor/StatementsScreen";
@@ -104,6 +105,7 @@ export default function JBDocsApp() {
       {content}
       <Toast toast={toast} />
       {activeModal && activeModal.type === "requestWithdrawal" ? <RequestWithdrawalModal ctx={ctx} payload={activeModal.payload} /> : null}
+      {activeModal && activeModal.type === "resubmitDeposit" ? <ResubmitDepositModal ctx={ctx} payload={activeModal.payload} /> : null}
       {activeModal && activeModal.type === "addInvestor" ? <AddInvestorModal ctx={ctx} /> : null}
       {activeModal && activeModal.type === "createFO" ? <CreateFOModal ctx={ctx} /> : null}
     </div>

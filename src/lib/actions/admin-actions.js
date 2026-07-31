@@ -193,7 +193,7 @@ export async function loadMyNotifications() {
 
   const { data, error } = await supabase
     .from("notifications")
-    .select("id, type, title, message, is_read, created_at")
+    .select("id, type, title, message, is_read, related_table, related_id, created_at")
     .eq("profile_id", user.id)
     .order("created_at", { ascending: false })
     .limit(100);
@@ -203,8 +203,11 @@ export async function loadMyNotifications() {
     id: n.id,
     investorId: user.id, // kept as `investorId` — NotificationsScreen filters on this field name regardless of role; it really just means "belongs to the current session"
     type: n.type,
+    title: n.title,
     message: n.message,
     read: n.is_read,
+    relatedTable: n.related_table,
+    relatedId: n.related_id,
     timestamp: n.created_at,
   }));
   return { items };

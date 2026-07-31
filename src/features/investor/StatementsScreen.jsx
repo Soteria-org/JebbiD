@@ -40,7 +40,7 @@ export function StatementsScreen({ ctx }) {
           <TableWrap>
             <thead><tr><Th>Position</Th><Th>Package</Th><Th>Principal</Th><Th>Status</Th></tr></thead>
             <tbody>
-              {positions.map((p) => <tr key={p.id}><Td>{p.id}</Td><Td style={{ textTransform: "capitalize" }}>{p.package}</Td><Td>{fmtUGX(p.amount)}</Td><Td>{statusBadge(p.status)}</Td></tr>)}
+              {positions.map((p) => <tr key={p.id}><Td>{p.referenceNumber || "—"}</Td><Td style={{ textTransform: "capitalize" }}>{p.package}</Td><Td>{fmtUGX(p.amount)}</Td><Td>{statusBadge(p.status)}</Td></tr>)}
             </tbody>
           </TableWrap>
           <div style={{ marginTop: 16 }}><Btn full variant="outline" icon={Download} onClick={() => ctx.showToast("Statement generated (demo only).", "info")}>Download PDF</Btn></div>

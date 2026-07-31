@@ -4,7 +4,7 @@ import { Award, Calendar, Plus, TrendingUp, Wallet } from "@/components/icons/in
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
 import { PositionRow } from "@/features/investor/PositionRow";
-import { clampPct, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
+import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 
 export function InvestorDashboard({ ctx }) {
@@ -14,6 +14,7 @@ export function InvestorDashboard({ ctx }) {
   const active = positions.filter((p) => p.status === "active");
   const totalInvested = active.reduce((s, p) => s + p.amount, 0);
   const projectedValue = active.reduce((s, p) => s + p.maturityValue, 0);
+  const currentPortfolioValue = active.reduce((s, p) => s + currentValue(p.amount, p.package, p.startDate, p.maturityDate), 0);
   const expectedReturns = active.reduce((s, p) => s + p.expectedReturn, 0);
   const upcoming = active.filter((p) => p.maturityDate >= today).sort((a, b) => new Date(a.maturityDate) - new Date(b.maturityDate))[0];
   const maturable = positions.filter((p) => p.status === "active" && p.maturityDate <= today && !p.maturityChoice);
@@ -30,7 +31,7 @@ export function InvestorDashboard({ ctx }) {
     );
   }
 
-  const chartData = active.map((p) => ({ name: p.id, Principal: p.amount, Projected: p.maturityValue }));
+  const chartData = active.map((p) => ({ name: p.referenceNumber || "Pending", Principal: p.amount, Projected: p.maturityValue }));
 
   return (
     <PageShell ctx={ctx} title="Dashboard">
@@ -50,7 +51,8 @@ export function InvestorDashboard({ ctx }) {
       ) : null}
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
-        <StatCard label="Total Invested" value={fmtUGX(totalInvested)} icon={Wallet} sub={active.length + " active position" + (active.length === 1 ? "" : "s")} />
+        <StatCard label="Current Value" value={fmtUGX(currentPortfolioValue)} icon={Wallet} sub={active.length + " active position" + (active.length === 1 ? "" : "s") + " · as of today"} tone="success" />
+        <StatCard label="Total Invested" value={fmtUGX(totalInvested)} icon={Wallet} sub="Principal, unchanged" />
         <StatCard label="Projected Value" value={fmtUGX(projectedValue)} icon={TrendingUp} sub="At maturity, all positions" tone="success" />
         <StatCard label="Expected Returns" value={fmtUGX(expectedReturns)} icon={Award} sub="Combined across active positions" />
         <StatCard label="Next Maturity" value={upcoming ? fmtDate(upcoming.maturityDate) : "—"} icon={Calendar} sub={upcoming ? daysBetween(today, upcoming.maturityDate) + " days remaining" : "No upcoming maturities"} />

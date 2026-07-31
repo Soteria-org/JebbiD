@@ -8,6 +8,7 @@ import { C } from "@/lib/theme";
 export function WithdrawalsScreen({ ctx }) {
   const withdrawals = ctx.getInvestorWithdrawals(ctx.session.id);
   const eligible = ctx.getInvestorInvestments(ctx.session.id).filter((p) => p.status === "active");
+  const allPositions = ctx.getInvestorInvestments(ctx.session.id);
   return (
     <PageShell ctx={ctx} title="Withdrawals">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
