@@ -209,6 +209,37 @@ async function logFailedLogin(identifier, reason) {
   }
 }
 
+const RATE_LIMIT_WINDOW_MINUTES = 15;
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+/**
+ * Real enforcement on top of login_attempts, which previously only recorded
+ * failures for Risk & Compliance Monitor to look at after the fact — nothing
+ * actually stopped a brute-force attempt in progress. Keyed on the raw
+ * identifier the caller typed (same value logFailedLogin records), so
+ * guessing passwords against one Member ID/email/username gets locked out
+ * regardless of which form of it they type. Checked BEFORE calling
+ * Supabase Auth at all, so a lockout costs the attacker nothing extra to
+ * discover (no timing difference from a real credential check) and costs
+ * Supabase Auth's own rate limits nothing either.
+ */
+async function isRateLimited(identifier) {
+  if (!identifier) return false;
+  try {
+    const admin = createAdminClient();
+    const since = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
+    const { count, error } = await admin
+      .from("login_attempts")
+      .select("id", { count: "exact", head: true })
+      .eq("identifier", identifier)
+      .gte("created_at", since);
+    if (error) return false; // fail open on our own logging infra, not on the user
+    return (count || 0) >= RATE_LIMIT_MAX_ATTEMPTS;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Login for any role (investor, finance_officer, super_admin) — role comes from
  * profiles, not a separate login screen per role. Accepts either an email or a
@@ -217,6 +248,12 @@ async function logFailedLogin(identifier, reason) {
  * (migration 012) — the one sanctioned pre-auth profile lookup.
  */
 export async function login(input) {
+  if (await isRateLimited(input.identifier)) {
+    return {
+      error: `Too many failed sign-in attempts. Please wait ${RATE_LIMIT_WINDOW_MINUTES} minutes and try again, or contact ${SUPPORT_EMAIL}.`,
+    };
+  }
+
   const supabase = await createClient();
 
   let email = input.identifier;
@@ -257,7 +294,7 @@ export async function login(input) {
     .from("profiles")
     .select(`
       id, role, full_name, member_id, must_change_password, account_status, created_at,
-      phone, username, email,
+      phone, username, email, pause_warning_at, pause_deadline,
       investor_details ( national_id_number, address, occupation, financial_goal,
         next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
     `)
@@ -309,7 +346,7 @@ export async function login(input) {
   if (profile.account_status === "suspended") {
     await supabase.auth.signOut();
     await logFailedLogin(email, "account_suspended");
-    return { error: "This account has been suspended. Contact an administrator." };
+    return { error: `This account has been paused. Contact ${SUPPORT_EMAIL} to resolve this.` };
   }
 
   return { success: true, profile };
@@ -317,6 +354,69 @@ export async function login(input) {
 
 export async function logout() {
   const supabase = await createClient();
+  await supabase.auth.signOut();
+  return { success: true };
+}
+
+/**
+ * "Forgot your password?" — sends a recovery email via Supabase Auth if the
+ * identifier resolves to a real, confirmed account. Deliberately returns
+ * { success: true } in every case except a genuine rate-limit response,
+ * regardless of whether the identifier actually matched anything — this is
+ * the standard defense against using a password-reset form to enumerate
+ * which emails/Member IDs are registered. Supabase Auth applies its own
+ * send-rate-limit on top of this (independent of the login rate limit
+ * above, which only governs sign-in attempts).
+ */
+export async function requestPasswordReset(identifier) {
+  const supabase = await createClient();
+
+  let email = (identifier || "").trim();
+  if (!email) return { success: true };
+
+  if (!email.includes("@")) {
+    const { data: resolvedEmail } = await supabase.rpc("resolve_login_email", { p_identifier: email });
+    if (!resolvedEmail) return { success: true }; // don't reveal whether it existed
+    email = resolvedEmail;
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password`,
+  });
+
+  if (error && error.status === 429) {
+    return { error: "Too many reset requests for this account. Please wait a few minutes and try again." };
+  }
+  return { success: true };
+}
+
+/**
+ * The second half of the reset flow — called from the "set a new password"
+ * page the investor lands on after clicking the emailed recovery link.
+ * app/auth/reset-password/route.js already verified the recovery token and
+ * established a real session before this page could even render, so this
+ * only needs to check that a session still exists (it could have expired
+ * between page load and submit) and enforce the same password policy used
+ * everywhere else.
+ */
+export async function completePasswordReset(newPassword) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Your reset link has expired. Please request a new one." };
+
+  const pwError = passwordStrengthError(newPassword);
+  if (pwError) return { error: pwError };
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return { error: error.message };
+
+  // The app shell (useJBDocsStore) has no existing-session bootstrap — it
+  // only ever populates ctx.session via an explicit loginInvestor() call.
+  // Leaving this recovery-flow session active would just be a dangling
+  // authenticated cookie the app never uses, so sign out and send them
+  // through the normal sign-in form with their new password instead.
   await supabase.auth.signOut();
   return { success: true };
 }

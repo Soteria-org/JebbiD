@@ -4,9 +4,31 @@ import { Award, Calendar, Plus, TrendingUp, Wallet } from "@/components/icons/in
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
 import { ThoughtBubble } from "@/components/ui/ThoughtBubble";
+import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
 import { PositionRow } from "@/features/investor/PositionRow";
 import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
 import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
+import { SUPPORT_EMAIL } from "@/lib/constants";
+
+/** Real, enforced deadline banner — shown whenever staff have actually scheduled
+ * a pause on this account (profiles.pause_deadline), not a generic reminder. */
+function PauseWarningBanner({ inv, ctx }) {
+  if (!inv.pauseDeadline) return null;
+  const notif = (ctx.notifications || []).find((n) => n.type === "account_status_alert" && !n.read);
+  return (
+    <Card style={{ marginBottom: 20, background: C.warningBg, border: "1px solid " + C.goldLine }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        <PauseCountdownBadge warningAt={inv.pauseWarningAt} deadline={inv.pauseDeadline} size={40} />
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.warningText }}>{notif?.title || "Action required on your account"}</div>
+          <div style={{ fontSize: 12.5, color: C.warningText, marginTop: 2 }}>
+            {notif?.message || "Please resolve the outstanding item on your account before the deadline, or it may be paused."} Need help? Contact {SUPPORT_EMAIL}.
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 /**
  * Picks one real, computed insight to surface — never a scripted generic
@@ -41,6 +63,7 @@ export function InvestorDashboard({ ctx }) {
   if (positions.length === 0) {
     return (
       <PageShell ctx={ctx} title="Dashboard">
+        <PauseWarningBanner inv={inv} ctx={ctx} />
         <Card>
           <EmptyState icon={TrendingUp} title="Your portfolio is waiting for its first entry."
             body="Every investor begins with one deposit. Make yours today."
@@ -56,6 +79,7 @@ export function InvestorDashboard({ ctx }) {
 
   return (
     <PageShell ctx={ctx} title="Dashboard">
+      <PauseWarningBanner inv={inv} ctx={ctx} />
       <div style={{ display: "flex", gap: 26, flexWrap: "wrap", marginBottom: 22 }}>
         {/* Member Ledger — the "hero wallet" this member's whole account lives inside */}
         <div style={{ flex: "0 0 300px" }}>

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from "react";
 import {
-  AlertTriangle, ArrowUpRight, Bell, Clock, FileCheck, IdCard, Lock, ShieldCheck, UserCog, Users, Wallet,
+  AlertTriangle, ArrowUpRight, Bell, Clock, FileCheck, IdCard, Lock, Snowflake, ShieldCheck, UserCog, Users, Wallet,
 } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge, Btn, Card, Field, Modal, SectionTitle, TextArea, TextInput } from "@/components/ui/primitives";
+import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
 import { fmtDate, fmtDateTime, fmtUGX, todayISO } from "@/lib/format";
 import { C } from "@/lib/theme";
 
@@ -25,6 +26,42 @@ function MessageModal({ ctx, target, onClose }) {
       <Field label="Message"><TextArea value={message} onChange={setMessage} rows={5} /></Field>
       <Btn full disabled={!title.trim() || !message.trim() || sending} onClick={send}>
         {sending ? "Sending…" : "Send Message"}
+      </Btn>
+    </Modal>
+  );
+}
+
+/**
+ * The "warn" half of warn-then-enforce. Unlike MessageModal, this actually
+ * sets profiles.pause_deadline via schedule_account_warning() — the
+ * countdown the investor sees afterward is real, not decorative.
+ */
+function WarnModal({ ctx, target, onClose }) {
+  const [title, setTitle] = useState(target.defaultTitle || "");
+  const [message, setMessage] = useState(target.defaultMessage || "");
+  const [deadlineDays, setDeadlineDays] = useState(7);
+  const [sending, setSending] = useState(false);
+
+  async function send() {
+    setSending(true);
+    const result = await ctx.scheduleAccountWarning(target.investorId, title.trim(), message.trim(), deadlineDays);
+    setSending(false);
+    if (result.ok) onClose();
+  }
+
+  return (
+    <Modal title={"Warn " + target.fullName} onClose={onClose} width={480}>
+      <Field label="Title"><TextInput value={title} onChange={setTitle} /></Field>
+      <Field label="Message"><TextArea value={message} onChange={setMessage} rows={5} /></Field>
+      <Field label="Pause deadline (days from now)">
+        <TextInput type="number" min={1} max={90} value={String(deadlineDays)} onChange={(v) => setDeadlineDays(Math.max(1, Math.min(90, Number(v) || 1)))} />
+      </Field>
+      <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 14 }}>
+        This sends the message and starts a real, visible countdown on the investor&rsquo;s account. If the deadline
+        passes without resolution, this account will appear under &ldquo;Pending Freezes&rdquo; below for you to actually pause.
+      </div>
+      <Btn full disabled={!title.trim() || !message.trim() || sending} onClick={send}>
+        {sending ? "Sending…" : "Send Warning & Start Countdown"}
       </Btn>
     </Modal>
   );
@@ -71,6 +108,7 @@ function FindingGroup({ icon: Icon, title, findings, emptyText }) {
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
             {f.onClick ? <Btn size="sm" variant="ghost" onClick={f.onClick}>{f.actionLabel || "Review"}</Btn> : null}
             {f.onMessage ? <Btn size="sm" variant="outline" icon={Bell} onClick={f.onMessage}>Message</Btn> : null}
+            {f.onWarn ? <Btn size="sm" variant="outline" icon={AlertTriangle} onClick={f.onWarn}>Warn</Btn> : null}
           </div>
         </div>
       ))}
@@ -91,6 +129,7 @@ export function RiskComplianceMonitor({ ctx }) {
   const today = todayISO();
   const investors = ctx.investors || [];
   const [messaging, setMessaging] = useState(null);
+  const [warning, setWarning] = useState(null);
 
   function goToInvestor(id) {
     ctx.setSelectedInvestorId(id);
@@ -99,6 +138,10 @@ export function RiskComplianceMonitor({ ctx }) {
 
   function openMessage(investorId, fullName, defaultTitle, defaultMessage) {
     setMessaging({ investorId, fullName, defaultTitle, defaultMessage });
+  }
+
+  function openWarn(investorId, fullName, defaultTitle, defaultMessage) {
+    setWarning({ investorId, fullName, defaultTitle, defaultMessage });
   }
 
   const incompleteKyc = useMemo(() => investors
@@ -110,7 +153,7 @@ export function RiskComplianceMonitor({ ctx }) {
       detail: "KYC status: " + (i.kycStatus || "not started").replace(/_/g, " "),
       actionLabel: "View",
       onClick: () => goToInvestor(i.id),
-      onMessage: () => openMessage(i.id, i.fullName, "Complete Your Identity Verification",
+      onWarn: () => openWarn(i.id, i.fullName, "Complete Your Identity Verification",
         "Hi " + i.fullName.split(" ")[0] + ", your KYC verification is still incomplete. Please finish it from your Profile settings within 7 days — accounts with incomplete verification may be paused until this is resolved."),
     })), [investors, today]);
 
@@ -137,8 +180,8 @@ export function RiskComplianceMonitor({ ctx }) {
         detail: "Member " + daysAgo(i.dateRegistered, today) + " days, no active position",
         actionLabel: "View",
         onClick: () => goToInvestor(i.id),
-        onMessage: () => openMessage(i.id, i.fullName, "We'd Love to See You Invest",
-          "Hi " + i.fullName.split(" ")[0] + ", you joined Jebbidox a while ago but haven't started an investment yet. Let us know if you need any help getting started."),
+        onWarn: () => openWarn(i.id, i.fullName, "Your Account Has Been Inactive",
+          "Hi " + i.fullName.split(" ")[0] + ", you joined Jebbidox a while ago but haven't started an investment yet. Please make a deposit within 7 days — dormant accounts may be paused until there's activity on them."),
       }));
   }, [investors, ctx.investments, today]);
 
@@ -177,7 +220,7 @@ export function RiskComplianceMonitor({ ctx }) {
         detail: "Missing " + missing.join(", "),
         actionLabel: "View",
         onClick: () => goToInvestor(i.id),
-        onMessage: () => openMessage(i.id, i.fullName, "Please Complete Your Profile",
+        onWarn: () => openWarn(i.id, i.fullName, "Please Complete Your Profile",
           "Hi " + i.fullName.split(" ")[0] + ", your profile is missing: " + missing.join(", ") + ". Please update it from your Profile settings within 7 days — incomplete accounts may be paused until this is resolved."),
       };
     }), [investors]);
@@ -236,6 +279,17 @@ export function RiskComplianceMonitor({ ctx }) {
 
   const totalHigh = [incompleteKyc, largeDeposits, overdueApprovals, repeatedFailedLogins].reduce((s, g) => s + g.filter((f) => f.severity === "high").length, 0);
 
+  // Real, live state — not derived from findings above. These reflect what
+  // schedule_account_warning()/set_account_freeze() have actually done to
+  // profiles.pause_deadline/account_status, so the countdown here is the
+  // same one the investor sees on their own dashboard.
+  const pendingFreezes = useMemo(() => investors
+    .filter((i) => i.accountStatus !== "suspended" && i.pauseDeadline)
+    .sort((a, b) => new Date(a.pauseDeadline) - new Date(b.pauseDeadline)), [investors]);
+
+  const frozenAccounts = useMemo(() => investors
+    .filter((i) => i.accountStatus === "suspended"), [investors]);
+
   return (
     <PageShell ctx={ctx} title="Risk & Compliance Monitor">
       <SectionTitle sub="Flags unusual activity across the club automatically — nothing here is manually curated.">
@@ -258,6 +312,57 @@ export function RiskComplianceMonitor({ ctx }) {
         </Card>
       )}
 
+      {pendingFreezes.length > 0 ? (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: C.warningBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.warning }}>
+              <Snowflake size={15} />
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink }}>Pending Freezes</div>
+            <Badge tone="warning">{pendingFreezes.length}</Badge>
+          </div>
+          <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 12 }}>
+            These investors were warned and are on a real countdown. Freeze early if you&rsquo;re confident nothing will change, or clear the warning if the issue&rsquo;s already resolved.
+          </div>
+          {pendingFreezes.map((i) => (
+            <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: "1px dashed " + C.line }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{i.fullName}</div>
+                  <div style={{ fontSize: 12, color: C.inkFaint }}>Warned {fmtDateTime(i.pauseWarningAt)}</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <PauseCountdownBadge warningAt={i.pauseWarningAt} deadline={i.pauseDeadline} />
+                <Btn size="sm" variant="ghost" onClick={() => ctx.clearAccountWarning(i.id)}>Clear</Btn>
+                <Btn size="sm" variant="danger" icon={Snowflake} onClick={() => ctx.setAccountFreeze(i.id, true)}>Freeze</Btn>
+              </div>
+            </div>
+          ))}
+        </Card>
+      ) : null}
+
+      {frozenAccounts.length > 0 ? (
+        <Card style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: C.dangerBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.danger }}>
+              <Snowflake size={15} />
+            </div>
+            <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink }}>Frozen Accounts</div>
+            <Badge tone="danger">{frozenAccounts.length}</Badge>
+          </div>
+          {frozenAccounts.map((i) => (
+            <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "11px 0", borderBottom: "1px dashed " + C.line }}>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{i.fullName}</div>
+                <div style={{ fontSize: 12, color: C.inkFaint }}>{i.memberId || "Member"}</div>
+              </div>
+              <Btn size="sm" variant="outline" onClick={() => ctx.setAccountFreeze(i.id, false)}>Unfreeze</Btn>
+            </div>
+          ))}
+        </Card>
+      ) : null}
+
       <FindingGroup icon={Lock} title="Repeated Failed Logins" findings={repeatedFailedLogins} emptyText={"No identifier has " + FAILED_LOGIN_THRESHOLD + "+ failed attempts in the last " + FAILED_LOGIN_WINDOW_HOURS + "h."} />
       <FindingGroup icon={IdCard} title="Incomplete KYC" findings={incompleteKyc} emptyText="Every investor's KYC is verified." />
       <FindingGroup icon={Wallet} title="Large Deposits Awaiting Approval" findings={largeDeposits} emptyText={"No pending deposits above " + fmtUGX(LARGE_DEPOSIT_THRESHOLD) + "."} />
@@ -268,11 +373,12 @@ export function RiskComplianceMonitor({ ctx }) {
       <FindingGroup icon={ArrowUpRight} title="Early Withdrawal Patterns" findings={earlyWithdrawals} emptyText="No early (penalized) withdrawals outstanding." />
 
       <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 8 }}>
-        Not shown: repeated failed email deliveries — needs a Resend webhook wired to a new table (see Club Intelligence
-        Centre for status). Failed login attempts are now tracked above.
+        Email delivery rate is tracked on Club Intelligence Centre once the Resend webhook is receiving events.
+        Failed login attempts are tracked above.
       </div>
 
       {messaging ? <MessageModal ctx={ctx} target={messaging} onClose={() => setMessaging(null)} /> : null}
+      {warning ? <WarnModal ctx={ctx} target={warning} onClose={() => setWarning(null)} /> : null}
     </PageShell>
   );
 }

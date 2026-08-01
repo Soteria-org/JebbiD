@@ -18,6 +18,7 @@ export async function loadAllInvestors() {
     .from("profiles")
     .select(`
       id, member_id, full_name, email, phone, username, account_status, created_at,
+      pause_warning_at, pause_deadline,
       investor_details ( national_id_number, address, occupation, financial_goal,
         next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
     `)
@@ -50,6 +51,8 @@ export async function loadAllInvestors() {
       notifPrefs: { email: true, sms: true },
       darkMode: false,
       accountStatus: p.account_status,
+      pauseWarningAt: p.pause_warning_at,
+      pauseDeadline: p.pause_deadline,
     };
   });
   return { items };
@@ -292,6 +295,49 @@ export async function sendInvestorMessage(investorId, title, message) {
     p_investor_id: investorId,
     p_title: title,
     p_message: message,
+  });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+/**
+ * The "warn" half of warn-then-enforce: sends the message AND sets a real,
+ * checkable pause_deadline on the investor's profile (public.profiles),
+ * rather than just sending words that don't correspond to anything the
+ * system will actually do. Returns the deadline so the UI can show it
+ * immediately without waiting for a refetch.
+ */
+export async function scheduleAccountWarning(investorId, title, message, deadlineDays = 7) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("schedule_account_warning", {
+    p_investor_id: investorId,
+    p_title: title,
+    p_message: message,
+    p_deadline_days: deadlineDays,
+  });
+  if (error) return { error: error.message };
+  return { success: true, deadline: data };
+}
+
+/** Cancels a pending warning without freezing — e.g. the investor fixed the issue in time. */
+export async function clearAccountWarning(investorId) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("clear_account_warning", { p_investor_id: investorId });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+/**
+ * The actual enforcement side of the pause threat — super_admin only
+ * (enforced server-side in the RPC itself, not just here). Freezing sets
+ * account_status='suspended', which login() already blocks on; unfreezing
+ * restores access and clears any pending warning/deadline.
+ */
+export async function setAccountFreeze(investorId, frozen) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_account_freeze", {
+    p_investor_id: investorId,
+    p_frozen: frozen,
   });
   if (error) return { error: error.message };
   return { success: true };
