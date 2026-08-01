@@ -25,7 +25,7 @@ export function WithdrawalsScreen({ ctx }) {
               {withdrawals.map((w) => (
                 <tr key={w.id}>
                   <Td><strong>{w.referenceNumber || "—"}</strong></Td>
-                  <Td>{w.investmentId}</Td>
+                  <Td>{allPositions.find((p) => p.id === w.investmentId)?.referenceNumber || "—"}</Td>
                   <Td>{fmtUGX(w.amount)}</Td>
                   <Td>{w.penalty > 0 ? fmtUGX(w.penalty) : "None"}</Td>
                   <Td><strong>{fmtUGX(w.netAmount)}</strong></Td>

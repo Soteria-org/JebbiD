@@ -30,11 +30,11 @@ import { WithdrawalsQueue } from "@/features/staff/WithdrawalsQueue";
 import { ReportsScreen } from "@/features/staff/ReportsScreen";
 import { AuditLogsScreen } from "@/features/staff/AuditLogsScreen";
 
-import { AdminDashboard } from "@/features/admin/AdminDashboard";
+import { ClubIntelligenceCentre } from "@/features/admin/ClubIntelligenceCentre";
+import { RiskComplianceMonitor } from "@/features/admin/RiskComplianceMonitor";
 import { AllInvestments } from "@/features/admin/AllInvestments";
 import { AdminSettings } from "@/features/admin/AdminSettings";
 import { CreateFOModal } from "@/features/admin/CreateFOModal";
-import { SystemHealthCenter } from "@/features/admin/SystemHealthCenter";
 
 /**
  * JBDocsApp
@@ -80,8 +80,8 @@ export default function JBDocsApp() {
       else if (view === "auditlogs") screen = <AuditLogsScreen ctx={ctx} />;
       else screen = <FODashboard ctx={ctx} />;
     } else if (role === "super_admin") {
-      if (view === "dashboard") screen = <AdminDashboard ctx={ctx} />;
-      else if (view === "health") screen = <SystemHealthCenter ctx={ctx} />;
+      if (view === "dashboard") screen = <ClubIntelligenceCentre ctx={ctx} />;
+      else if (view === "risk") screen = <RiskComplianceMonitor ctx={ctx} />;
       else if (view === "investors") screen = <InvestorsTable ctx={ctx} />;
       else if (view === "investorDetail") screen = <InvestorDetailScreen ctx={ctx} />;
       else if (view === "allinvestments") screen = <AllInvestments ctx={ctx} />;
@@ -91,7 +91,7 @@ export default function JBDocsApp() {
       else if (view === "reports") screen = <ReportsScreen ctx={ctx} />;
       else if (view === "auditlogs") screen = <AuditLogsScreen ctx={ctx} />;
       else if (view === "settings") screen = <AdminSettings ctx={ctx} />;
-      else screen = <AdminDashboard ctx={ctx} />;
+      else screen = <ClubIntelligenceCentre ctx={ctx} />;
     }
 
     content = (
