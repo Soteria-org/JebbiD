@@ -1,9 +1,52 @@
 import React, { useState } from "react";
 import { Eye, EyeOff, KeyRound, ShieldCheck, UserCog } from "@/components/icons/index";
 import { Btn, Field, TextInput } from "@/components/ui/primitives";
+import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
+import { checkPasswordStrength } from "@/lib/password-policy";
 import { Logo } from "@/components/ui/Logo";
 import { RegisterWizard } from "@/features/auth/RegisterWizard";
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
+
+/**
+ * Reached by clicking the emailed recovery link — app/auth/reset-password/route.js
+ * already verified the token and established a session, then redirected here
+ * with ?resetPassword=1 (see JBDocsApp's initialMode prop). No separate page,
+ * no code to type: the link IS the whole flow.
+ */
+function ResetPasswordForm({ ctx, onDone }) {
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const strong = checkPasswordStrength(pw).valid;
+
+  async function submit() {
+    if (!strong) { setErr("Password doesn't meet the requirements shown below yet."); return; }
+    if (pw !== confirm) { setErr("Passwords do not match."); return; }
+    setErr(""); setSaving(true);
+    const res = await ctx.completePasswordReset(pw);
+    setSaving(false);
+    if (res.ok) onDone();
+    else setErr(res.error);
+  }
+
+  return (
+    <>
+      <div style={{ width: 46, height: 46, borderRadius: 12, background: C.cardBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand, marginBottom: 16 }}>
+        <KeyRound size={22} />
+      </div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.ink, marginBottom: 8 }}>Set a new password</div>
+      <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 20, lineHeight: 1.5 }}>
+        Choose a new password for your Jebbidox account.
+      </div>
+      <Field label="New Password"><TextInput value={pw} onChange={setPw} type="password" testId="reset-new-password" /></Field>
+      <PasswordStrengthMeter password={pw} />
+      <Field label="Confirm New Password"><TextInput value={confirm} onChange={setConfirm} type="password" testId="reset-confirm-password" /></Field>
+      {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
+      <Btn full onClick={submit} disabled={saving} testId="reset-submit">{saving ? "Saving…" : "Set Password"}</Btn>
+    </>
+  );
+}
 
 function ForgotPasswordForm({ ctx, onBack }) {
   const [identifier, setIdentifier] = useState("");
@@ -48,8 +91,8 @@ function ForgotPasswordForm({ ctx, onBack }) {
   );
 }
 
-export function LoginScreen({ ctx }) {
-  const [mode, setMode] = useState("login");
+export function LoginScreen({ ctx, initialMode }) {
+  const [mode, setMode] = useState(initialMode || "login");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -133,6 +176,8 @@ export function LoginScreen({ ctx }) {
             </>
           ) : mode === "forgot" ? (
             <ForgotPasswordForm ctx={ctx} onBack={() => setMode("login")} />
+          ) : mode === "reset" ? (
+            <ResetPasswordForm ctx={ctx} onDone={() => setMode("login")} />
           ) : (
             <RegisterWizard ctx={ctx} onBackToLogin={() => setMode("login")} />
           )}
