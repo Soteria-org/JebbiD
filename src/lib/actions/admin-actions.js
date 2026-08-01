@@ -281,6 +281,23 @@ export async function broadcastMessage(targetRole, title, message) {
 }
 
 /**
+ * Sends one notification to a single investor (Risk & Compliance Monitor
+ * "Message" action on a specific finding — incomplete KYC, missing info,
+ * dormant account). Delegates to public.send_investor_notification(), which
+ * enforces staff-only and investor-only server-side.
+ */
+export async function sendInvestorMessage(investorId, title, message) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("send_investor_notification", {
+    p_investor_id: investorId,
+    p_title: title,
+    p_message: message,
+  });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+/**
  * Marks one of the caller's own notifications as read. RLS (notifications_update:
  * profile_id = auth.uid()) already prevents marking someone else's notification
  * read even by guessing an id, but we still scope the query explicitly for clarity.

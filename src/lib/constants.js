@@ -1,17 +1,16 @@
 import React from "react";
 import { AlertTriangle, ArrowUpRight, Award, BarChart2, Bell, Briefcase, ClipboardList, FileText, Home, SettingsIcon, TrendingUp, User, Users, Wallet } from "@/components/icons/index";
 
+// Shown to users on account/setup failures where self-service can't resolve it
+// (e.g. login()'s orphaned-account self-heal failing) and in the public error
+// page. Matches the contact address already published in the landing page
+// footer (app/page.js) — reuse that one address everywhere rather than
+// introducing a second, unmonitored-looking address.
+export const SUPPORT_EMAIL = "zeal247invest@gmail.com";
+
 export const RATES = { standard: 0.30, corporate: 0.40 };
 
-// ⚠️ TEMPORARY TESTING VALUE — DO NOT SHIP TO PRODUCTION LIKE THIS.
-// Real value is 100000 (matches investment_packages.min_amount for the Standard
-// package, which was ALSO temporarily lowered to 1000 in the live DB via a direct
-// execute_sql update — see chat history, not a migration file, specifically so it
-// doesn't get mistaken for permanent schema). Both this constant and that DB row
-// must be reset together before real investor money moves through this app:
-//   UPDATE investment_packages SET min_amount = 100000 WHERE code = 'standard';
-// and change the line below back to 100000.
-export const MIN_INVESTMENT = 1000;
+export const MIN_INVESTMENT = 100000;
 
 export const CORPORATE_THRESHOLD = 1000000;
 

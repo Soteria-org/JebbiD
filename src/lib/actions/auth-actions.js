@@ -2,6 +2,7 @@
 
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { passwordStrengthError } from "@/lib/password-policy";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import { randomBytes } from "crypto";
 
 /**
@@ -264,8 +265,45 @@ export async function login(input) {
     .maybeSingle();
   if (profileError) return { error: profileError.message };
   if (!profile) {
+    // Self-heal: this is the same orphaned-account state fixed in
+    // app/auth/confirm/route.js (the confirm callback now uses the admin
+    // client), but that only prevents *new* occurrences going forward — it
+    // can't retroactively repair accounts that were already orphaned before
+    // that fix shipped, and it's still cheap insurance against any future
+    // failure mode that leaves auth.users ahead of profiles. Rather than
+    // just erroring, rebuild the missing profile/investor_details rows right
+    // here from the auth user's own signup metadata (still present on
+    // data.user.user_metadata regardless of how long ago they signed up),
+    // then retry the fetch once before giving up.
+    const admin = createAdminClient();
+    const meta = data.user.user_metadata ?? {};
+    const healResult = await createInvestorProfileRows(admin, data.user.id, {
+      ...meta,
+      email: data.user.email,
+    });
+
+    if (healResult.success) {
+      const { data: healedProfile, error: healedProfileError } = await supabase
+        .from("profiles")
+        .select(`
+          id, role, full_name, member_id, must_change_password, account_status, created_at,
+          phone, username, email,
+          investor_details ( national_id_number, address, occupation, financial_goal,
+            next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
+        `)
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (!healedProfileError && healedProfile) {
+        return { success: true, profile: healedProfile };
+      }
+    }
+
     await supabase.auth.signOut();
-    return { error: "Your account exists but setup didn't finish — this can happen if email confirmation was interrupted. Please contact support so we can complete your account." };
+    await logFailedLogin(email, "account_setup_incomplete");
+    return {
+      error: `Your account exists but setup didn't finish, and we weren't able to fix it automatically — this can happen if email confirmation was interrupted. Please contact support at ${SUPPORT_EMAIL} so we can complete your account.`,
+    };
   }
 
   if (profile.account_status === "suspended") {

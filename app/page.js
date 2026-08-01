@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { HeroRotator } from "@/components/marketing/HeroRotator";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 import {
   Award, Bell, FileCheck, Lock, ShieldCheck, TrendingUp, Users, Wallet, Briefcase,
 } from "@/components/icons/index";
@@ -258,7 +259,7 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
             <span>Kireka, Uganda</span>
-            <span>zeal247invest@gmail.com</span>
+            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "inherit", textDecoration: "none" }}>{SUPPORT_EMAIL}</a>
           </div>
         </div>
       </footer>
