@@ -91,12 +91,7 @@ Two separate integrations:
 1. **Supabase Auth SMTP** — custom SMTP in Supabase Dashboard → Authentication → SMTP Settings, using Resend. **Working** — confirmation/reset emails are confirmed delivering.
 2. **Delivery-event webhook** (`app/api/webhooks/resend/route.js`) — receives `email.sent`/`delivered`/`bounced`/`complained`/`failed`/`delivery_delayed` and stores them in `email_events`, powering the delivery-rate stat in Club Intelligence Centre.
 
-**Status as of 2026-08-01: not working.** `email_events` has zero rows despite confirmed-delivered emails and a correctly-configured Resend webhook (endpoint, events, enabled all verified via the Resend API). The route hard-returns `500` on every call unless `RESEND_WEBHOOK_SECRET` is present (`app/api/webhooks/resend/route.js` line ~44) — so the fix is almost certainly:
-1. Confirm `RESEND_WEBHOOK_SECRET` is set in Vercel → Project → Settings → Environment Variables, **Production** environment specifically (not just Preview/Development).
-2. Redeploy — an already-running deployment doesn't pick up a newly-added env var on its own.
-3. Confirm the value matches exactly what Resend has on file for the webhook (visible via the Resend dashboard or `get-webhook` API).
-
-This could not be fixed directly by the AI session that diagnosed it — no Vercel project was reachable from the tooling available at the time (outbound HTTPS to the live domain was also sandboxed). Needs a human with Vercel dashboard access to close the loop, then verify by checking `select count(*) from email_events;` after the next confirmation/reset email goes out.
+**Status as of 2026-08-01: env var redeployed, still unverified.** `email_events` had zero rows despite confirmed-delivered emails and a correctly-configured Resend webhook (endpoint, events, enabled all verified via the Resend API) — root-caused to `RESEND_WEBHOOK_SECRET` missing/stale in the Vercel Production deployment. That's since been redeployed, but `email_events` was still at zero rows as of this writing because **no email had actually been sent since the redeploy** — nothing to prove the fix with yet. The new forgot-password flow (see below) is a good real test: trigger a reset email, then check `select count(*) from email_events;`. If it's still zero after that, re-check the secret value against what Resend has on file for the webhook (`get-webhook` API) and confirm the redeploy actually happened on the Production environment specifically, not Preview.
 
 Signature verification is manual via Node's `crypto` (`verifySvixSignature()` in the route file) — no external Svix package dependency.
 
@@ -138,9 +133,25 @@ The countdown itself is `src/components/ui/PauseCountdown.jsx` — a real SVG ri
 
 ---
 
+## 8b. Login Rate Limiting & Forgot Password
+
+Added 2026-08-01.
+
+**Rate limiting** — `login()` in `src/lib/actions/auth-actions.js` blocks an identifier (whatever the caller typed — email, Member ID, or username) after 5 failed attempts within 15 minutes, checked via a count query against `login_attempts` *before* any credential check runs. Constants: `RATE_LIMIT_WINDOW_MINUTES`, `RATE_LIMIT_MAX_ATTEMPTS` at the top of that file. The block itself isn't logged as a new `login_attempts` row (only real failed credential checks are), so it can't inflate its own lockout window. This is per-identifier only — there's no IP column in this schema, so distributed attempts across many different identifiers from one source aren't caught by this; that would need IP tracking, which doesn't exist here.
+
+**Forgot/reset password** — didn't exist before. Three pieces:
+1. `requestPasswordReset(identifier)` (`src/lib/actions/auth-actions.js`) — resolves a Member ID to an email the same way `login()` does, then calls Supabase's `resetPasswordForEmail()`. **Always returns `{ success: true }`** regardless of whether the identifier matched a real account — the one exception is a genuine `429` rate-limit response from Supabase Auth itself. Don't change this to report "account not found" — that turns the form into an account-existence oracle.
+2. `app/auth/reset-password/route.js` — receives the emailed link (`?token_hash=...&type=recovery`), verifies it, establishes a session. Deliberately a separate route from `app/auth/confirm/route.js` (not reused) — confirming a signup and recovering a password are different trust events, and this one must *not* call `createInvestorProfileRows`.
+3. `app/auth/reset-password/new/page.js` — standalone client page (not part of the `JBDocsApp` SPA shell, since that shell has no existing-session bootstrap — see `completePasswordReset()`'s comment) where the user sets a new password. Signs the recovery session out afterward and sends them through the normal sign-in form.
+
+**Required manual step:** `/auth/reset-password` must be added to Supabase Dashboard → Authentication → URL Configuration → Redirect URLs (same requirement `/auth/confirm` already has). Without this, Supabase silently ignores the `redirectTo` and the emailed link won't point where this app expects.
+
+---
+
 ## 9. Known Gaps / Judgment Calls Left for You
 
-- **Resend webhook** — see §5. Needs Vercel dashboard access to close.
+- **Resend webhook** — see §5. Env var redeployed; still needs a real email sent to confirm `email_events` actually populates now.
+- **`/auth/reset-password` redirect URL** — see §8b. Must be added to Supabase Dashboard → Authentication → URL Configuration → Redirect URLs before the forgot-password flow will work at all.
 - **Supabase Auth → "Leaked password protection"** is disabled — manual flip in Supabase Dashboard → Authentication → Policies, no API/MCP tool can do it.
 - `TODAY` in `src/lib/constants.js` is a deliberately frozen demo date — intentional, see comments in `src/lib/format.js` / `src/features/staff/useStaffMetrics.js`.
 - `RATES`, `PENALTY_RATE`, `PERIOD_MONTHS`, `CORPORATE_THRESHOLD` encode real business terms — confirm against the club's actual current terms before go-live.
