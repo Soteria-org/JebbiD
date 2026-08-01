@@ -3,9 +3,28 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { Award, Calendar, Plus, TrendingUp, Wallet } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
+import { ThoughtBubble } from "@/components/ui/ThoughtBubble";
 import { PositionRow } from "@/features/investor/PositionRow";
 import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
 import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
+
+/**
+ * Picks one real, computed insight to surface — never a scripted generic
+ * line. Priority: an upcoming maturity (most actionable) beats a general
+ * portfolio observation.
+ */
+function dashboardInsight({ upcoming, today, expectedReturns, active }) {
+  if (upcoming) {
+    const days = daysBetween(today, upcoming.maturityDate);
+    return { icon: "🎯", kicker: "Next Milestone", text: days <= 30
+      ? (upcoming.referenceNumber || "Your position") + " matures in " + days + " day" + (days === 1 ? "" : "s") + " — start thinking about what's next."
+      : (upcoming.referenceNumber || "Your position") + " matures in " + days + " days. Time is doing the work." };
+  }
+  if (active.length > 1) {
+    return { icon: "📈", kicker: "Portfolio", text: "Your money doesn't sleep — " + active.length + " positions accruing right now." };
+  }
+  return { icon: "💰", kicker: "Financial Wisdom", text: "Money grows best when it has time. Yours has already started." };
+}
 
 export function InvestorDashboard({ ctx }) {
   const inv = ctx.currentInvestor;
@@ -23,8 +42,8 @@ export function InvestorDashboard({ ctx }) {
     return (
       <PageShell ctx={ctx} title="Dashboard">
         <Card>
-          <EmptyState icon={TrendingUp} title={"Welcome, " + inv.fullName.split(" ")[0]}
-            body="You have no active investments yet. Let's start your investment journey toward your goal of getting your funds into a package."
+          <EmptyState icon={TrendingUp} title="Your portfolio is waiting for its first entry."
+            body="Every investor begins with one deposit. Make yours today."
             action={<Btn icon={Plus} onClick={() => ctx.goTo("invest")}>Start Investing</Btn>} />
         </Card>
       </PageShell>
@@ -63,13 +82,7 @@ export function InvestorDashboard({ ctx }) {
             Goal: {inv.goal}
           </div>
           {maturable.length === 0 ? (
-            <Card style={{ background: C.cardBg }}>
-              <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.6, fontFamily: FONT_MONO }}>Portfolio at a glance</div>
-              <div style={{ fontSize: 13.5, color: C.inkSoft, lineHeight: 1.6 }}>
-                {active.length} active position{active.length === 1 ? "" : "s"} · projected to reach{" "}
-                <strong style={{ color: C.ink }}>{fmtUGX(projectedValue)}</strong> at maturity.
-              </div>
-            </Card>
+            <ThoughtBubble {...dashboardInsight({ upcoming, today, expectedReturns, active })} />
           ) : null}
         </div>
       </div>

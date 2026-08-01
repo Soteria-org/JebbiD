@@ -17,7 +17,7 @@ export function WithdrawalsScreen({ ctx }) {
       </div>
       <Card>
         {withdrawals.length === 0 ? (
-          <EmptyState icon={ArrowUpRight} title="No withdrawal requests" body="When you request a withdrawal, it will appear here with its current status." />
+          <EmptyState icon={ArrowUpRight} title="Nothing withdrawn yet." body="When you request a withdrawal, its status will appear here." />
         ) : (
           <TableWrap>
             <thead><tr><Th>Reference</Th><Th>Position</Th><Th>Amount</Th><Th>Penalty</Th><Th>Net Payable</Th><Th>Method</Th><Th>Status</Th></tr></thead>
