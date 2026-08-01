@@ -1,9 +1,52 @@
 import React, { useState } from "react";
-import { Eye, EyeOff, ShieldCheck, UserCog } from "@/components/icons/index";
+import { Eye, EyeOff, KeyRound, ShieldCheck, UserCog } from "@/components/icons/index";
 import { Btn, Field, TextInput } from "@/components/ui/primitives";
 import { Logo } from "@/components/ui/Logo";
 import { RegisterWizard } from "@/features/auth/RegisterWizard";
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
+
+function ForgotPasswordForm({ ctx, onBack }) {
+  const [identifier, setIdentifier] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  async function submit() {
+    setSending(true);
+    const res = await ctx.requestPasswordReset(identifier.trim());
+    setSending(false);
+    if (res.ok) setSent(true);
+  }
+
+  return (
+    <>
+      <div style={{ width: 46, height: 46, borderRadius: 12, background: C.cardBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand, marginBottom: 16 }}>
+        <KeyRound size={22} />
+      </div>
+      <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.ink, marginBottom: 8 }}>Reset your password</div>
+      {sent ? (
+        <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 20, lineHeight: 1.5 }}>
+          If an account exists for that Member ID or email, we&rsquo;ve sent a link to reset your password. Check your inbox
+          (and spam folder).
+        </div>
+      ) : (
+        <>
+          <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 20, lineHeight: 1.5 }}>
+            Enter your Member ID or email and we&rsquo;ll send you a link to set a new password.
+          </div>
+          <Field label="Member ID or email">
+            <TextInput value={identifier} onChange={setIdentifier} placeholder="e.g. JBD-2026-000101" testId="forgot-identifier" />
+          </Field>
+          <Btn full onClick={submit} disabled={!identifier.trim() || sending} testId="forgot-submit">
+            {sending ? "Sending…" : "Send Reset Link"}
+          </Btn>
+        </>
+      )}
+      <div style={{ marginTop: 10 }}>
+        <Btn full variant="ghost" onClick={onBack}>Back to Sign In</Btn>
+      </div>
+    </>
+  );
+}
 
 export function LoginScreen({ ctx }) {
   const [mode, setMode] = useState("login");
@@ -66,6 +109,11 @@ export function LoginScreen({ ctx }) {
                   </div>
                 </div>
               </Field>
+              <div style={{ textAlign: "right", marginBottom: 14, marginTop: -8 }}>
+                <span onClick={() => setMode("forgot")} data-testid="forgot-password-link" style={{ fontSize: 12.5, color: C.brand, cursor: "pointer", fontWeight: 600 }}>
+                  Forgot your password?
+                </span>
+              </div>
               {err ? <div data-testid="login-error" style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
               <Btn full size="lg" onClick={handleLogin} testId="login-submit">Sign In</Btn>
               <div style={{ textAlign: "center", margin: "18px 0", fontSize: 13, color: C.inkFaint }}>New to Jebbidox?</div>
@@ -83,6 +131,8 @@ export function LoginScreen({ ctx }) {
                 </div>
               ) : null}
             </>
+          ) : mode === "forgot" ? (
+            <ForgotPasswordForm ctx={ctx} onBack={() => setMode("login")} />
           ) : (
             <RegisterWizard ctx={ctx} onBackToLogin={() => setMode("login")} />
           )}

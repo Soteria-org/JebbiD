@@ -10,6 +10,7 @@ import {
   completeForcedPasswordChange as completeForcedPasswordChangeAction,
   changeMyPassword as changeMyPasswordAction,
   updateMyInvestorDetails as updateMyInvestorDetailsAction,
+  requestPasswordReset as requestPasswordResetAction,
 } from "@/lib/actions/auth-actions";
 import {
   loadPackages as loadPackagesAction,
@@ -409,6 +410,21 @@ export default function useJBDocsStore() {
     setView("dashboard");
     return { ok: true };
   }
+
+  /**
+   * Always reports success in the toast regardless of whether the
+   * identifier actually matched an account — see requestPasswordReset()'s
+   * own comment for why (prevents using this as an account-enumeration
+   * oracle). A genuine rate-limit response is the one case that surfaces
+   * as an error.
+   */
+  async function requestPasswordReset(identifier) {
+    const result = await requestPasswordResetAction(identifier);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("If an account exists for that Member ID or email, a reset link has been sent.", "success");
+    return { ok: true };
+  }
+
   async function registerInvestor(form) {
     let result;
     try {
@@ -772,7 +788,7 @@ export default function useJBDocsStore() {
     investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, loginAttempts, emailEvents, notifications,
     packages, packagesError, loadPackages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
-    quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
+    quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, requestPasswordReset, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage, sendInvestorMessage,
     scheduleAccountWarning, clearAccountWarning, setAccountFreeze,
