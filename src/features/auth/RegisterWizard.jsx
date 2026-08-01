@@ -91,7 +91,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
       )}
       {step === 4 && (
         <Field label="What are you investing toward?">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
             {GOALS.map((g) => (
               <div key={g} onClick={() => set("goal", g)} style={{
                 padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontSize: 13.5, fontWeight: 600,

@@ -1,13 +1,43 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
-  ArrowDownRight, ArrowUpRight, Award, Clock, ShieldCheck, TrendingUp, UserPlus, Users, Wallet,
+  ArrowDownRight, ArrowUpRight, Award, Bell, Clock, ShieldCheck, TrendingUp, UserPlus, Users, Wallet,
 } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
-import { Card, SectionTitle, StatCard } from "@/components/ui/primitives";
+import { Btn, Card, Field, Modal, SectionTitle, Select, StatCard, TextArea, TextInput } from "@/components/ui/primitives";
 import { useStaffMetrics } from "@/features/staff/useStaffMetrics";
 import { fmtDateTime, fmtUGX, todayISO } from "@/lib/format";
 import { C, FONT_MONO } from "@/lib/theme";
+
+function BroadcastModal({ ctx, onClose }) {
+  const [targetRole, setTargetRole] = useState("investor");
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function send() {
+    setSending(true);
+    const result = await ctx.broadcastMessage(targetRole, title.trim(), message.trim());
+    setSending(false);
+    if (result.ok) onClose();
+  }
+
+  return (
+    <Modal title="Broadcast a Message" onClose={onClose} width={480}>
+      <Field label="Send to">
+        <Select value={targetRole} onChange={setTargetRole} options={[
+          { value: "investor", label: "All Investors" },
+          { value: "finance_officer", label: "All Finance Officers" },
+        ]} />
+      </Field>
+      <Field label="Title"><TextInput value={title} onChange={setTitle} placeholder="e.g. Scheduled Maintenance" /></Field>
+      <Field label="Message"><TextArea value={message} onChange={setMessage} rows={4} placeholder="Keep it short — this appears in their Notifications." /></Field>
+      <Btn full disabled={!title.trim() || !message.trim() || sending} onClick={send}>
+        {sending ? "Sending…" : "Send Broadcast"}
+      </Btn>
+    </Modal>
+  );
+}
 
 function Row({ label, value, tone }) {
   return (
@@ -34,6 +64,7 @@ export function ClubIntelligenceCentre({ ctx }) {
   const m = useStaffMetrics(ctx);
   const today = todayISO();
   const investors = ctx.investors || [];
+  const [broadcasting, setBroadcasting] = useState(false);
 
   const pendingKyc = useMemo(() => investors.filter((i) => i.kycStatus === "pending").length, [investors]);
 
@@ -67,6 +98,20 @@ export function ClubIntelligenceCentre({ ctx }) {
     const rejectedWithdrawals = (ctx.withdrawals || []).filter((w) => w.status === "rejected").length;
     return rejectedDeposits + rejectedWithdrawals;
   }, [ctx.depositSubmissions, ctx.withdrawals]);
+
+  // Only meaningful once the Resend webhook is actually configured and has
+  // received traffic — see app/api/webhooks/resend/route.js. An empty
+  // ctx.emailEvents means "not wired up yet," not "0% delivery," so this is
+  // shown as "No data" rather than a misleading 0%.
+  const emailDeliveryRate = useMemo(() => {
+    const events = ctx.emailEvents || [];
+    if (events.length === 0) return null;
+    const delivered = events.filter((e) => e.type === "email.delivered").length;
+    const failed = events.filter((e) => ["email.bounced", "email.complained", "email.failed"].includes(e.type)).length;
+    const settled = delivered + failed;
+    if (settled === 0) return null;
+    return Math.round((delivered / settled) * 100);
+  }, [ctx.emailEvents]);
 
   const growthTrend = useMemo(() => {
     const sorted = [...m.active].filter((p) => p.startDate).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
@@ -109,7 +154,12 @@ export function ClubIntelligenceCentre({ ctx }) {
 
   return (
     <PageShell ctx={ctx} title="Club Intelligence Centre">
-      <SectionTitle sub="Everything the club's health depends on, in one place.">Club Intelligence Centre</SectionTitle>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
+        <SectionTitle sub="Everything the club's health depends on, in one place.">Club Intelligence Centre</SectionTitle>
+        <Btn icon={Bell} variant="outline" onClick={() => setBroadcasting(true)}>Broadcast a Message</Btn>
+      </div>
+
+      {broadcasting ? <BroadcastModal ctx={ctx} onClose={() => setBroadcasting(false)} /> : null}
 
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 22 }}>
         <StatCard label="Assets Under Management" value={fmtUGX(m.aum)} icon={Wallet} sub="Principal invested" />
@@ -119,7 +169,7 @@ export function ClubIntelligenceCentre({ ctx }) {
         <StatCard label="Maturing (30 Days)" value={maturing30.length} icon={Award} tone={maturing30.length > 0 ? "warning" : undefined} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 18, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, marginBottom: 18 }}>
         <Card>
           <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>AUM Growth Trend</div>
           <div style={{ fontSize: 12.5, color: C.inkFaint, marginBottom: 14 }}>Cumulative active assets by activation date</div>
@@ -150,9 +200,12 @@ export function ClubIntelligenceCentre({ ctx }) {
         <StatCard label="Withdrawals Awaiting Approval" value={m.pendingWithdrawals.length} icon={ArrowUpRight} tone={m.pendingWithdrawals.length > 0 ? "warning" : undefined} />
         <StatCard label="Failed Transactions" value={failedTransactions} icon={ShieldCheck} tone={failedTransactions > 0 ? "danger" : undefined} sub="Rejected deposits + withdrawals" />
         <StatCard label="Standard / Corporate Split" value={m.standardCount + " / " + m.corporateCount} icon={TrendingUp} />
+        <StatCard label="Email Delivery Rate" value={emailDeliveryRate === null ? "No data" : emailDeliveryRate + "%"} icon={Bell}
+          tone={emailDeliveryRate !== null && emailDeliveryRate < 90 ? "danger" : undefined}
+          sub={emailDeliveryRate === null ? "Webhook not receiving events yet" : "Delivered vs. bounced/failed"} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", gap: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
         <Card>
           <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 12 }}>Investment Goal Distribution</div>
           {goalDistribution.length === 0 ? <div style={{ fontSize: 13, color: C.inkFaint }}>No active positions yet.</div> :
@@ -185,9 +238,9 @@ export function ClubIntelligenceCentre({ ctx }) {
       </div>
 
       <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 18 }}>
-        Not shown: verification email delivery rate and failed-login attempts — neither is tracked anywhere in the current
-        schema. Delivery rate needs a Resend webhook wired to a new table; failed logins need auth-attempt logging. Ask if
-        you want either built.
+        Email Delivery Rate above will read &ldquo;No data&rdquo; until the Resend webhook is configured for this
+        deployment — see RESEND_WEBHOOK_SECRET in .env.local.example for the one-time setup. Failed login attempts are
+        tracked in Risk &amp; Compliance Monitor.
       </div>
     </PageShell>
   );

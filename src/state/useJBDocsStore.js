@@ -36,8 +36,11 @@ import {
   loadAllInvestors as loadAllInvestorsAction,
   loadAllFinanceOfficers as loadAllFinanceOfficersAction,
   loadAuditLog as loadAuditLogAction,
+  loadLoginAttempts as loadLoginAttemptsAction,
+  loadEmailEvents as loadEmailEventsAction,
   loadMyNotifications as loadMyNotificationsAction,
   markNotificationReadAction as markNotificationReadServerAction,
+  broadcastMessage as broadcastMessageAction,
 } from "@/lib/actions/admin-actions";
 
 /**
@@ -73,6 +76,8 @@ export default function useJBDocsStore() {
   const [financeOfficers, setFinanceOfficers] = useState([]);
   const [superAdmin, setSuperAdmin] = useState(seed.superAdmin);
   const [auditLog, setAuditLog] = useState([]);
+  const [loginAttempts, setLoginAttempts] = useState([]);
+  const [emailEvents, setEmailEvents] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const org = seed.org;
 
@@ -164,14 +169,18 @@ export default function useJBDocsStore() {
   // sees the current state of the world, not whatever was bridged in locally before.
   async function reloadStaffLists() {
     if (!session || session.role === "investor") return;
-    const [invRes, foRes, auditRes] = await Promise.all([
+    const [invRes, foRes, auditRes, loginRes, emailRes] = await Promise.all([
       loadAllInvestorsAction(),
       loadAllFinanceOfficersAction(),
       loadAuditLogAction(),
+      loadLoginAttemptsAction(),
+      loadEmailEventsAction(),
     ]);
     if (!invRes.error) setInvestors(invRes.items);
     if (!foRes.error) setFinanceOfficers(foRes.items);
     if (!auditRes.error) setAuditLog(auditRes.items);
+    if (!loginRes.error) setLoginAttempts(loginRes.items);
+    if (!emailRes.error) setEmailEvents(emailRes.items);
   }
 
   // Load the signed-in user's own notifications. Works for every role — the
@@ -652,6 +661,20 @@ export default function useJBDocsStore() {
   }
 
   /**
+   * Super Admin only — enforced server-side inside the broadcast_notification()
+   * RPC itself, not just by what the UI happens to show. Refreshes the audit
+   * log afterward so "Broadcast Sent" shows up in Recent Activity immediately
+   * instead of only after the next poll.
+   */
+  async function broadcastMessage(targetRole, title, message) {
+    const result = await broadcastMessageAction(targetRole, title, message);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("Sent to " + result.recipientCount + " " + (targetRole === "investor" ? "investor" : "Finance Officer") + (result.recipientCount === 1 ? "" : "s") + ".", "success");
+    refreshAll();
+    return { ok: true, recipientCount: result.recipientCount };
+  }
+
+  /**
    * Click-through: takes the person from a notification straight to whatever it's
    * actually about, instead of leaving them to go hunt for it. Built directly from
    * the DB trigger source (every notify() call in the migrations) rather than
@@ -694,12 +717,12 @@ export default function useJBDocsStore() {
   const ctx = {
     forcedPwSession, toast,
     session, view, goTo, isMobile, sidebarOpen, setSidebarOpen,
-    investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, notifications,
+    investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, loginAttempts, emailEvents, notifications,
     packages, packagesError, loadPackages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
-    createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead,
+    createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage,
     lastSyncedAt, refreshAll, goToNotificationTarget,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,

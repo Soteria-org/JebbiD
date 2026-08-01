@@ -1,0 +1,43 @@
+-- See 20260801065258_admin_broadcast_notifications.sql for context.
+--
+-- Unlike public.notify() itself (granted to `authenticated` with no internal
+-- role check — any signed-in user can call it directly today), this function
+-- verifies server-side that the caller is actually super_admin before doing
+-- anything, since it fans out to every member of a role rather than one
+-- specific, already-authorized recipient.
+
+create or replace function public.broadcast_notification(
+  p_target_role text, p_title text, p_message text
+) returns integer
+language plpgsql security definer set search_path = public as $$
+declare
+  v_caller_role text;
+  v_count integer := 0;
+  r record;
+begin
+  select role into v_caller_role from public.profiles where id = auth.uid();
+  if v_caller_role is distinct from 'super_admin' then
+    raise exception 'Only Super Admin can send broadcast messages';
+  end if;
+
+  if p_target_role not in ('investor', 'finance_officer') then
+    raise exception 'Invalid target role: must be investor or finance_officer';
+  end if;
+
+  if length(trim(coalesce(p_title, ''))) = 0 or length(trim(coalesce(p_message, ''))) = 0 then
+    raise exception 'Title and message are required';
+  end if;
+
+  for r in select id from public.profiles where role = p_target_role loop
+    perform public.notify(r.id, 'admin_broadcast', p_title, p_message);
+    v_count := v_count + 1;
+  end loop;
+
+  perform public.log_audit('Broadcast Sent', 'profiles', auth.uid(),
+    null, jsonb_build_object('target_role', p_target_role, 'title', p_title, 'recipient_count', v_count));
+
+  return v_count;
+end;
+$$;
+
+grant execute on function public.broadcast_notification(text, text, text) to authenticated;

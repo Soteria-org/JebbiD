@@ -64,7 +64,7 @@ export function MaturityCentre({ ctx }) {
             <StatCard label="Total Value" value={fmtUGX(p.maturityValue)} icon={Award} />
           </div>
           <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, marginBottom: 10 }}>Choose what happens next</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
             {[
               { key: "reinvest", icon: Repeat, label: "Reinvest Everything", desc: "Roll the full " + fmtUGX(p.maturityValue) + " into a new position" },
               { key: "withdraw_profit", icon: ArrowUpRight, label: "Withdraw Profit Only", desc: "Take out " + fmtUGX(p.expectedReturn) + ", reinvest the principal" },
@@ -94,7 +94,7 @@ export function MaturityCentre({ ctx }) {
           {NEEDS_PAYOUT.includes(choosing.choice) ? (
             <div style={{ marginBottom: 8 }}>
               <Field label="How would you like to be paid?">
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 6, marginBottom: 4 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8, marginTop: 6, marginBottom: 4 }}>
                   {[
                     { key: "MTN", method: "mobile_money", label: "MTN Mobile Money" },
                     { key: "Airtel", method: "mobile_money", label: "Airtel Money" },

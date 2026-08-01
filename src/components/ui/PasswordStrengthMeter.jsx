@@ -37,7 +37,7 @@ export function PasswordStrengthMeter({ password }) {
       {label ? (
         <div style={{ fontSize: 12, fontWeight: 700, color: barColor, marginBottom: 6 }}>{label}</div>
       ) : null}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 10px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "4px 10px" }}>
         {results.map((r) => (
           <div key={r.key} data-testid={"pw-req-" + r.key} data-passed={r.passed} style={{
             display: "flex", alignItems: "center", gap: 5, fontSize: 11.5,
