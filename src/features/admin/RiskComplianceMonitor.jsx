@@ -1,16 +1,18 @@
 import React, { useMemo } from "react";
 import {
-  AlertTriangle, ArrowUpRight, Clock, FileCheck, IdCard, ShieldCheck, UserCog, Users, Wallet,
+  AlertTriangle, ArrowUpRight, Clock, FileCheck, IdCard, Lock, ShieldCheck, UserCog, Users, Wallet,
 } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Badge, Btn, Card, EmptyState, SectionTitle } from "@/components/ui/primitives";
-import { fmtDate, fmtUGX, todayISO } from "@/lib/format";
+import { fmtDate, fmtDateTime, fmtUGX, todayISO } from "@/lib/format";
 import { C } from "@/lib/theme";
 
 const LARGE_DEPOSIT_THRESHOLD = 2000000; // UGX — adjust here if the club's sense of "large" changes
 const OVERDUE_DAYS = 3;
 const DORMANT_DAYS = 90;
 const FO_INACTIVE_DAYS = 14;
+const FAILED_LOGIN_WINDOW_HOURS = 24;
+const FAILED_LOGIN_THRESHOLD = 3;
 
 function daysAgo(from, to) {
   return Math.round((new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24));
@@ -174,7 +176,28 @@ export function RiskComplianceMonitor({ ctx }) {
       onClick: () => ctx.goTo("withdrawals"),
     })), [ctx.withdrawals]);
 
-  const totalHigh = [incompleteKyc, largeDeposits, overdueApprovals].reduce((s, g) => s + g.filter((f) => f.severity === "high").length, 0);
+  const repeatedFailedLogins = useMemo(() => {
+    const recent = (ctx.loginAttempts || []).filter((a) => {
+      const hoursSince = (Date.now() - new Date(a.timestamp).getTime()) / (1000 * 60 * 60);
+      return hoursSince <= FAILED_LOGIN_WINDOW_HOURS;
+    });
+    const byIdentifier = {};
+    recent.forEach((a) => {
+      byIdentifier[a.identifier] = byIdentifier[a.identifier] || [];
+      byIdentifier[a.identifier].push(a);
+    });
+    return Object.entries(byIdentifier)
+      .filter(([, attempts]) => attempts.length >= FAILED_LOGIN_THRESHOLD)
+      .map(([identifier, attempts]) => ({
+        id: "login-" + identifier,
+        severity: attempts.length >= FAILED_LOGIN_THRESHOLD * 2 ? "high" : "medium",
+        title: identifier,
+        detail: attempts.length + " failed attempts in the last " + FAILED_LOGIN_WINDOW_HOURS + "h — most recent " + fmtDateTime(attempts[0].timestamp),
+      }))
+      .sort((a, b) => (a.severity === b.severity ? 0 : a.severity === "high" ? -1 : 1));
+  }, [ctx.loginAttempts]);
+
+  const totalHigh = [incompleteKyc, largeDeposits, overdueApprovals, repeatedFailedLogins].reduce((s, g) => s + g.filter((f) => f.severity === "high").length, 0);
 
   return (
     <PageShell ctx={ctx} title="Risk & Compliance Monitor">
@@ -198,6 +221,7 @@ export function RiskComplianceMonitor({ ctx }) {
         </Card>
       )}
 
+      <FindingGroup icon={Lock} title="Repeated Failed Logins" findings={repeatedFailedLogins} emptyText={"No identifier has " + FAILED_LOGIN_THRESHOLD + "+ failed attempts in the last " + FAILED_LOGIN_WINDOW_HOURS + "h."} />
       <FindingGroup icon={IdCard} title="Incomplete KYC" findings={incompleteKyc} emptyText="Every investor's KYC is verified." />
       <FindingGroup icon={Wallet} title="Large Deposits Awaiting Approval" findings={largeDeposits} emptyText={"No pending deposits above " + fmtUGX(LARGE_DEPOSIT_THRESHOLD) + "."} />
       <FindingGroup icon={Clock} title="Overdue Approvals" findings={overdueApprovals} emptyText={"Nothing has waited more than " + OVERDUE_DAYS + " days."} />
@@ -207,8 +231,8 @@ export function RiskComplianceMonitor({ ctx }) {
       <FindingGroup icon={ArrowUpRight} title="Early Withdrawal Patterns" findings={earlyWithdrawals} emptyText="No early (penalized) withdrawals outstanding." />
 
       <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 8 }}>
-        Not shown: failed login attempts and repeated failed email deliveries — neither is logged anywhere in the current
-        schema. Both are addable (auth-attempt table + a Resend webhook) if you want them built.
+        Not shown: repeated failed email deliveries — needs a Resend webhook wired to a new table (see Club Intelligence
+        Centre for status). Failed login attempts are now tracked above.
       </div>
     </PageShell>
   );

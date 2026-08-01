@@ -46,7 +46,7 @@ export function AdminSettings({ ctx }) {
       {tab === "packages" && (
         <>
           <GuidanceBanner tone="warning">Package and rate changes apply only to new investments going forward — never to positions already active.</GuidanceBanner>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 560 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, maxWidth: 560 }}>
             {[{ name: "Standard Package", rate: "30%", thresh: "Below " + fmtUGX(CORPORATE_THRESHOLD) }, { name: "Corporate Package", rate: "40%", thresh: fmtUGX(CORPORATE_THRESHOLD) + " and above" }].map((p) => (
               <Card key={p.name} style={{ background: C.cardBg, border: "1px solid " + C.cardBorder }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: C.ink, marginBottom: 8 }}>{p.name}</div>

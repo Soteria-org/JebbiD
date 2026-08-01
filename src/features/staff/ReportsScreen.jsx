@@ -41,7 +41,7 @@ export function ReportsScreen({ ctx }) {
         <StatCard label="Corporate Package" value={String(m.corporateCount)} icon={Briefcase} sub="active positions" />
         <StatCard label="Returns Liability" value={fmtUGX(m.active.reduce((s, p) => s + p.expectedReturn, 0))} icon={TrendingUp} sub="owed at maturity" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 18, marginBottom: 18 }}>
         <Card>
           <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>Corporate vs Standard Split</div>
           <div style={{ fontSize: 12.5, color: C.inkFaint, marginBottom: 14 }}>Share of AUM by package</div>

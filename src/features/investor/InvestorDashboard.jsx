@@ -103,7 +103,7 @@ export function InvestorDashboard({ ctx }) {
         <StatCard label="Next Maturity" value={upcoming ? fmtDate(upcoming.maturityDate) : "—"} icon={Calendar} sub={upcoming ? daysBetween(today, upcoming.maturityDate) + " days remaining" : "No upcoming maturities"} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 18, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 18, marginBottom: 18 }}>
         <Card>
           <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>Portfolio Projection</div>
           <div style={{ fontSize: 12.5, color: C.inkFaint, marginBottom: 14 }}>Principal vs. projected value at maturity, per position</div>

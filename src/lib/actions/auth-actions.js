@@ -191,6 +191,24 @@ export async function registerInvestor(input) {
 }
 
 /**
+ * Records a failed sign-in — Risk & Compliance Monitor surfaces repeated
+ * failures per identifier. Uses the admin client deliberately: at this point
+ * in login(), the caller usually isn't authenticated yet (that's WHY it
+ * failed), so there's no auth.uid() an RLS-scoped insert could even run as.
+ * login_attempts has no INSERT policy for any client role — this is the only
+ * path in. Never throws into the caller: a logging failure must not turn an
+ * already-correct "wrong password" response into a crash.
+ */
+async function logFailedLogin(identifier, reason) {
+  try {
+    const admin = createAdminClient();
+    await admin.from("login_attempts").insert({ identifier: identifier || "unknown", reason });
+  } catch (err) {
+    // Swallow — see comment above.
+  }
+}
+
+/**
  * Login for any role (investor, finance_officer, super_admin) — role comes from
  * profiles, not a separate login screen per role. Accepts either an email or a
  * Member ID (JBD-2026-000123) as the identifier; Supabase Auth itself only signs in
@@ -206,6 +224,7 @@ export async function login(input) {
       p_identifier: input.identifier,
     });
     if (resolveError || !resolvedEmail) {
+      await logFailedLogin(input.identifier, "account_not_found");
       return { error: "No account found with that Member ID or email." };
     }
     email = resolvedEmail;
@@ -215,7 +234,10 @@ export async function login(input) {
     email,
     password: input.password,
   });
-  if (error) return { error: "Incorrect Member ID/email or password." };
+  if (error) {
+    await logFailedLogin(input.identifier, "invalid_credentials");
+    return { error: "Incorrect Member ID/email or password." };
+  }
 
   // investor_details is joined here (not just fetched separately) so that
   // ProfileScreen/StatementsScreen/InvestWizard have real National ID, Address,
@@ -237,6 +259,7 @@ export async function login(input) {
 
   if (profile.account_status === "suspended") {
     await supabase.auth.signOut();
+    await logFailedLogin(email, "account_suspended");
     return { error: "This account has been suspended. Contact an administrator." };
   }
 

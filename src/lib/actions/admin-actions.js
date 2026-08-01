@@ -214,6 +214,73 @@ export async function loadMyNotifications() {
 }
 
 /**
+ * Failed sign-in attempts (Risk & Compliance Monitor). RLS
+ * (login_attempts_select_staff) already restricts this to finance_officer/
+ * super_admin — a non-staff caller gets an empty array back, not an error.
+ */
+export async function loadLoginAttempts() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("login_attempts")
+    .select("id, identifier, reason, created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) return { error: error.message };
+
+  const items = (data || []).map((a) => ({
+    id: a.id,
+    identifier: a.identifier,
+    reason: a.reason,
+    timestamp: a.created_at,
+  }));
+  return { items };
+}
+
+/**
+ * Email delivery events recorded by app/api/webhooks/resend/route.js (Club
+ * Intelligence Centre delivery rate). Empty until that webhook is actually
+ * configured in Resend and receiving traffic — see .env.local.example for
+ * the RESEND_WEBHOOK_SECRET setup this depends on. RLS
+ * (email_events_select_staff) already restricts this to staff.
+ */
+export async function loadEmailEvents() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("email_events")
+    .select("id, event_type, recipient, created_at")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  if (error) return { error: error.message };
+
+  const items = (data || []).map((e) => ({
+    id: e.id,
+    type: e.event_type,
+    recipient: e.recipient,
+    timestamp: e.created_at,
+  }));
+  return { items };
+}
+
+/**
+ * Sends one notification to every Investor or every Finance Officer at once
+ * (Club Intelligence Centre "Broadcast" action). Delegates entirely to the
+ * public.broadcast_notification() RPC — that function, not this wrapper, is
+ * what actually enforces the caller is super_admin, since it must hold even
+ * against someone calling the RPC directly. Returns the recipient count so
+ * the UI can confirm "sent to N people" instead of just "sent."
+ */
+export async function broadcastMessage(targetRole, title, message) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("broadcast_notification", {
+    p_target_role: targetRole,
+    p_title: title,
+    p_message: message,
+  });
+  if (error) return { error: error.message };
+  return { success: true, recipientCount: data };
+}
+
+/**
  * Marks one of the caller's own notifications as read. RLS (notifications_update:
  * profile_id = auth.uid()) already prevents marking someone else's notification
  * read even by guessing an id, but we still scope the query explicitly for clarity.

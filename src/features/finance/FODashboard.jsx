@@ -25,7 +25,7 @@ export function FODashboard({ ctx }) {
         <StatCard label="Approved This Week" value={String(weeklyApproved)} icon={CheckCircle2} tone="success" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 18 }}>
         <Card>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink }}>Deposit Queue — by wait time</div>

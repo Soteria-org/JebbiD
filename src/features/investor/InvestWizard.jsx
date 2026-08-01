@@ -121,7 +121,7 @@ export function InvestWizard({ ctx }) {
             ) : packages.length === 0 ? (
               <div style={{ color: C.inkFaint, fontSize: 13.5, padding: 20, textAlign: "center" }}>Loading packages…</div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
                 {packages.map((p) => (
                   <div key={p.id} onClick={() => setSelectedPkg(p)} data-testid={"package-" + p.code} style={{
                     border: "1.5px solid " + (selectedPkg?.id === p.id ? C.brand : C.line),
@@ -147,7 +147,7 @@ export function InvestWizard({ ctx }) {
         {step === 2 && (
           <>
             <SectionTitle sub="This personalises your investment journey — it does not affect your return rate.">Choose Your Financial Goal</SectionTitle>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 20 }}>
               {GOALS.map((g) => (
                 <div key={g} onClick={() => setGoal(g)} data-testid={"goal-" + g} style={{
                   padding: "12px 14px", borderRadius: 10, cursor: "pointer", fontSize: 13.5, fontWeight: 600,
@@ -210,7 +210,7 @@ export function InvestWizard({ ctx }) {
           <>
             <SectionTitle sub="Choose how you'll send your funds, then send them using the details shown.">Deposit Instructions</SectionTitle>
             <Field label="Payment Method">
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 6, marginBottom: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10, marginTop: 6, marginBottom: 4 }}>
                 {[
                   { key: "MTN", method: "mobile_money", label: "MTN Mobile Money" },
                   { key: "Airtel", method: "mobile_money", label: "Airtel Money" },
