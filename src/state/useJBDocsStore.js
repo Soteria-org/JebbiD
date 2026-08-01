@@ -41,6 +41,7 @@ import {
   loadMyNotifications as loadMyNotificationsAction,
   markNotificationReadAction as markNotificationReadServerAction,
   broadcastMessage as broadcastMessageAction,
+  sendInvestorMessage as sendInvestorMessageAction,
 } from "@/lib/actions/admin-actions";
 
 /**
@@ -674,6 +675,15 @@ export default function useJBDocsStore() {
     return { ok: true, recipientCount: result.recipientCount };
   }
 
+  /** Staff only (server-enforced) — one message to one specific investor. */
+  async function sendInvestorMessage(investorId, title, message) {
+    const result = await sendInvestorMessageAction(investorId, title, message);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("Message sent.", "success");
+    refreshAll();
+    return { ok: true };
+  }
+
   /**
    * Click-through: takes the person from a notification straight to whatever it's
    * actually about, instead of leaving them to go hunt for it. Built directly from
@@ -722,7 +732,7 @@ export default function useJBDocsStore() {
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
-    createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage,
+    createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage, sendInvestorMessage,
     lastSyncedAt, refreshAll, goToNotificationTarget,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,

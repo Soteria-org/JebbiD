@@ -1,11 +1,34 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  AlertTriangle, ArrowUpRight, Clock, FileCheck, IdCard, Lock, ShieldCheck, UserCog, Users, Wallet,
+  AlertTriangle, ArrowUpRight, Bell, Clock, FileCheck, IdCard, Lock, ShieldCheck, UserCog, Users, Wallet,
 } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
-import { Badge, Btn, Card, EmptyState, SectionTitle } from "@/components/ui/primitives";
+import { Badge, Btn, Card, Field, Modal, SectionTitle, TextArea, TextInput } from "@/components/ui/primitives";
 import { fmtDate, fmtDateTime, fmtUGX, todayISO } from "@/lib/format";
 import { C } from "@/lib/theme";
+
+function MessageModal({ ctx, target, onClose }) {
+  const [title, setTitle] = useState(target.defaultTitle || "");
+  const [message, setMessage] = useState(target.defaultMessage || "");
+  const [sending, setSending] = useState(false);
+
+  async function send() {
+    setSending(true);
+    const result = await ctx.sendInvestorMessage(target.investorId, title.trim(), message.trim());
+    setSending(false);
+    if (result.ok) onClose();
+  }
+
+  return (
+    <Modal title={"Message " + target.fullName} onClose={onClose} width={480}>
+      <Field label="Title"><TextInput value={title} onChange={setTitle} /></Field>
+      <Field label="Message"><TextArea value={message} onChange={setMessage} rows={5} /></Field>
+      <Btn full disabled={!title.trim() || !message.trim() || sending} onClick={send}>
+        {sending ? "Sending…" : "Send Message"}
+      </Btn>
+    </Modal>
+  );
+}
 
 const LARGE_DEPOSIT_THRESHOLD = 2000000; // UGX — adjust here if the club's sense of "large" changes
 const OVERDUE_DAYS = 3;
@@ -45,7 +68,10 @@ function FindingGroup({ icon: Icon, title, findings, emptyText }) {
             </div>
             <div style={{ fontSize: 12, color: C.inkFaint }}>{f.detail}</div>
           </div>
-          {f.onClick ? <Btn size="sm" variant="ghost" onClick={f.onClick}>{f.actionLabel || "Review"}</Btn> : null}
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            {f.onClick ? <Btn size="sm" variant="ghost" onClick={f.onClick}>{f.actionLabel || "Review"}</Btn> : null}
+            {f.onMessage ? <Btn size="sm" variant="outline" icon={Bell} onClick={f.onMessage}>Message</Btn> : null}
+          </div>
         </div>
       ))}
       {findings.length > 6 ? <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 8 }}>+{findings.length - 6} more</div> : null}
@@ -64,10 +90,15 @@ function FindingGroup({ icon: Icon, title, findings, emptyText }) {
 export function RiskComplianceMonitor({ ctx }) {
   const today = todayISO();
   const investors = ctx.investors || [];
+  const [messaging, setMessaging] = useState(null);
 
   function goToInvestor(id) {
     ctx.setSelectedInvestorId(id);
     ctx.goTo("investorDetail");
+  }
+
+  function openMessage(investorId, fullName, defaultTitle, defaultMessage) {
+    setMessaging({ investorId, fullName, defaultTitle, defaultMessage });
   }
 
   const incompleteKyc = useMemo(() => investors
@@ -79,6 +110,8 @@ export function RiskComplianceMonitor({ ctx }) {
       detail: "KYC status: " + (i.kycStatus || "not started").replace(/_/g, " "),
       actionLabel: "View",
       onClick: () => goToInvestor(i.id),
+      onMessage: () => openMessage(i.id, i.fullName, "Complete Your Identity Verification",
+        "Hi " + i.fullName.split(" ")[0] + ", your KYC verification is still incomplete. Please finish it from your Profile settings within 7 days — accounts with incomplete verification may be paused until this is resolved."),
     })), [investors, today]);
 
   const largeDeposits = useMemo(() => (ctx.depositSubmissions || [])
@@ -104,6 +137,8 @@ export function RiskComplianceMonitor({ ctx }) {
         detail: "Member " + daysAgo(i.dateRegistered, today) + " days, no active position",
         actionLabel: "View",
         onClick: () => goToInvestor(i.id),
+        onMessage: () => openMessage(i.id, i.fullName, "We'd Love to See You Invest",
+          "Hi " + i.fullName.split(" ")[0] + ", you joined Jebbidox a while ago but haven't started an investment yet. Let us know if you need any help getting started."),
       }));
   }, [investors, ctx.investments, today]);
 
@@ -142,6 +177,8 @@ export function RiskComplianceMonitor({ ctx }) {
         detail: "Missing " + missing.join(", "),
         actionLabel: "View",
         onClick: () => goToInvestor(i.id),
+        onMessage: () => openMessage(i.id, i.fullName, "Please Complete Your Profile",
+          "Hi " + i.fullName.split(" ")[0] + ", your profile is missing: " + missing.join(", ") + ". Please update it from your Profile settings within 7 days — incomplete accounts may be paused until this is resolved."),
       };
     }), [investors]);
 
@@ -234,6 +271,8 @@ export function RiskComplianceMonitor({ ctx }) {
         Not shown: repeated failed email deliveries — needs a Resend webhook wired to a new table (see Club Intelligence
         Centre for status). Failed login attempts are now tracked above.
       </div>
+
+      {messaging ? <MessageModal ctx={ctx} target={messaging} onClose={() => setMessaging(null)} /> : null}
     </PageShell>
   );
 }
