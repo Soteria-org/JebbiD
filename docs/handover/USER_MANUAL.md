@@ -11,7 +11,7 @@ This guide covers what each of the three account types can do in JebbiDox.
 1. Go to the JebbiDox website. The landing page introduces the club and links to **Sign In**.
 2. **New members:** click "Create an Investor Account" from the sign-in screen and fill in the registration form. A confirmation email is sent — click the link in it to activate the account.
 3. **Returning members:** sign in with your **Member ID** (format `JBD-2026-000101`), your username, or your email, plus your password.
-4. **Forgot your password?** Click "Forgot your password?" on the sign-in screen, enter your Member ID or email, and a reset link will be emailed to you (if the account exists — for security, you'll see the same message either way). Follow the link to set a new password.
+4. **Forgot your password?** Click "Forgot your password?" on the sign-in screen, enter your Member ID or email, and a reset link will be emailed to you (if the account exists — for security, you'll see the same message either way). Clicking the link brings you straight back to the sign-in page with a "set a new password" form already open — no code to type, no extra steps.
 5. Trouble signing in? Contact **zeal247invest@gmail.com** — every failed sign-in attempt is logged and visible to staff, and most account-setup problems now fix themselves automatically the next time you try to sign in. Note: after 5 failed sign-in attempts within 15 minutes, sign-in is temporarily locked for security — wait 15 minutes and try again.
 
 ---
