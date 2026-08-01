@@ -3,7 +3,7 @@ import { LogOut, X } from "@/components/icons/index";
 import { RoleSwitcher, navItemPickerStyle } from "@/components/layout/RoleSwitcher";
 import { Avatar } from "@/components/ui/primitives";
 import { Logo } from "@/components/ui/Logo";
-import { NAV, ROLE_LABEL } from "@/lib/constants";
+import { NAV, ROLE_LABEL, SUPPORT_EMAIL } from "@/lib/constants";
 import { C, FONT_MONO } from "@/lib/theme";
 
 export function Sidebar({ ctx }) {
@@ -52,6 +52,9 @@ export function Sidebar({ ctx }) {
           <div onClick={ctx.logout} data-testid="nav-signout" style={Object.assign({}, navItemPickerStyle, { color: C.sidebarText, background: "transparent" })}>
             <LogOut size={15} /> Sign Out
           </div>
+          <a href={`mailto:${SUPPORT_EMAIL}`} style={{ fontSize: 10.5, color: C.sidebarTextDim, textAlign: "center", textDecoration: "none", padding: "2px 4px 0" }}>
+            Need help? {SUPPORT_EMAIL}
+          </a>
         </div>
       </div>
     </>

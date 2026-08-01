@@ -1,6 +1,13 @@
 import React from "react";
 import { AlertTriangle, ArrowUpRight, Award, BarChart2, Bell, Briefcase, ClipboardList, FileText, Home, SettingsIcon, TrendingUp, User, Users, Wallet } from "@/components/icons/index";
 
+// Shown to users on account/setup failures where self-service can't resolve it
+// (e.g. login()'s orphaned-account self-heal failing) and in the public error
+// page. Matches the contact address already published in the landing page
+// footer (app/page.js) — reuse that one address everywhere rather than
+// introducing a second, unmonitored-looking address.
+export const SUPPORT_EMAIL = "zeal247invest@gmail.com";
+
 export const RATES = { standard: 0.30, corporate: 0.40 };
 
 export const MIN_INVESTMENT = 100000;

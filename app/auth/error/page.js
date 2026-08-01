@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 
 export default function AuthErrorPage({ searchParams }) {
   const reason = searchParams?.reason;
@@ -26,7 +27,11 @@ export default function AuthErrorPage({ searchParams }) {
         </h1>
         <p style={{ color: "#D9C2A8", fontSize: 14, lineHeight: 1.6 }}>
           This link is invalid or has expired. Please try registering again, or
-          contact support if this keeps happening.
+          contact{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "#EFCB8F" }}>
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          if this keeps happening.
         </p>
         {reason && (
           <p style={{ fontFamily: "'IBM Plex Mono',monospace", color: "#B8987A", fontSize: 11.5, marginTop: 18 }}>
