@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Bell, Menu, Moon, RefreshCw, Sun } from "@/components/icons/index";
 import { Badge } from "@/components/ui/primitives";
+import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
 import { fmtDate } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 import { useDarkMode } from "@/lib/useDarkMode";
@@ -48,6 +49,11 @@ export function Header({ ctx, title }) {
       ) : null}
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.ink }}>{title}</div>
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+        {ctx.session.role === "investor" && ctx.currentInvestor?.pauseDeadline ? (
+          <div onClick={() => ctx.goTo("dashboard")} style={{ cursor: "pointer" }} title="Your account has an active pause deadline — see Dashboard">
+            <PauseCountdownBadge warningAt={ctx.currentInvestor.pauseWarningAt} deadline={ctx.currentInvestor.pauseDeadline} size={22} />
+          </div>
+        ) : null}
         <SyncIndicator ctx={ctx} />
         <div onClick={toggle} title={isDark ? "Switch to light mode" : "Switch to dark mode"} data-testid="header-theme-toggle"
           style={{ cursor: "pointer", color: C.inkSoft, display: "flex", alignItems: "center" }}>

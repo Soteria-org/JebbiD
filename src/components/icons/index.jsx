@@ -127,3 +127,5 @@ export function Moon(p) { return <Svg {...p}><path d="M20 14.5A8.5 8.5 0 1110 3.
 export function Sun(p) { return <Svg {...p}><circle cx="12" cy="12" r="4.5" /><line x1="12" y1="2" x2="12" y2="4.5" /><line x1="12" y1="19.5" x2="12" y2="22" /><line x1="4.2" y1="4.2" x2="6" y2="6" /><line x1="18" y1="18" x2="19.8" y2="19.8" /><line x1="2" y1="12" x2="4.5" y2="12" /><line x1="19.5" y1="12" x2="22" y2="12" /><line x1="4.2" y1="19.8" x2="6" y2="18" /><line x1="18" y1="6" x2="19.8" y2="4.2" /></Svg>; }
 
 export function Server(p) { return <Svg {...p}><rect x="3" y="4" width="18" height="7" rx="1.5" /><rect x="3" y="13" width="18" height="7" rx="1.5" /><line x1="7" y1="7.5" x2="7.01" y2="7.5" /><line x1="7" y1="16.5" x2="7.01" y2="16.5" /></Svg>; }
+
+export function Snowflake(p) { return <Svg {...p}><line x1="12" y1="2" x2="12" y2="22" /><line x1="4" y1="7" x2="20" y2="17" /><line x1="20" y1="7" x2="4" y2="17" /><polyline points="8,4 12,2 16,4" /><polyline points="8,20 12,22 16,20" /><polyline points="4,11 4,7 7.5,5.5" /><polyline points="20,13 20,17 16.5,18.5" /><polyline points="20,11 20,7 16.5,5.5" /><polyline points="4,13 4,17 7.5,18.5" /></Svg>; }

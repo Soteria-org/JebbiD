@@ -257,7 +257,7 @@ export async function login(input) {
     .from("profiles")
     .select(`
       id, role, full_name, member_id, must_change_password, account_status, created_at,
-      phone, username, email,
+      phone, username, email, pause_warning_at, pause_deadline,
       investor_details ( national_id_number, address, occupation, financial_goal,
         next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
     `)
@@ -309,7 +309,7 @@ export async function login(input) {
   if (profile.account_status === "suspended") {
     await supabase.auth.signOut();
     await logFailedLogin(email, "account_suspended");
-    return { error: "This account has been suspended. Contact an administrator." };
+    return { error: `This account has been paused. Contact ${SUPPORT_EMAIL} to resolve this.` };
   }
 
   return { success: true, profile };

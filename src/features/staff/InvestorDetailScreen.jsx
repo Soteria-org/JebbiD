@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { ChevronLeft, IdCard } from "@/components/icons/index";
+import { ChevronLeft, IdCard, Snowflake } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
-import { Avatar, Card, GuidanceBanner, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
+import { Avatar, Badge, Btn, Card, GuidanceBanner, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
+import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
 import { fmtDate, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
@@ -18,12 +19,25 @@ export function InvestorDetailScreen({ ctx }) {
         <ChevronLeft size={15} /> Back to Investors
       </div>
       <Card style={{ marginBottom: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
           <Avatar name={inv.fullName} size={52} />
-          <div>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 600, color: C.ink }}>{inv.fullName}</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 600, color: C.ink }}>{inv.fullName}</div>
+              {inv.accountStatus === "suspended" ? <Badge tone="danger">Paused</Badge> : null}
+            </div>
             <div style={{ fontSize: 12.5, color: C.inkSoft }}>{inv.memberId} · {inv.email} · {inv.phone}</div>
           </div>
+          {inv.accountStatus !== "suspended" && inv.pauseDeadline ? (
+            <PauseCountdownBadge warningAt={inv.pauseWarningAt} deadline={inv.pauseDeadline} />
+          ) : null}
+          {ctx.session.role === "super_admin" ? (
+            inv.accountStatus === "suspended" ? (
+              <Btn size="sm" variant="outline" onClick={() => ctx.setAccountFreeze(inv.id, false)}>Unfreeze Account</Btn>
+            ) : (
+              <Btn size="sm" variant="danger" icon={Snowflake} onClick={() => ctx.setAccountFreeze(inv.id, true)}>Freeze Account</Btn>
+            )
+          ) : null}
         </div>
       </Card>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>

@@ -42,6 +42,9 @@ import {
   markNotificationReadAction as markNotificationReadServerAction,
   broadcastMessage as broadcastMessageAction,
   sendInvestorMessage as sendInvestorMessageAction,
+  scheduleAccountWarning as scheduleAccountWarningAction,
+  clearAccountWarning as clearAccountWarningAction,
+  setAccountFreeze as setAccountFreezeAction,
 } from "@/lib/actions/admin-actions";
 
 /**
@@ -310,6 +313,8 @@ export default function useJBDocsStore() {
         dateRegistered: profile.created_at || prev?.dateRegistered || new Date(),
         notifPrefs: prev?.notifPrefs || { email: true, sms: true },
         darkMode: prev?.darkMode || false,
+        pauseWarningAt: profile.pause_warning_at ?? prev?.pauseWarningAt ?? null,
+        pauseDeadline: profile.pause_deadline ?? prev?.pauseDeadline ?? null,
       };
       if (existingIdx >= 0) {
         const copy = list.slice();
@@ -685,6 +690,43 @@ export default function useJBDocsStore() {
   }
 
   /**
+   * Staff only (server-enforced) — the "warn" half of warn-then-enforce.
+   * Sends the message AND sets a real pause_deadline on the investor's
+   * profile, so the threat corresponds to something the system will
+   * actually do, not just words.
+   */
+  async function scheduleAccountWarning(investorId, title, message, deadlineDays) {
+    const result = await scheduleAccountWarningAction(investorId, title, message, deadlineDays);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("Warning sent — account may be paused in " + deadlineDays + " day" + (deadlineDays === 1 ? "" : "s") + " if unresolved.", "success");
+    refreshAll();
+    return { ok: true, deadline: result.deadline };
+  }
+
+  /** Staff only — cancels a pending warning without freezing (issue was resolved in time). */
+  async function clearAccountWarning(investorId) {
+    const result = await clearAccountWarningAction(investorId);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("Warning cleared.", "success");
+    refreshAll();
+    return { ok: true };
+  }
+
+  /**
+   * Super Admin only (server-enforced inside set_account_freeze() itself).
+   * The actual enforcement side of the pause threat — freezing locks the
+   * investor out via account_status='suspended'; unfreezing restores access
+   * and clears any pending warning.
+   */
+  async function setAccountFreeze(investorId, frozen) {
+    const result = await setAccountFreezeAction(investorId, frozen);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast(frozen ? "Account paused." : "Account restored.", "success");
+    refreshAll();
+    return { ok: true };
+  }
+
+  /**
    * Click-through: takes the person from a notification straight to whatever it's
    * actually about, instead of leaving them to go hunt for it. Built directly from
    * the DB trigger source (every notify() call in the migrations) rather than
@@ -733,6 +775,7 @@ export default function useJBDocsStore() {
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage, sendInvestorMessage,
+    scheduleAccountWarning, clearAccountWarning, setAccountFreeze,
     lastSyncedAt, refreshAll, goToNotificationTarget,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,
