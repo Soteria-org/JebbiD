@@ -46,7 +46,7 @@ import { CreateFOModal } from "@/features/admin/CreateFOModal";
  *   3. Renders the persistent Sidebar + active modals + toasts
  * ----------------------------------------------------------------
  */
-export default function JBDocsApp() {
+export default function JBDocsApp({ resetPasswordRequested }) {
   const ctx = useJBDocsStore();
   const { session, view, forcedPwSession, activeModal, toast } = ctx;
 
@@ -54,7 +54,7 @@ export default function JBDocsApp() {
   if (forcedPwSession) {
     content = <ForcedPasswordChange ctx={ctx} />;
   } else if (!session) {
-    content = <LoginScreen ctx={ctx} />;
+    content = <LoginScreen ctx={ctx} initialMode={resetPasswordRequested ? "reset" : "login"} />;
   } else {
     const role = session.role;
     let screen = null;

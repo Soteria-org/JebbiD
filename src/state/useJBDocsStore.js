@@ -11,6 +11,7 @@ import {
   changeMyPassword as changeMyPasswordAction,
   updateMyInvestorDetails as updateMyInvestorDetailsAction,
   requestPasswordReset as requestPasswordResetAction,
+  completePasswordReset as completePasswordResetAction,
 } from "@/lib/actions/auth-actions";
 import {
   loadPackages as loadPackagesAction,
@@ -425,6 +426,21 @@ export default function useJBDocsStore() {
     return { ok: true };
   }
 
+  /**
+   * The second half of the reset flow — called from LoginScreen's "reset"
+   * mode, reached by clicking the emailed link (app/auth/reset-password/route.js
+   * already verified the recovery token and established a session before the
+   * investor ever sees this form). Works even though ctx.session is null —
+   * this doesn't touch app-shell session state at all, it operates on the
+   * raw Supabase Auth session the recovery link created.
+   */
+  async function completePasswordReset(newPassword) {
+    const result = await completePasswordResetAction(newPassword);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("Password updated. Please sign in.", "success");
+    return { ok: true };
+  }
+
   async function registerInvestor(form) {
     let result;
     try {
@@ -788,7 +804,7 @@ export default function useJBDocsStore() {
     investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, loginAttempts, emailEvents, notifications,
     packages, packagesError, loadPackages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
-    quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, requestPasswordReset, registerInvestor, logout,
+    quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, requestPasswordReset, completePasswordReset, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage, sendInvestorMessage,
     scheduleAccountWarning, clearAccountWarning, setAccountFreeze,

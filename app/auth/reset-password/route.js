@@ -7,8 +7,12 @@ import { redirect } from "next/navigation";
  * query params, same mechanics as app/auth/confirm/route.js but kept as a
  * separate route deliberately: confirming a signup and recovering a
  * password are different trust events, and this one must NOT run
- * createInvestorProfileRows() — it only needs to turn a valid recovery
- * token into a session, then hand off to the "set a new password" page.
+ * createInvestorProfileRows().
+ *
+ * On success, sends the investor straight back to the sign-in page with
+ * ?resetPassword=1 — app/portal/page.js reads that and tells LoginScreen to
+ * open directly on the "set a new password" form, so clicking the emailed
+ * link is the whole flow: no separate page, no code to copy/type.
  *
  * IMPORTANT: this URL must also be added to Supabase Dashboard ->
  * Authentication -> URL Configuration -> Redirect URLs, same as /auth/confirm.
@@ -21,7 +25,7 @@ export async function GET(request) {
   if (token_hash && type === "recovery") {
     const supabase = await createClient();
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
-    if (!error) redirect("/auth/reset-password/new");
+    if (!error) redirect("/portal?resetPassword=1");
   }
 
   redirect("/auth/error?reason=invalid_or_expired_link");
