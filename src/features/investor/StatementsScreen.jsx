@@ -26,7 +26,7 @@ function buildSettledEvents(positions, withdrawals) {
   });
   withdrawals.forEach((w) => {
     if (w.paidAt) {
-      events.push({ date: w.paidAt, label: "Withdrawal paid — " + (w.referenceNumber || w.id), amount: w.netAmount ?? w.amount, direction: "debit" });
+      events.push({ date: w.paidAt, label: "Withdrawal paid — " + (w.referenceNumber || "Pending"), amount: w.netAmount ?? w.amount, direction: "debit" });
     }
   });
   return events.sort((a, b) => new Date(a.date) - new Date(b.date));

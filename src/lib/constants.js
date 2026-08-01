@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowUpRight, Award, BarChart2, Bell, Briefcase, ClipboardList, FileText, Home, Server, SettingsIcon, TrendingUp, User, Users, Wallet } from "@/components/icons/index";
+import { AlertTriangle, ArrowUpRight, Award, BarChart2, Bell, Briefcase, ClipboardList, FileText, Home, SettingsIcon, TrendingUp, User, Users, Wallet } from "@/components/icons/index";
 
 export const RATES = { standard: 0.30, corporate: 0.40 };
 
@@ -45,8 +45,8 @@ export const NAV = {
     { key: "auditlogs", label: "Audit Logs", icon: ClipboardList },
   ],
   super_admin: [
-    { key: "dashboard", label: "Dashboard", icon: Home },
-    { key: "health", label: "System Health Center", icon: Server },
+    { key: "dashboard", label: "Club Intelligence Centre", icon: Home },
+    { key: "risk", label: "Risk & Compliance", icon: AlertTriangle },
     { key: "investors", label: "Investors", icon: Users },
     { key: "allinvestments", label: "All Investments", icon: Briefcase },
     { key: "deposits", label: "Deposits", icon: Wallet },

@@ -6,13 +6,6 @@ function esc(v) {
   ));
 }
 
-function refCode(id) {
-  // Not a security token — a short, stable reference printed on the document
-  // so a staff member can look the transaction up again by eye, the way a
-  // bank teller reads back the last few digits of a reference number.
-  return String(id ?? "").replace(/-/g, "").slice(0, 10).toUpperCase();
-}
-
 /**
  * A single deposit or withdrawal, rendered like a bank-issued paper receipt.
  */
@@ -20,6 +13,11 @@ export function buildReceiptHtml({ org, investor, kind, transaction }) {
   const isDeposit = kind === "deposit";
   const amount = isDeposit ? transaction.amount : (transaction.netAmount ?? transaction.amount);
   const date = isDeposit ? transaction.createdAt : (transaction.paidAt || transaction.requestedAt);
+  // The bank-issued reference number (e.g. "WD-00042") is the only identifier
+  // this document ever prints — never the raw database id, which is an
+  // internal implementation detail, not something a member should see on a
+  // document they can hand to someone else.
+  const ref = transaction.referenceNumber || "PENDING";
 
   return `
     <div class="mono" style="font-size:10.5px; letter-spacing:1.5px; color:var(--ink-faint);">
@@ -29,10 +27,10 @@ export function buildReceiptHtml({ org, investor, kind, transaction }) {
       ${esc(investor.fullName)}
     </div>
     <table>
-      <tr><td style="border:none; color:var(--ink-soft);">Receipt No.</td><td class="num" style="border:none;">RCP-${refCode(transaction.id)}</td></tr>
+      <tr><td style="border:none; color:var(--ink-soft);">Receipt No.</td><td class="num" style="border:none;">RCP-${esc(ref)}</td></tr>
       <tr><td style="border:none; color:var(--ink-soft);">Member ID</td><td class="num" style="border:none;">${esc(investor.memberId || "—")}</td></tr>
       <tr><td style="border:none; color:var(--ink-soft);">Amount</td><td class="num" style="border:none; font-weight:700;">${fmtUGX(amount)}</td></tr>
-      <tr><td style="border:none; color:var(--ink-soft);">Reference</td><td class="num" style="border:none;">${esc(transaction.referenceNumber || refCode(transaction.id))}</td></tr>
+      <tr><td style="border:none; color:var(--ink-soft);">Reference</td><td class="num" style="border:none;">${esc(ref)}</td></tr>
       <tr><td style="border:none; color:var(--ink-soft);">Date</td><td class="num" style="border:none;">${fmtDate(date)}</td></tr>
       <tr><td style="border:none; color:var(--ink-soft);">Status</td><td class="num" style="border:none; text-transform:capitalize;">${esc((transaction.status || "").replace(/_/g, " "))}</td></tr>
     </table>
@@ -86,7 +84,7 @@ export function buildStatementHtml({ org, investor, events, periodLabel }) {
       </tbody>
     </table>
     <div style="margin-top:36px; padding-top:16px; border-top:1px dashed var(--line); display:flex; justify-content:space-between; font-size:11px; color:var(--ink-faint);">
-      <span>Generated ${fmtDateTime(new Date())} &middot; Ref STMT-${refCode(investor.id)}${Date.now().toString().slice(-4)}</span>
+      <span>Generated ${fmtDateTime(new Date())} &middot; Ref STMT-${esc(investor.memberId || "MEMBER")}-${Date.now().toString().slice(-5)}</span>
       <span>Closing balance: ${fmtUGX(running)}</span>
     </div>
   `;

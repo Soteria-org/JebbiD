@@ -16,7 +16,7 @@ export function NotificationsScreen({ ctx }) {
   return (
     <PageShell ctx={ctx} title="Notifications">
       <Card padded={false}>
-        {list.length === 0 ? <div style={{ padding: 24 }}><EmptyState icon={Bell} title="No notifications" body="You're all caught up." /></div> : list.map((n, i) => {
+        {list.length === 0 ? <div style={{ padding: 24 }}><EmptyState icon={Bell} title="Quiet is good." body="Everything is running smoothly." /></div> : list.map((n, i) => {
           const Ic = iconFor[n.type] || Bell;
           return (
             <div key={n.id} onClick={() => ctx.goToNotificationTarget(n)} data-testid={"notification-" + n.id} style={{

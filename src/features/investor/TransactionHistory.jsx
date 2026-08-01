@@ -14,12 +14,12 @@ export function TransactionHistory({ ctx }) {
   const withdrawals = ctx.getInvestorWithdrawals(ctx.session.id);
   let events = [];
   positions.forEach((p) => {
-    events.push({ type: "deposit", date: p.createdAt, label: "Deposit submitted — " + (p.referenceNumber || p.id), amount: p.amount, status: p.depositStatus, receipt: { kind: "deposit", transaction: p } });
-    if (p.startDate) events.push({ type: "investment", date: p.startDate, label: "Investment activated — " + (p.referenceNumber || p.id), amount: p.amount, status: "active", receipt: { kind: "deposit", transaction: p } });
+    events.push({ type: "deposit", date: p.createdAt, label: "Deposit submitted — " + (p.referenceNumber || "Pending"), amount: p.amount, status: p.depositStatus, receipt: { kind: "deposit", transaction: p } });
+    if (p.startDate) events.push({ type: "investment", date: p.startDate, label: "Investment activated — " + (p.referenceNumber || "Pending"), amount: p.amount, status: "active", receipt: { kind: "deposit", transaction: p } });
   });
   withdrawals.forEach((w) => {
-    events.push({ type: "withdrawal", date: w.requestedAt, label: "Withdrawal requested — " + (w.referenceNumber || w.id), amount: w.amount, status: w.status });
-    if (w.paidAt) events.push({ type: "withdrawal", date: w.paidAt, label: "Withdrawal paid — " + (w.referenceNumber || w.id), amount: w.netAmount, status: "paid", receipt: { kind: "withdrawal", transaction: w } });
+    events.push({ type: "withdrawal", date: w.requestedAt, label: "Withdrawal requested — " + (w.referenceNumber || "Pending"), amount: w.amount, status: w.status });
+    if (w.paidAt) events.push({ type: "withdrawal", date: w.paidAt, label: "Withdrawal paid — " + (w.referenceNumber || "Pending"), amount: w.netAmount, status: "paid", receipt: { kind: "withdrawal", transaction: w } });
   });
 
   function viewReceipt(receipt) {
@@ -42,7 +42,7 @@ export function TransactionHistory({ ctx }) {
         ))}
       </div>
       <Card>
-        {events.length === 0 ? <EmptyState icon={ClipboardList} title="No transactions" body="Activity will appear here as it happens." /> : events.map((e, i) => (
+        {events.length === 0 ? <EmptyState icon={ClipboardList} title="Every investor begins with one transaction." body="Make yours today." /> : events.map((e, i) => (
           <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 0", borderBottom: i === events.length - 1 ? "none" : "1px solid " + C.line, gap: 12 }}>
             <div>
               <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>{e.label}</div>

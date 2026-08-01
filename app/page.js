@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
+import { HeroRotator } from "@/components/marketing/HeroRotator";
 import {
   Award, Bell, FileCheck, Lock, ShieldCheck, TrendingUp, Users, Wallet, Briefcase,
 } from "@/components/icons/index";
+
+const EDITORIAL = [
+  { word: "OWN.", body: "Wealth begins the day your money starts working harder than you do." },
+  { word: "DISCIPLINE.", body: "Great investors rarely make dramatic decisions. They make consistent ones." },
+  { word: "COMPOUND.", body: "Time quietly rewards those who stay invested." },
+  { word: "TOMORROW.", body: "Build the future before you need it." },
+];
 
 const FEATURES = [
   { icon: Wallet, title: "Digital Passbook", body: "Every deposit, approval, and maturity writes a new stamped entry to your permanent member ledger — not a spreadsheet row that can quietly change." },
@@ -20,6 +28,12 @@ const STEPS = [
   { n: "04", title: "Track to Maturity", body: "Watch your position accrue in the Maturity Centre, then reinvest, withdraw, or switch package when it matures." },
 ];
 
+const THOUGHT_BUBBLES = [
+  ["🎯", "Weekly Goal", "One more investment this month keeps your financial goals on track."],
+  ["🛡", "Security Note", "Every transaction is verified by a person before it reaches your portfolio."],
+  ["💬", "Today's Reminder", "Consistency beats intensity."],
+];
+
 const FAQS = [
   ["What is Jebbidox?", "A member-owned investment club platform. Every investor gets a digital passbook — a running, verifiable ledger of deposits, approvals, interest, and maturity, reviewed by a Finance Officer before anything is confirmed."],
   ["How are returns calculated?", "Each package has a fixed annual rate — 30% for Standard, 40% for Corporate — applied over a 12-month term from the date your deposit is approved."],
@@ -32,15 +46,21 @@ export default function LandingPage() {
   return (
     <div style={{ background: "#F6EFE0", color: "#1C1410", fontFamily: "'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" }}>
       {/* ---------------- NAV ---------------- */}
+      <style>{`
+        @media (max-width: 480px) {
+          .jbd-nav-signin { display: none; }
+          .jbd-nav-wordmark { display: none; }
+        }
+      `}</style>
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(246,239,224,0.9)", backdropFilter: "blur(8px)", borderBottom: "1px solid #DCCCA8" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             <Logo size={32} animated tone="onLight" />
-            <span style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, letterSpacing: 1.6, color: "#7A1220" }}>JEBBIDOX</span>
+            <span className="jbd-nav-wordmark" style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 13, letterSpacing: 1.6, color: "#7A1220", whiteSpace: "nowrap" }}>JEBBIDOX</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Link href="/portal" style={{ fontSize: 13.5, fontWeight: 600, color: "#5C4F44", textDecoration: "none", padding: "9px 6px" }}>Sign In</Link>
-            <Link href="/portal" style={{ fontSize: 13.5, fontWeight: 700, color: "#FBF6EA", textDecoration: "none", background: "#7A1220", padding: "10px 18px", borderRadius: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <Link className="jbd-nav-signin" href="/portal" style={{ fontSize: 13.5, fontWeight: 600, color: "#5C4F44", textDecoration: "none", padding: "9px 6px", whiteSpace: "nowrap" }}>Sign In</Link>
+            <Link href="/portal" style={{ fontSize: 13.5, fontWeight: 700, color: "#FBF6EA", textDecoration: "none", background: "#7A1220", padding: "10px 16px", borderRadius: 8, whiteSpace: "nowrap" }}>
               Open a Member Ledger
             </Link>
           </div>
@@ -62,14 +82,10 @@ export default function LandingPage() {
           <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 12, letterSpacing: 2.5, color: "#D8BD82", marginBottom: 18 }}>
             EST. 2026 · KIREKA, UGANDA
           </div>
-          <h1 style={{ fontFamily: "'Fraunces',serif", fontWeight: 500, fontSize: "clamp(32px, 5.2vw, 56px)", lineHeight: 1.14, margin: "0 auto 22px", maxWidth: 780 }}>
-            Small, consistent investments build great wealth.
-          </h1>
-          <p style={{ fontSize: 16, lineHeight: 1.7, color: "#D9C2A8", maxWidth: 560, margin: "0 auto 36px" }}>
-            A member-owned investment ledger — every deposit, approval, and maturity tracked,
-            verified, and explained. Not a balance sheet. A guided investment journey.
-          </p>
-          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
+
+          <HeroRotator />
+
+          <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginTop: 30 }}>
             <Link href="/portal" style={{ fontSize: 14.5, fontWeight: 700, color: "#3A2A0A", textDecoration: "none", background: "#B98A2E", padding: "15px 28px", borderRadius: 8 }}>
               Open a Member Ledger →
             </Link>
@@ -88,12 +104,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------------- FEATURES ---------------- */}
+      {/* ---------------- EDITORIAL STATEMENTS ---------------- */}
       <section style={{ maxWidth: 1180, margin: "0 auto", padding: "88px 24px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "48px 32px" }}>
+          {EDITORIAL.map((e) => (
+            <div key={e.word} style={{ flex: "1 1 220px", minWidth: 0 }}>
+              <div style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(24px, 2.6vw, 36px)", fontWeight: 600, color: "#7A1220", letterSpacing: 0.5, marginBottom: 12, whiteSpace: "nowrap" }}>
+                {e.word}
+              </div>
+              <div style={{ fontSize: 14.5, color: "#5C4F44", lineHeight: 1.65, maxWidth: 260 }}>{e.body}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ---------------- FEATURES ---------------- */}
+      <section style={{ maxWidth: 1180, margin: "0 auto", padding: "0 24px 88px" }}>
         <div style={{ textAlign: "center", marginBottom: 56 }}>
           <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 2, color: "#9C8D7C", marginBottom: 10 }}>WHY JEBBIDOX</div>
           <h2 style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(26px, 3.4vw, 36px)", fontWeight: 600, margin: 0 }}>
-            Built to feel like an institution, not an app.
+            Built like an institution. Feels like yours.
           </h2>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 22 }}>
@@ -115,7 +145,7 @@ export default function LandingPage() {
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 2, color: "#9C8D7C", marginBottom: 10 }}>HOW IT WORKS</div>
             <h2 style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(26px, 3.4vw, 36px)", fontWeight: 600, margin: 0 }}>
-              Four steps. Every one of them visible to you.
+              Four steps. Nothing hidden between them.
             </h2>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 28 }}>
@@ -131,8 +161,8 @@ export default function LandingPage() {
       </section>
 
       {/* ---------------- PHILOSOPHY / SECURITY ---------------- */}
-      <section style={{ maxWidth: 1180, margin: "0 auto", padding: "88px 24px", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 56, alignItems: "center" }}>
-        <div>
+      <section style={{ maxWidth: 1180, margin: "0 auto", padding: "88px 24px", display: "flex", flexWrap: "wrap", gap: 56, alignItems: "center" }}>
+        <div style={{ flex: "1 1 420px", minWidth: 0 }}>
           <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 2, color: "#9C8D7C", marginBottom: 10 }}>OUR PHILOSOPHY</div>
           <h2 style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 600, marginTop: 0, marginBottom: 18 }}>
             Wealth is built quietly, one verified deposit at a time.
@@ -149,7 +179,7 @@ export default function LandingPage() {
             first.
           </p>
         </div>
-        <div style={{ background: "#FFFFFF", border: "1px solid #DCCCA8", borderRadius: 16, padding: 32 }}>
+        <div style={{ flex: "1 1 320px", minWidth: 0, background: "#FFFFFF", border: "1px solid #DCCCA8", borderRadius: 16, padding: 32 }}>
           {[
             [Lock, "Row-level database security on every table"],
             [FileCheck, "Immutable audit trail on every approval"],
@@ -166,8 +196,34 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ---------------- INSIDE THE APP: THOUGHT BUBBLES ---------------- */}
+      <section style={{ background: "#FBF6EA", borderTop: "1px solid #DCCCA8", borderBottom: "1px solid #DCCCA8", padding: "88px 24px" }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 44 }}>
+            <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 2, color: "#9C8D7C", marginBottom: 10 }}>INSIDE THE APP</div>
+            <h2 style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(24px, 3vw, 32px)", fontWeight: 600, margin: 0 }}>
+              Small nudges. Real numbers. Never noise.
+            </h2>
+            <p style={{ fontSize: 13.5, color: "#5C4F44", marginTop: 10, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
+              Your dashboard surfaces short, honest observations about your own portfolio — examples below, not live data.
+            </p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 18, maxWidth: 900, margin: "0 auto" }}>
+            {THOUGHT_BUBBLES.map(([icon, kicker, text]) => (
+              <div key={kicker} style={{ display: "flex", gap: 12, alignItems: "flex-start", background: "#FFFFFF", border: "1px solid #DCCCA8", borderRadius: 12, padding: "16px 18px", boxShadow: "0 1px 2px rgba(28,20,16,.05), 0 12px 28px -14px rgba(28,20,16,.2)" }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#F3E1DF", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>{icon}</div>
+                <div>
+                  <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: "#7A1220", marginBottom: 4 }}>{kicker}</div>
+                  <div style={{ fontSize: 13, color: "#1C1410", lineHeight: 1.5 }}>{text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ---------------- FAQ ---------------- */}
-      <section style={{ background: "#FBF6EA", borderTop: "1px solid #DCCCA8", padding: "88px 24px" }}>
+      <section style={{ background: "#FBF6EA", padding: "88px 24px" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 48 }}>
             <div style={{ fontFamily: "'IBM Plex Mono',monospace", fontSize: 11, letterSpacing: 2, color: "#9C8D7C", marginBottom: 10 }}>QUESTIONS</div>
@@ -185,7 +241,7 @@ export default function LandingPage() {
       {/* ---------------- FINAL CTA ---------------- */}
       <section style={{ background: "linear-gradient(135deg, #7A1220, #4E0B15)", color: "#FBF6EA", padding: "72px 24px", textAlign: "center" }}>
         <h2 style={{ fontFamily: "'Fraunces',serif", fontSize: "clamp(24px, 3.4vw, 34px)", fontWeight: 600, margin: "0 0 14px" }}>
-          Your first entry is one ledger away.
+          The best time to invest was yesterday.<br />The second best time is today.
         </h2>
         <p style={{ fontSize: 14.5, color: "#D9C2A8", marginBottom: 30 }}>Open a Member Ledger in a few minutes.</p>
         <Link href="/portal" style={{ fontSize: 14.5, fontWeight: 700, color: "#3A2A0A", textDecoration: "none", background: "#B98A2E", padding: "15px 30px", borderRadius: 8, display: "inline-block" }}>
