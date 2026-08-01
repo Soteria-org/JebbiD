@@ -422,6 +422,49 @@ export async function completePasswordReset(newPassword) {
 }
 
 /**
+ * OTP-code alternative to the emailed-link flow above — entirely sidesteps
+ * Supabase's redirect-URL allowlist (no link, no domain/www matching, no
+ * "lands on the wrong page" failure mode), at the cost of requiring the
+ * Supabase "Reset Password" email template to include {{ .Token }} (the
+ * 6-digit code) in its body — a Dashboard-only edit, but a much smaller
+ * and less error-prone one than getting a redirect URL to match exactly.
+ *
+ * Does verifyOtp (which both confirms the code AND establishes a session)
+ * and updateUser in one call, since the UI collects the code and the new
+ * password on the same screen rather than as two separate steps.
+ */
+export async function completePasswordResetWithCode(identifier, code, newPassword) {
+  const supabase = await createClient();
+
+  let email = (identifier || "").trim();
+  if (!email) return { error: "Enter your Member ID or email." };
+  if (!email.includes("@")) {
+    const { data: resolvedEmail } = await supabase.rpc("resolve_login_email", { p_identifier: email });
+    // Same identifier resolution login()/requestPasswordReset() use. If it
+    // doesn't resolve, fall through to verifyOtp with the raw identifier —
+    // it will fail the same way an invalid code does, so this still doesn't
+    // reveal whether the account exists.
+    if (resolvedEmail) email = resolvedEmail;
+  }
+
+  const { error: verifyError } = await supabase.auth.verifyOtp({
+    email,
+    token: (code || "").trim(),
+    type: "recovery",
+  });
+  if (verifyError) return { error: "That code is invalid or has expired. Please request a new one." };
+
+  const pwError = passwordStrengthError(newPassword);
+  if (pwError) return { error: pwError };
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateError) return { error: updateError.message };
+
+  await supabase.auth.signOut();
+  return { success: true };
+}
+
+/**
  * Admin-created account (investor OR finance_officer), with a temp password the
  * caller must display to the admin exactly once — nothing persists it server-side
  * beyond this call.

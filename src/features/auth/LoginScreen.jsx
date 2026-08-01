@@ -48,16 +48,41 @@ function ResetPasswordForm({ ctx, onDone }) {
   );
 }
 
-function ForgotPasswordForm({ ctx, onBack }) {
+/**
+ * Two steps, both on this one screen — no emailed link to click, no
+ * redirect, no Supabase redirect-URL allowlist involved at all. Step 1
+ * sends the email (same requestPasswordReset() the link-based flow uses);
+ * step 2 collects the 6-digit code from that email plus the new password
+ * and submits both together via completePasswordResetWithCode().
+ */
+function ForgotPasswordForm({ ctx, onBack, onDone }) {
   const [identifier, setIdentifier] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
-  async function submit() {
+  const [code, setCode] = useState("");
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState("");
+  const [saving, setSaving] = useState(false);
+  const strong = checkPasswordStrength(pw).valid;
+
+  async function sendCode() {
     setSending(true);
     const res = await ctx.requestPasswordReset(identifier.trim());
     setSending(false);
     if (res.ok) setSent(true);
+  }
+
+  async function submitCode() {
+    if (!code.trim()) { setErr("Enter the code from your email."); return; }
+    if (!strong) { setErr("Password doesn't meet the requirements shown below yet."); return; }
+    if (pw !== confirm) { setErr("Passwords do not match."); return; }
+    setErr(""); setSaving(true);
+    const res = await ctx.completePasswordResetWithCode(identifier.trim(), code.trim(), pw);
+    setSaving(false);
+    if (res.ok) onDone();
+    else setErr(res.error);
   }
 
   return (
@@ -66,22 +91,37 @@ function ForgotPasswordForm({ ctx, onBack }) {
         <KeyRound size={22} />
       </div>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.ink, marginBottom: 8 }}>Reset your password</div>
-      {sent ? (
-        <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 20, lineHeight: 1.5 }}>
-          If an account exists for that Member ID or email, we&rsquo;ve sent a link to reset your password. Check your inbox
-          (and spam folder).
-        </div>
-      ) : (
+      {!sent ? (
         <>
           <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 20, lineHeight: 1.5 }}>
-            Enter your Member ID or email and we&rsquo;ll send you a link to set a new password.
+            Enter your Member ID or email and we&rsquo;ll send you a 6-digit code to reset your password.
           </div>
           <Field label="Member ID or email">
             <TextInput value={identifier} onChange={setIdentifier} placeholder="e.g. JBD-2026-000101" testId="forgot-identifier" />
           </Field>
-          <Btn full onClick={submit} disabled={!identifier.trim() || sending} testId="forgot-submit">
-            {sending ? "Sending…" : "Send Reset Link"}
+          <Btn full onClick={sendCode} disabled={!identifier.trim() || sending} testId="forgot-submit">
+            {sending ? "Sending…" : "Send Code"}
           </Btn>
+        </>
+      ) : (
+        <>
+          <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 20, lineHeight: 1.5 }}>
+            If an account exists for that Member ID or email, a code has been sent. Enter it below along with your new
+            password.
+          </div>
+          <Field label="6-digit code">
+            <TextInput value={code} onChange={setCode} placeholder="123456" testId="reset-code" />
+          </Field>
+          <Field label="New Password"><TextInput value={pw} onChange={setPw} type="password" testId="reset-new-password" /></Field>
+          <PasswordStrengthMeter password={pw} />
+          <Field label="Confirm New Password"><TextInput value={confirm} onChange={setConfirm} type="password" testId="reset-confirm-password" /></Field>
+          {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
+          <Btn full onClick={submitCode} disabled={saving} testId="reset-submit">{saving ? "Saving…" : "Set Password"}</Btn>
+          <div style={{ textAlign: "center", marginTop: 12 }}>
+            <span onClick={sendCode} style={{ fontSize: 12.5, color: C.brand, cursor: "pointer", fontWeight: 600 }}>
+              {sending ? "Sending…" : "Resend code"}
+            </span>
+          </div>
         </>
       )}
       <div style={{ marginTop: 10 }}>
@@ -175,7 +215,7 @@ export function LoginScreen({ ctx, initialMode }) {
               ) : null}
             </>
           ) : mode === "forgot" ? (
-            <ForgotPasswordForm ctx={ctx} onBack={() => setMode("login")} />
+            <ForgotPasswordForm ctx={ctx} onBack={() => setMode("login")} onDone={() => setMode("login")} />
           ) : mode === "reset" ? (
             <ResetPasswordForm ctx={ctx} onDone={() => setMode("login")} />
           ) : (

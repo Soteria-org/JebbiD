@@ -12,6 +12,7 @@ import {
   updateMyInvestorDetails as updateMyInvestorDetailsAction,
   requestPasswordReset as requestPasswordResetAction,
   completePasswordReset as completePasswordResetAction,
+  completePasswordResetWithCode as completePasswordResetWithCodeAction,
 } from "@/lib/actions/auth-actions";
 import {
   loadPackages as loadPackagesAction,
@@ -441,6 +442,19 @@ export default function useJBDocsStore() {
     return { ok: true };
   }
 
+  /**
+   * OTP-code path — the identifier + code + new password are all entered on
+   * the sign-in screen itself (ForgotPasswordForm's "enter code" step), no
+   * emailed link involved at all. See completePasswordResetWithCode()'s own
+   * comment for why this exists alongside the link-based flow.
+   */
+  async function completePasswordResetWithCode(identifier, code, newPassword) {
+    const result = await completePasswordResetWithCodeAction(identifier, code, newPassword);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("Password updated. Please sign in.", "success");
+    return { ok: true };
+  }
+
   async function registerInvestor(form) {
     let result;
     try {
@@ -804,7 +818,7 @@ export default function useJBDocsStore() {
     investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, loginAttempts, emailEvents, notifications,
     packages, packagesError, loadPackages, depositSubmissions,
     getInvestor, getInvestorInvestments, getInvestorWithdrawals,
-    quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, requestPasswordReset, completePasswordReset, registerInvestor, logout,
+    quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, requestPasswordReset, completePasswordReset, completePasswordResetWithCode, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage, sendInvestorMessage,
     scheduleAccountWarning, clearAccountWarning, setAccountFreeze,
