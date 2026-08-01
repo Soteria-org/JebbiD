@@ -245,6 +245,13 @@ export async function login(input) {
   // of showing blank fields until some other screen happens to load them. For
   // staff roles the embed simply comes back empty/null, which is fine — nothing
   // downstream reads it for them.
+  // FIXED (real incident): .single() throws PostgREST's opaque "cannot
+  // coerce the result to a single JSON object" (406) when zero rows come
+  // back — which is exactly what happened to a real user whose email
+  // confirmation never created a profiles row (see app/auth/confirm/route.js
+  // for the actual fix). .maybeSingle() + an explicit check turns that into
+  // a real, actionable message instead of a raw Postgres error reaching the
+  // login screen.
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select(`
@@ -254,8 +261,12 @@ export async function login(input) {
         next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
     `)
     .eq("id", data.user.id)
-    .single();
+    .maybeSingle();
   if (profileError) return { error: profileError.message };
+  if (!profile) {
+    await supabase.auth.signOut();
+    return { error: "Your account exists but setup didn't finish — this can happen if email confirmation was interrupted. Please contact support so we can complete your account." };
+  }
 
   if (profile.account_status === "suspended") {
     await supabase.auth.signOut();
