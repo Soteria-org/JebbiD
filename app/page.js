@@ -1,7 +1,7 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { HeroRotator } from "@/components/marketing/HeroRotator";
-import { ValueVisual } from "@/components/marketing/ValueVisual";
 import { SUPPORT_EMAIL } from "@/lib/constants";
 
 // The landing page has its own restrained red/ink/white system — separate from
@@ -17,6 +17,34 @@ const PANEL = "#FAFAFA";
 
 const KEYWORDS = ["Youth Investment", "Savings", "Investment Management", "Digital Records", "Member Accounts"];
 
+// Real photography from the Jebbidox brand library (Bloom) — one photo per
+// section, per the "one core image" rule. Not committed as repo binaries;
+// served through next/image's remote loader (see next.config.mjs).
+const HERO_PHOTO = {
+  src: "https://www.trybloom.ai/img/b55eb95c-4413-4699-bcfc-91102dcb2dce",
+  alt: "A young Jebbidox investor smiling and celebrating after checking his investment progress on his phone at his desk",
+};
+const VALUE_PHOTO = {
+  src: "https://www.trybloom.ai/img/04310eef-9d7b-4d99-83e2-a89107e5566f",
+  alt: "Four young Jebbidox Youth Investment Club members reviewing their investment portfolio together around a laptop",
+};
+
+function FramedPhoto({ photo, priority }) {
+  return (
+    <div style={{ background: PANEL, border: "1px solid " + BORDER, borderRadius: 8, boxShadow: "0 1px 2px rgba(21,16,15,.04), 0 10px 24px -14px rgba(21,16,15,.18)", padding: 8, lineHeight: 0 }}>
+      <Image
+        src={photo.src}
+        alt={photo.alt}
+        width={760}
+        height={507}
+        priority={priority}
+        sizes="(max-width: 720px) 90vw, 480px"
+        style={{ width: "100%", height: "auto", borderRadius: 4, display: "block" }}
+      />
+    </div>
+  );
+}
+
 export default function LandingPage() {
   return (
     <div style={{ background: "#FFFFFF", color: INK, fontFamily: "'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" }}>
@@ -25,9 +53,13 @@ export default function LandingPage() {
           .jbd-nav-signin { display: none; }
           .jbd-nav-wordmark { display: none; }
         }
+        @media (max-width: 780px) {
+          .jbd-hero-grid { grid-template-columns: 1fr !important; }
+          .jbd-hero-photo { max-width: 420px; margin: 0 auto; }
+        }
         @media (max-width: 720px) {
           .jbd-value-grid { grid-template-columns: 1fr !important; }
-          .jbd-value-image { order: -1; max-width: 320px; margin: 0 auto; }
+          .jbd-value-image { order: -1; max-width: 380px; margin: 0 auto; }
         }
         @media (max-width: 640px) {
           .jbd-stat-row { gap: 26px !important; }
@@ -36,7 +68,6 @@ export default function LandingPage() {
         .jbd-cta-primary:hover { background: #C81118 !important; }
         .jbd-cta-secondary:hover { border-color: ${INK} !important; color: ${INK} !important; }
         .jbd-link:hover { color: ${RED} !important; }
-        @keyframes jbd-logo-in { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
       `}</style>
 
       {/* ---------------- NAV ---------------- */}
@@ -59,37 +90,41 @@ export default function LandingPage() {
 
       <main>
         {/* ---------------- SECTION 1 — HERO ---------------- */}
-        <section aria-label="Introduction" style={{ padding: "80px 24px 72px" }}>
-          <div style={{ maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 30 }}>
-              <div style={{ animation: "jbd-logo-in 0.7s ease" }}>
-                <Logo size={56} animated />
+        <section aria-label="Introduction" style={{ padding: "72px 24px" }}>
+          <div className="jbd-hero-grid" style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gridTemplateColumns: "1.05fr 0.95fr", gap: 56, alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 1.6, color: RED, textTransform: "uppercase", marginBottom: 16 }}>
+                Jebbidox Youth Investment Club
+              </div>
+
+              <HeroRotator align="left" />
+
+              <p style={{ fontSize: 15.5, color: INK_SOFT, maxWidth: 440, margin: "22px 0 0", lineHeight: 1.6 }}>
+                A digital investment club for young people who want their contributions, investments and
+                financial records in one place — not scattered across memory.
+              </p>
+
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 32 }}>
+                <Link className="jbd-cta-primary" href="/portal?join=1" style={{ fontSize: 14.5, fontWeight: 700, color: "#FFFFFF", textDecoration: "none", background: RED, padding: "15px 28px", borderRadius: 8, transition: "background 0.15s" }}>
+                  Join Jebbidox
+                </Link>
+                <Link className="jbd-cta-secondary" href="/portal" style={{ fontSize: 14.5, fontWeight: 600, color: INK_SOFT, textDecoration: "none", border: "1.5px solid " + BORDER, padding: "15px 28px", borderRadius: 8, transition: "border-color 0.15s, color 0.15s" }}>
+                  Sign In
+                </Link>
+              </div>
+
+              <div className="jbd-stat-row" style={{ display: "flex", gap: 40, flexWrap: "wrap", marginTop: 52 }}>
+                {[["30%", "Standard package"], ["40%", "Corporate package"], ["12 months", "Investment period"]].map((s) => (
+                  <div key={s[0]}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: INK }}>{s[0]}</div>
+                    <div style={{ fontSize: 12, color: INK_FAINT, marginTop: 3 }}>{s[1]}</div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <HeroRotator />
-
-            <p style={{ fontSize: 15.5, color: INK_SOFT, maxWidth: 480, margin: "22px auto 0", lineHeight: 1.6 }}>
-              A digital investment club for young people who want their contributions, investments and
-              financial records in one place — not scattered across memory.
-            </p>
-
-            <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap", marginTop: 34 }}>
-              <Link className="jbd-cta-primary" href="/portal?join=1" style={{ fontSize: 14.5, fontWeight: 700, color: "#FFFFFF", textDecoration: "none", background: RED, padding: "15px 28px", borderRadius: 8, transition: "background 0.15s" }}>
-                Join Jebbidox
-              </Link>
-              <Link className="jbd-cta-secondary" href="/portal" style={{ fontSize: 14.5, fontWeight: 600, color: INK_SOFT, textDecoration: "none", border: "1.5px solid " + BORDER, padding: "15px 28px", borderRadius: 8, transition: "border-color 0.15s, color 0.15s" }}>
-                Sign In
-              </Link>
-            </div>
-
-            <div className="jbd-stat-row" style={{ display: "flex", gap: 44, justifyContent: "center", flexWrap: "wrap", marginTop: 60 }}>
-              {[["30%", "Standard package"], ["40%", "Corporate package"], ["12 months", "Investment period"]].map((s) => (
-                <div key={s[0]}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: INK }}>{s[0]}</div>
-                  <div style={{ fontSize: 12, color: INK_FAINT, marginTop: 3 }}>{s[1]}</div>
-                </div>
-              ))}
+            <div className="jbd-hero-photo">
+              <FramedPhoto photo={HERO_PHOTO} priority />
             </div>
           </div>
         </section>
@@ -119,9 +154,7 @@ export default function LandingPage() {
             </div>
 
             <div className="jbd-value-image">
-              <div style={{ background: PANEL, border: "1px solid " + BORDER, borderRadius: 8, boxShadow: "0 1px 2px rgba(21,16,15,.04), 0 10px 24px -14px rgba(21,16,15,.18)", padding: 20 }}>
-                <ValueVisual />
-              </div>
+              <FramedPhoto photo={VALUE_PHOTO} />
             </div>
           </div>
         </section>

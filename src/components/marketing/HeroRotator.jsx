@@ -22,8 +22,9 @@ const SLIDES = [
  * animation/transition durations to ~0), so this degrades to simply showing the
  * first slide without the fade.
  */
-export function HeroRotator() {
+export function HeroRotator({ align }) {
   const [index, setIndex] = useState(0);
+  const left = align === "left";
 
   useEffect(() => {
     const t = setInterval(() => setIndex((i) => (i + 1) % SLIDES.length), 4200);
@@ -38,7 +39,7 @@ export function HeroRotator() {
         key={index}
         style={{
           fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "clamp(34px, 6vw, 64px)",
-          lineHeight: 1.08, letterSpacing: "-0.01em", margin: "0 auto", maxWidth: 720, color: INK,
+          lineHeight: 1.08, letterSpacing: "-0.01em", margin: left ? 0 : "0 auto", maxWidth: 620, color: INK,
           animation: "jbd-count-fade 0.6s ease",
         }}
       >
@@ -46,7 +47,7 @@ export function HeroRotator() {
         <br />
         <span style={{ color: RED }}>{slide.lines[1]}</span>
       </h1>
-      <div style={{ display: "flex", gap: 7, justifyContent: "center", marginTop: 28 }}>
+      <div style={{ display: "flex", gap: 7, justifyContent: left ? "flex-start" : "center", marginTop: 28 }}>
         {SLIDES.map((_, i) => (
           <button
             key={i}
