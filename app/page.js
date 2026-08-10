@@ -3,17 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { HeroRotator } from "@/components/marketing/HeroRotator";
 import { SUPPORT_EMAIL } from "@/lib/constants";
-
-// The landing page has its own restrained red/ink/white system — separate from
-// the internal app's garnet/gold "Digital Passbook" tokens in src/lib/theme.js,
-// which stay as-is (this redesign is scoped to the public landing page, not the
-// authenticated dashboard). RED is tuned close to the logo's disc color.
-const RED = "#E71920";
-const INK = "#15100F";
-const INK_SOFT = "#4A4747";
-const INK_FAINT = "#8A8583";
-const BORDER = "#E7E5E4";
-const PANEL = "#FAFAFA";
+import { RED, INK, INK_SOFT, INK_FAINT, BORDER, PANEL } from "@/lib/marketingTheme";
 
 const KEYWORDS = ["Youth Investment", "Savings", "Investment Management", "Digital Records", "Member Accounts"];
 
@@ -181,7 +171,9 @@ export default function LandingPage() {
 
         <div className="jbd-footer-row" style={{ maxWidth: 1180, margin: "22px auto 0", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 10, fontSize: 12, color: INK_FAINT, borderTop: "1px solid " + BORDER, paddingTop: 18 }}>
           <span>© 2026 Jebbidox Youth Investment Club. All rights reserved.</span>
-          <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "center" }}>
+            <Link className="jbd-link" href="/privacy" style={{ color: "inherit", textDecoration: "none", transition: "color 0.15s" }}>Privacy Policy</Link>
+            <Link className="jbd-link" href="/terms" style={{ color: "inherit", textDecoration: "none", transition: "color 0.15s" }}>Terms &amp; Conditions</Link>
             <span>Kireka, Uganda</span>
             <a className="jbd-link" href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "inherit", textDecoration: "none", transition: "color 0.15s" }}>{SUPPORT_EMAIL}</a>
           </div>
