@@ -100,8 +100,8 @@ export default function LandingPage() {
               <HeroRotator align="left" />
 
               <p style={{ fontSize: 15.5, color: INK_SOFT, maxWidth: 440, margin: "22px 0 0", lineHeight: 1.6 }}>
-                A digital investment club for young people who want their contributions, investments and
-                financial records in one place — not scattered across memory.
+                Join a community of young Ugandans turning small, consistent deposits into real
+                investment growth — with a verified record behind every shilling.
               </p>
 
               <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 32 }}>
@@ -140,13 +140,11 @@ export default function LandingPage() {
                 Invest with clarity.
               </h2>
               <p style={{ fontSize: 15.5, color: INK_SOFT, lineHeight: 1.75, marginBottom: 14 }}>
-                Jebbidox gives members a simple digital way to participate in the Jebbidox Youth Investment
-                Club — keep track of contributions, follow investments, and access financial records in
-                one place.
+                Every deposit, investment and withdrawal moves through a digital ledger — reviewed by a
+                Finance Officer, and visible to you the moment its status changes.
               </p>
               <p style={{ fontSize: 14, color: INK_FAINT, lineHeight: 1.7, marginBottom: 26 }}>
-                Built for young investors in Uganda who want their money&rsquo;s progress on record, not
-                just in memory.
+                Built for young investors in Uganda who want proof of progress, not promises.
               </p>
               <div style={{ fontSize: 12.5, color: INK_FAINT, letterSpacing: 0.2 }}>
                 {KEYWORDS.join(" · ")}

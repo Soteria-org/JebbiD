@@ -7,83 +7,89 @@
    ============================================================ */
 
 :root {
-  --ink: #1c1410;
-  --ink-soft: #5c4f44;
-  --ink-faint: #9c8d7c;
+  /* Matches the public landing page's red/ink/white system (app/page.js) —
+     the in-platform dashboard and the marketing site now share one identity
+     instead of two. --gold/--gold-line/--gold-soft stay as a distinct amber,
+     reserved for genuine "warning" semantics (Badge, GuidanceBanner,
+     PauseCountdown) — not a second brand color. */
+  --ink: #15100f;
+  --ink-soft: #4a4747;
+  --ink-faint: #8a8583;
 
-  --paper: #f6efe0;
-  --paper-soft: #fbf6ea;
+  --paper: #ffffff;
+  --paper-soft: #fafafa;
   --white: #ffffff;
   --surface-raised: #ffffff;
 
-  --garnet: #7a1220;
-  --garnet-deep: #4e0b15;
-  --garnet-soft: #f3e1df;
+  --garnet: #e71920;
+  --garnet-deep: #b4141a;
+  --garnet-soft: #fde7e8;
 
-  --gold: #b98a2e;
-  --gold-soft: #ede0be;
-  --gold-line: #d8bd82;
+  --gold: #b7791f;
+  --gold-soft: #fbf0dd;
+  --gold-line: #e0bd86;
 
-  --sage: #3f5d42;
-  --sage-soft: #e4ebe1;
+  --sage: #2f8f52;
+  --sage-soft: #e6f5ea;
 
-  --line: #dccca8;
-  --line-soft: #eae0c8;
+  --line: #e7e5e4;
+  --line-soft: #f0eeed;
 
-  --sidebar-bg: #4e0b15;
-  --sidebar-hover: #5f1622;
-  --sidebar-active-bg: #b98a2e;
-  --sidebar-active-fg: #3a2a0a;
-  --sidebar-text: #d9c2a8;
-  --sidebar-text-dim: #b8987a;
+  --sidebar-bg: #15100f;
+  --sidebar-hover: #241e1d;
+  --sidebar-active-bg: #e71920;
+  --sidebar-active-fg: #ffffff;
+  --sidebar-text: #d8d3d2;
+  --sidebar-text-dim: #948c8a;
 
-  --warning-text: #7a5c10;
+  --warning-text: #7a4a0a;
 
-  --shadow-card: 0 1px 2px rgba(28, 20, 16, 0.05), 0 12px 28px -14px rgba(28, 20, 16, 0.22);
-  --shadow-modal: 0 24px 64px -12px rgba(28, 20, 16, 0.45);
+  --shadow-card: 0 1px 2px rgba(21, 16, 15, 0.04), 0 8px 20px -14px rgba(21, 16, 15, 0.1);
+  --shadow-modal: 0 20px 50px -12px rgba(21, 16, 15, 0.35);
 
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  /* A soft warm charcoal, not near-black — near-black paper read as harsh
-     against long dashboard sessions, so every surface here sits a few
-     steps lighter than the first pass while keeping the same garnet/gold
-     accent identity. */
-  --ink: #ece0cc;
-  --ink-soft: #c7b89e;
-  --ink-faint: #9a8b72;
+  /* Lightened from the first pass — near-black surfaces read as too dark for
+     long dashboard sessions. Every surface here sits noticeably lighter
+     (a moderate warm charcoal, not near-black) while the accent hues are
+     lifted for contrast against it, mirroring the light theme's red/ink/white
+     identity rather than the old garnet/gold pairing. */
+  --ink: #f3f1f0;
+  --ink-soft: #c9c4c2;
+  --ink-faint: #9a9491;
 
-  --paper: #211b16;
-  --paper-soft: #2a231c;
+  --paper: #37322f;
+  --paper-soft: #423c39;
   --white: #ffffff;
-  --surface-raised: #332a21;
+  --surface-raised: #4c4542;
 
-  --garnet: #bc3e52;
-  --garnet-deep: #7a1e2c;
-  --garnet-soft: #3c2224;
+  --garnet: #ff5b62;
+  --garnet-deep: #c43138;
+  --garnet-soft: #4a2426;
 
-  --gold: #dbab57;
-  --gold-soft: #40331d;
-  --gold-line: #8a6a38;
+  --gold: #e4ac5c;
+  --gold-soft: #4a3a22;
+  --gold-line: #a8814a;
 
-  --sage: #7fae85;
-  --sage-soft: #263124;
+  --sage: #7ed196;
+  --sage-soft: #24352a;
 
-  --line: #4a3f30;
-  --line-soft: #362d22;
+  --line: #5c5652;
+  --line-soft: #46403d;
 
-  --warning-text: #e6bd70;
+  --warning-text: #efc989;
 
-  --sidebar-bg: #1e1611;
-  --sidebar-hover: #322017;
-  --sidebar-active-bg: #dbab57;
-  --sidebar-active-fg: #271b09;
-  --sidebar-text: #ddc7a9;
-  --sidebar-text-dim: #987e5f;
+  --sidebar-bg: #221d1b;
+  --sidebar-hover: #332b28;
+  --sidebar-active-bg: #ff5b62;
+  --sidebar-active-fg: #221d1b;
+  --sidebar-text: #ddd7d5;
+  --sidebar-text-dim: #97908d;
 
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 32px -16px rgba(0, 0, 0, 0.55);
-  --shadow-modal: 0 24px 56px -12px rgba(0, 0, 0, 0.65);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 12px 24px -16px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 20px 48px -12px rgba(0, 0, 0, 0.5);
 
   color-scheme: dark;
 }

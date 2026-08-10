@@ -125,7 +125,7 @@ export function InvestWizard({ ctx }) {
                 {packages.map((p) => (
                   <div key={p.id} onClick={() => setSelectedPkg(p)} data-testid={"package-" + p.code} style={{
                     border: "1.5px solid " + (selectedPkg?.id === p.id ? C.brand : C.line),
-                    borderRadius: 12, padding: 18, cursor: "pointer",
+                    borderRadius: 8, padding: 18, cursor: "pointer",
                     background: selectedPkg?.id === p.id ? C.cardBg : C.surface,
                   }}>
                     <div style={{ fontWeight: 700, fontSize: 15, color: C.ink, marginBottom: 4 }}>{p.name}</div>
@@ -272,7 +272,7 @@ export function InvestWizard({ ctx }) {
             <SectionTitle sub="Attach a screenshot or transaction receipt as proof of your payment.">Upload Proof of Payment</SectionTitle>
             <input ref={fileInputRef} type="file" accept="image/*,application/pdf" style={{ display: "none" }} onChange={onFileSelected} data-testid="wizard-proof-file" />
             <div onClick={() => fileInputRef.current?.click()} style={{
-              border: "1.5px dashed " + (proofFile ? C.success : C.line), borderRadius: 12, padding: 28, textAlign: "center",
+              border: "1.5px dashed " + (proofFile ? C.success : C.line), borderRadius: 8, padding: 28, textAlign: "center",
               cursor: "pointer", background: proofFile ? C.successBg : C.cardBg, marginBottom: 16,
             }}>
               {proofFile ? (
