@@ -1,6 +1,7 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
-import { SUPPORT_EMAIL } from "@/lib/constants";
+import { SUPPORT_EMAIL, SUPPORT_PHONES } from "@/lib/constants";
 import { RED, INK, INK_SOFT, INK_FAINT, BORDER, PANEL, FONT_FAMILY } from "@/lib/marketingTheme";
 
 // Shared shell for /privacy and /terms — same header/footer chrome and red/
@@ -103,6 +104,15 @@ export function LegalLayout({ eyebrow, title, effectiveDate, lastUpdated, intro,
                   <div style={{ fontSize: 14, color: INK_SOFT, lineHeight: 1.8 }}>
                     <div style={{ fontWeight: 600, color: INK }}>Jebbidox Youth Investment Club</div>
                     <div>Email: <a href={`mailto:${SUPPORT_EMAIL}`} className="jbd-legal-link" style={{ color: INK_SOFT, transition: "color 0.15s" }}>{SUPPORT_EMAIL}</a></div>
+                    <div>
+                      Telephone:{" "}
+                      {SUPPORT_PHONES.map((phone, i) => (
+                        <Fragment key={phone}>
+                          {i > 0 ? ", " : ""}
+                          <a href={`tel:${phone.replace(/\s+/g, "")}`} className="jbd-legal-link" style={{ color: INK_SOFT, transition: "color 0.15s" }}>{phone}</a>
+                        </Fragment>
+                      ))}
+                    </div>
                     <div>Address: Kireka, Uganda</div>
                   </div>
                 </div>

@@ -1,5 +1,5 @@
-import React from "react";
-import { AlertCircle, CheckCircle2, Sparkles, User, X } from "@/components/icons/index";
+import React, { useState } from "react";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Sparkles, User, X } from "@/components/icons/index";
 import { clampPct, initials } from "@/lib/format";
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 
@@ -91,15 +91,47 @@ export const inputStyle = {
 
 export function TextInput(props) {
   const { value, onChange, placeholder, type, errorState, testId } = props;
+  const [revealed, setRevealed] = useState(false);
+  const isPassword = type === "password";
+
+  if (!isPassword) {
+    return (
+      <input
+        type={type || "text"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        data-testid={testId}
+        style={Object.assign({}, inputStyle, errorState ? { border: "1px solid " + C.danger } : {})}
+      />
+    );
+  }
+
   return (
-    <input
-      type={type || "text"}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      data-testid={testId}
-      style={Object.assign({}, inputStyle, errorState ? { border: "1px solid " + C.danger } : {})}
-    />
+    <div style={{ position: "relative" }}>
+      <input
+        type={revealed ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        data-testid={testId}
+        style={Object.assign({}, inputStyle, { paddingRight: 42 }, errorState ? { border: "1px solid " + C.danger } : {})}
+      />
+      <button
+        type="button"
+        onClick={() => setRevealed((r) => !r)}
+        aria-label={revealed ? "Hide password" : "Show password"}
+        aria-pressed={revealed}
+        tabIndex={-1}
+        style={{
+          position: "absolute", top: "50%", right: 4, transform: "translateY(-50%)",
+          width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+          background: "transparent", border: "none", borderRadius: 6, cursor: "pointer", color: C.inkFaint,
+        }}
+      >
+        {revealed ? <EyeOff size={17} /> : <Eye size={17} />}
+      </button>
+    </div>
   );
 }
 

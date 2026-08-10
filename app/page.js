@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Logo } from "@/components/ui/Logo";
 import { HeroRotator } from "@/components/marketing/HeroRotator";
-import { SUPPORT_EMAIL } from "@/lib/constants";
+import { SUPPORT_EMAIL, SUPPORT_PHONES } from "@/lib/constants";
 import { RED, INK, INK_SOFT, INK_FAINT, BORDER, PANEL } from "@/lib/marketingTheme";
 
 const KEYWORDS = ["Youth Investment", "Savings", "Investment Management", "Digital Records", "Member Accounts"];
@@ -103,6 +103,13 @@ export default function LandingPage() {
                 </Link>
               </div>
 
+              <p style={{ fontSize: 12, color: INK_FAINT, margin: "14px 0 0" }}>
+                By joining, you agree to our{" "}
+                <Link className="jbd-link" href="/privacy" style={{ color: "inherit", textDecoration: "underline" }}>Privacy Policy</Link>
+                {" "}and{" "}
+                <Link className="jbd-link" href="/terms" style={{ color: "inherit", textDecoration: "underline" }}>Terms &amp; Conditions</Link>.
+              </p>
+
               <div className="jbd-stat-row" style={{ display: "flex", gap: 40, flexWrap: "wrap", marginTop: 52 }}>
                 {[["30%", "Standard package"], ["40%", "Corporate package"], ["12 months", "Investment period"]].map((s) => (
                   <div key={s[0]}>
@@ -176,6 +183,9 @@ export default function LandingPage() {
             <Link className="jbd-link" href="/terms" style={{ color: "inherit", textDecoration: "none", transition: "color 0.15s" }}>Terms &amp; Conditions</Link>
             <span>Kireka, Uganda</span>
             <a className="jbd-link" href={`mailto:${SUPPORT_EMAIL}`} style={{ color: "inherit", textDecoration: "none", transition: "color 0.15s" }}>{SUPPORT_EMAIL}</a>
+            {SUPPORT_PHONES.map((phone) => (
+              <a key={phone} className="jbd-link" href={`tel:${phone.replace(/\s+/g, "")}`} style={{ color: "inherit", textDecoration: "none", transition: "color 0.15s" }}>{phone}</a>
+            ))}
           </div>
         </div>
       </footer>
