@@ -344,9 +344,19 @@ export async function login(input) {
   }
 
   if (profile.account_status === "suspended") {
-    await supabase.auth.signOut();
-    await logFailedLogin(email, "account_suspended");
-    return { error: `This account has been paused. Contact ${SUPPORT_EMAIL} to resolve this.` };
+    // set_account_freeze() only ever freezes investor rows (enforced server-side in
+    // that RPC), so 'suspended' should never occur for staff — but if it somehow did,
+    // still hard-block them the way this always worked. A suspended INVESTOR is let
+    // in on purpose: JBDocsApp routes them to FrozenAccountScreen instead of the
+    // normal dashboard, which is how they see the freeze, upload whatever resolves
+    // it, and get unfrozen — none of that is reachable if they're signed straight
+    // back out here. RLS (deposits_insert/withdrawals_insert) is what actually stops
+    // a frozen investor from transacting, not this check.
+    if (profile.role !== "investor") {
+      await supabase.auth.signOut();
+      await logFailedLogin(email, "account_suspended");
+      return { error: `This account has been paused. Contact ${SUPPORT_EMAIL} to resolve this.` };
+    }
   }
 
   return { success: true, profile };
@@ -387,7 +397,7 @@ export async function getCurrentSession() {
 
     if (profileError || !profile) return { success: true, profile: null };
 
-    if (profile.account_status === "suspended") {
+    if (profile.account_status === "suspended" && profile.role !== "investor") {
       await supabase.auth.signOut();
       return { success: true, profile: null };
     }

@@ -2,7 +2,6 @@ import React from "react";
 import { Award, Calendar, Plus, TrendingUp, Wallet } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
-import { ThoughtBubble } from "@/components/ui/ThoughtBubble";
 import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
 import { PositionRow } from "@/features/investor/PositionRow";
 import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
@@ -27,18 +26,6 @@ function PauseWarningBanner({ inv, ctx }) {
       </div>
     </Card>
   );
-}
-
-/**
- * Picks one real, computed insight to surface — never a scripted generic
- * line. Priority: an upcoming maturity (most actionable) beats a general
- * portfolio observation.
- */
-function dashboardInsight({ active }) {
-  if (active.length > 1) {
-    return { icon: "📈", kicker: "Portfolio", text: "Your money doesn't sleep — " + active.length + " positions accruing right now." };
-  }
-  return { icon: "💰", kicker: "Financial Wisdom", text: "Money grows best when it has time. Yours has already started." };
 }
 
 export function InvestorDashboard({ ctx }) {
@@ -126,9 +113,6 @@ export function InvestorDashboard({ ctx }) {
           <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 16 }}>
             Goal: {inv.goal}
           </div>
-          {maturable.length === 0 ? (
-            <ThoughtBubble {...dashboardInsight({ active })} />
-          ) : null}
         </div>
       </div>
 

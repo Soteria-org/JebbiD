@@ -1,11 +1,63 @@
-import React, { useState } from "react";
-import { ChevronLeft, IdCard, Snowflake } from "@/components/icons/index";
+import React, { useEffect, useState } from "react";
+import { ChevronLeft, FileText, IdCard, Snowflake } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Badge, Btn, Card, GuidanceBanner, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
 import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
-import { fmtDate, fmtUGX } from "@/lib/format";
+import { fmtDateTime, fmtDate, fmtUGX } from "@/lib/format";
+import { getFreezeResponses } from "@/lib/actions/admin-actions";
+import { createClient } from "@/lib/supabase/client";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
+
+/**
+ * What the investor uploaded while paused (respondToAccountFreeze) — gives
+ * the super_admin something to actually review before unfreezing, rather
+ * than a bare "Unfreeze" button with no evidence attached.
+ */
+function FreezeResponses({ investorId }) {
+  const [docs, setDocs] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getFreezeResponses(investorId).then((result) => {
+      if (!cancelled) setDocs(result.documents || []);
+    });
+    return () => { cancelled = true; };
+  }, [investorId]);
+
+  if (docs === null) return null;
+  if (docs.length === 0) {
+    return <GuidanceBanner tone="warning">This member hasn&rsquo;t uploaded a response yet.</GuidanceBanner>;
+  }
+
+  return (
+    <Card style={{ marginBottom: 18 }}>
+      <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 12 }}>Member&rsquo;s Response</div>
+      {docs.map((d) => <FreezeResponseRow key={d.id} doc={d} />)}
+    </Card>
+  );
+}
+
+function FreezeResponseRow({ doc }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.storage.from(doc.storage_bucket).createSignedUrl(doc.storage_path, 3600).then(({ data }) => {
+      if (data?.signedUrl) setUrl(data.signedUrl);
+    });
+  }, [doc.storage_bucket, doc.storage_path]);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 0", borderBottom: "1px dashed " + C.line, fontSize: 13 }}>
+      <span style={{ color: C.inkSoft }}>{fmtDateTime(doc.uploaded_at)}</span>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: C.brand, display: "flex", alignItems: "center", gap: 6, textDecoration: "none", fontWeight: 600 }}>
+          <FileText size={14} /> View attachment
+        </a>
+      ) : <span style={{ color: C.inkFaint }}>Loading…</span>}
+    </div>
+  );
+}
 
 export function InvestorDetailScreen({ ctx }) {
   const [tab, setTab] = useState("overview");
@@ -40,6 +92,7 @@ export function InvestorDetailScreen({ ctx }) {
           ) : null}
         </div>
       </Card>
+      {inv.accountStatus === "suspended" ? <FreezeResponses investorId={inv.id} /> : null}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {[["overview", "Overview"], ["investments", "Investments"], ["nextofkin", "Next of Kin"], ["deposits", "Deposit History"], ["kyc", "KYC Documents"]].map((t) => (
           <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", background: tab === t[0] ? C.brand : C.cardBg, color: tab === t[0] ? C.white : C.inkSoft }}>{t[1]}</div>

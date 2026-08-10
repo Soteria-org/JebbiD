@@ -49,6 +49,7 @@ import {
   scheduleAccountWarning as scheduleAccountWarningAction,
   clearAccountWarning as clearAccountWarningAction,
   setAccountFreeze as setAccountFreezeAction,
+  respondToAccountFreeze as respondToAccountFreezeAction,
 } from "@/lib/actions/admin-actions";
 
 /**
@@ -323,6 +324,11 @@ export default function useJBDocsStore() {
         darkMode: prev?.darkMode || false,
         pauseWarningAt: profile.pause_warning_at ?? prev?.pauseWarningAt ?? null,
         pauseDeadline: profile.pause_deadline ?? prev?.pauseDeadline ?? null,
+        // Drives the FrozenAccountScreen gate in JBDocsApp — a bare profile row
+        // bridged in from an investments/withdrawals join (no account_status
+        // column selected there) must not accidentally overwrite a real
+        // 'suspended' with undefined, hence the prev fallback.
+        accountStatus: profile.account_status ?? prev?.accountStatus ?? "active",
       };
       if (existingIdx >= 0) {
         const copy = list.slice();
@@ -808,6 +814,21 @@ export default function useJBDocsStore() {
   }
 
   /**
+   * A paused investor's own action, from FrozenAccountScreen — records what they
+   * uploaded and notifies every super_admin (only a super_admin can unfreeze).
+   * Does not itself change account_status; the investor stays on
+   * FrozenAccountScreen until staff act on it and they reload the page (see
+   * that screen's "Check Again" — refreshing re-runs the real session-restore
+   * check, which picks up the new account_status once staff have unfrozen it).
+   */
+  async function respondToAccountFreeze(investorId, proofStoragePath, note) {
+    const result = await respondToAccountFreezeAction(investorId, proofStoragePath, note);
+    if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
+    showToast("Sent — an admin has been notified and will review your account.", "success");
+    return { ok: true };
+  }
+
+  /**
    * Click-through: takes the person from a notification straight to whatever it's
    * actually about, instead of leaving them to go hunt for it. Built directly from
    * the DB trigger source (every notify() call in the migrations) rather than
@@ -856,7 +877,7 @@ export default function useJBDocsStore() {
     quickLoginAdmin, quickLoginFO, switchToFO, switchToInvestor, completeForcedPasswordChange, loginInvestor, requestPasswordReset, completePasswordReset, completePasswordResetWithCode, registerInvestor, logout,
     submitInvestment, approveDeposit, rejectDeposit, requestClarification, resubmitDepositProof, requestWithdrawal, rejectWithdrawal, markWithdrawalPaid, chooseMaturityOption,
     createFinanceOfficer, addInvestorByStaff, updateInvestorProfile, changeMyPassword, toggleNotifPref, toggleDarkMode, markNotificationRead, broadcastMessage, sendInvestorMessage,
-    scheduleAccountWarning, clearAccountWarning, setAccountFreeze,
+    scheduleAccountWarning, clearAccountWarning, setAccountFreeze, respondToAccountFreeze,
     lastSyncedAt, refreshAll, goToNotificationTarget,
     showToast, openModal, closeModal, activeModal,
     selectedInvestorId, setSelectedInvestorId,

@@ -9,6 +9,7 @@ import { RegisterWizard } from "@/features/auth/RegisterWizard";
 import { ForcedPasswordChange } from "@/features/auth/ForcedPasswordChange";
 
 import { InvestorDashboard } from "@/features/investor/InvestorDashboard";
+import { FrozenAccountScreen } from "@/features/investor/FrozenAccountScreen";
 import { InvestWizard } from "@/features/investor/InvestWizard";
 import { MyInvestments } from "@/features/investor/MyInvestments";
 import { TransactionHistory } from "@/features/investor/TransactionHistory";
@@ -65,6 +66,14 @@ export default function JBDocsApp({ resetPasswordRequested, registerRequested })
     content = <ForcedPasswordChange ctx={ctx} />;
   } else if (!session) {
     content = <LoginScreen ctx={ctx} initialMode={resetPasswordRequested ? "reset" : registerRequested ? "register" : "login"} />;
+  } else if (session.role === "investor" && ctx.currentInvestor?.accountStatus === "suspended") {
+    // A paused investor is intentionally not routed to any of the normal
+    // investor screens below (dashboard, investments, etc.) regardless of
+    // `view` — the whole point of pausing is that they shouldn't see their
+    // current positions/value while it's unresolved. login()/
+    // getCurrentSession() let them keep a session specifically so they can
+    // reach this screen and respond, instead of being fully locked out.
+    content = <FrozenAccountScreen ctx={ctx} />;
   } else {
     const role = session.role;
     let screen = null;

@@ -155,10 +155,10 @@ export function GuidanceBanner({ children, tone, icon: Icon }) {
 
 export function StatCard({ label, value, icon: Icon, sub, tone }) {
   return (
-    <div style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, borderRadius: 8, padding: 18, flex: 1, minWidth: 180, boxShadow: C.shadowCard }}>
+    <div style={{ background: C.surface, border: "1px solid " + C.line, borderRadius: 8, padding: 18, flex: 1, minWidth: 180, boxShadow: C.shadowCard }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <span style={{ fontFamily: FONT_MONO, fontSize: 10.5, fontWeight: 600, color: C.inkFaint, textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
-        {Icon ? <div style={{ width: 28, height: 28, borderRadius: 8, background: C.surface, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand, border: "1px solid " + C.line }}>
+        {Icon ? <div style={{ width: 28, height: 28, borderRadius: 8, background: C.dangerBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand }}>
           <Icon size={15} /></div> : null}
       </div>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, color: C.ink, letterSpacing: 0.2, animation: "jbd-count-fade 0.3s ease" }}>{value}</div>
