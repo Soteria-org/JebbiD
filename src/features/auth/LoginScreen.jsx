@@ -165,7 +165,7 @@ export function LoginScreen({ ctx, initialMode }) {
           </div>
         </div>
         <div style={{ position: "relative", display: "flex", gap: 28, flexWrap: "wrap" }}>
-          {[["30%", "Standard package return"], ["40%", "Corporate package return"], ["12mo", "Investment period"]].map((s) => (
+          {[["30%", "Standard package return"], ["40%", "Corporate package return"], ["12 months", "Investment period"]].map((s) => (
             <div key={s[0]}>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 26, fontWeight: 600, color: C.white }}>{s[0]}</div>
               <div style={{ fontSize: 12.5, color: C.sidebarText, marginTop: 2 }}>{s[1]}</div>

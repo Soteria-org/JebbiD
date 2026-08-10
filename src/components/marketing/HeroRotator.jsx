@@ -2,20 +2,25 @@
 
 import React, { useEffect, useState } from "react";
 
+const RED = "#E71920";
+const INK = "#15100F";
+
+// Short, confident, declarative — never a paragraph. Second line is the accent
+// line (rendered in brand red) so each slide reads as one punchy statement.
 const SLIDES = [
-  { line: "Invest with purpose.", sub: "Not with impulse." },
-  { line: "Start small.", sub: "Think big." },
-  { line: "Own your future.", sub: "One deposit at a time." },
-  { line: "We don't chase money.", sub: "We build it." },
-  { line: "Discipline pays.", sub: "Consistently, quietly, on schedule." },
+  { lines: ["Invest smart.", "Grow together."] },
+  { lines: ["Your money.", "Your record."] },
+  { lines: ["Save. Invest.", "Grow."] },
+  { lines: ["Built for", "young investors."] },
+  { lines: ["Every contribution", "deserves a record."] },
 ];
 
 /**
- * Rotating editorial headline for the hero — cycles through short,
- * declarative statements instead of one static line. Pure CSS fade, no
- * external animation library. Respects prefers-reduced-motion via the
- * global rule in app/globals.css (which collapses all transition/animation
- * durations to ~0), so this degrades to simply showing the first slide.
+ * Editorial hero carousel — cycles short, declarative statements instead of one
+ * static headline. Pure CSS fade, no external animation library. Respects
+ * prefers-reduced-motion via the global rule in app/globals.css (collapses all
+ * animation/transition durations to ~0), so this degrades to simply showing the
+ * first slide without the fade.
  */
 export function HeroRotator() {
   const [index, setIndex] = useState(0);
@@ -28,31 +33,30 @@ export function HeroRotator() {
   const slide = SLIDES[index];
 
   return (
-    <div style={{ minHeight: 132 }}>
+    <div style={{ minHeight: 168 }}>
       <h1
         key={index}
         style={{
-          fontFamily: "'Fraunces',serif", fontWeight: 500, fontSize: "clamp(32px, 5.2vw, 56px)",
-          lineHeight: 1.14, margin: "0 auto 14px", maxWidth: 780,
+          fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "clamp(34px, 6vw, 64px)",
+          lineHeight: 1.08, letterSpacing: "-0.01em", margin: "0 auto", maxWidth: 720, color: INK,
           animation: "jbd-count-fade 0.6s ease",
         }}
       >
-        {slide.line}
+        {slide.lines[0]}
+        <br />
+        <span style={{ color: RED }}>{slide.lines[1]}</span>
       </h1>
-      <div
-        key={"sub-" + index}
-        style={{ fontSize: 16, color: "#D9C2A8", animation: "jbd-count-fade 0.6s ease 0.1s backwards" }}
-      >
-        {slide.sub}
-      </div>
-      <div style={{ display: "flex", gap: 6, justifyContent: "center", marginTop: 20 }}>
+      <div style={{ display: "flex", gap: 7, justifyContent: "center", marginTop: 28 }}>
         {SLIDES.map((_, i) => (
-          <div
+          <button
             key={i}
+            type="button"
+            aria-label={"Show statement " + (i + 1) + " of " + SLIDES.length}
+            aria-current={i === index}
             onClick={() => setIndex(i)}
             style={{
-              width: i === index ? 18 : 6, height: 6, borderRadius: 3, cursor: "pointer",
-              background: i === index ? "#B98A2E" : "rgba(216,189,130,0.35)", transition: "width 0.25s, background 0.25s",
+              width: i === index ? 22 : 7, height: 5, borderRadius: 3, cursor: "pointer", padding: 0,
+              border: "none", background: i === index ? RED : "#E3D9DA", transition: "width 0.25s, background 0.25s",
             }}
           />
         ))}

@@ -26,7 +26,6 @@ export const NAV = {
   investor: [
     { key: "dashboard", label: "Dashboard", icon: Home },
     { key: "invest", label: "New Investment", icon: TrendingUp },
-    { key: "investments", label: "My Investments", icon: Briefcase },
     { key: "transactions", label: "Transactions", icon: ClipboardList },
     { key: "withdrawals", label: "Withdrawals", icon: ArrowUpRight },
     { key: "maturity", label: "Maturity Centre", icon: Award },

@@ -1,32 +1,34 @@
 import React from "react";
-import { C, FONT_MONO } from "@/lib/theme";
 
-/**
- * The shared "J" roundel — previously copy-pasted inline markup (a plain
- * TrendingUp-in-a-square) duplicated in Sidebar.jsx and LoginScreen.jsx with
- * no visual relationship to the passbook identity. `animated` adds a slow,
- * deliberate breathing ring (a stamped-wax-seal cue, not a spinner) — off by
- * default so it isn't sprinkled onto every small nav usage.
- */
-export function Logo({ size, animated, tone }) {
+// The real Jebbidox brand mark: a solid vivid-red disc with a dark, stylized
+// "J". Fixed colors, not theme tokens — a logo is a lockup, not a themable
+// surface, so it reads identically whether it sits on the light landing page,
+// the dark hero, or the sidebar's garnet background. `animated` adds a slow,
+// deliberate breathing ring (a stamped-wax-seal cue, not a spinner) — off by
+// default so it isn't sprinkled onto every small nav usage.
+const LOGO_RED = "#E71920";
+const LOGO_INK = "#210606";
+
+export function Logo({ size, animated }) {
   const s = size || 34;
-  const isDark = tone !== "onLight";
   return (
     <div
       style={{
         width: s,
         height: s,
         borderRadius: "50%",
-        border: "1.5px solid " + C.gold,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
-        color: isDark ? C.gold : C.brand,
-        fontFamily: FONT_MONO,
-        fontWeight: 600,
-        fontSize: s * 0.4,
-        background: "transparent",
+        background: LOGO_RED,
+        color: LOGO_INK,
+        fontFamily: "'Poppins', sans-serif",
+        fontWeight: 800,
+        fontStyle: "italic",
+        fontSize: s * 0.52,
+        lineHeight: 1,
+        boxShadow: animated ? "0 0 0 0 rgba(231,25,32,0.35)" : "none",
         animation: animated ? "jbd-logo-breathe 3.2s ease-in-out infinite" : "none",
       }}
     >

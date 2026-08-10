@@ -352,6 +352,52 @@ export async function login(input) {
   return { success: true, profile };
 }
 
+/**
+ * Restores ctx.session from the real Supabase auth cookie on page load/refresh.
+ * The app shell used to have no bootstrap at all — session only ever came from an
+ * explicit loginInvestor() call — so a page refresh always dropped back to the
+ * login screen even though the Supabase auth cookie (refreshed by middleware.js on
+ * every request) was still perfectly valid. Mirrors login()'s profile shape so
+ * useJBDocsStore can feed the result straight into the same bridgeProfile() path.
+ * Never returns an error for "not signed in" — that's the normal logged-out state,
+ * not a failure. Also never THROWS, even on a transient network/Supabase failure —
+ * the caller (useJBDocsStore's mount effect) uses this result to decide when to stop
+ * showing the initial loading screen, so an uncaught rejection here would leave every
+ * visitor stuck on that loader indefinitely instead of just falling back to the
+ * normal login screen.
+ */
+export async function getCurrentSession() {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { success: true, profile: null };
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select(`
+        id, role, full_name, member_id, must_change_password, account_status, created_at,
+        phone, username, email, pause_warning_at, pause_deadline,
+        investor_details ( national_id_number, address, occupation, financial_goal,
+          next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
+      `)
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError || !profile) return { success: true, profile: null };
+
+    if (profile.account_status === "suspended") {
+      await supabase.auth.signOut();
+      return { success: true, profile: null };
+    }
+
+    return { success: true, profile };
+  } catch (err) {
+    return { success: true, profile: null };
+  }
+}
+
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();

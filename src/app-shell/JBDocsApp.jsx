@@ -46,15 +46,25 @@ import { CreateFOModal } from "@/features/admin/CreateFOModal";
  *   3. Renders the persistent Sidebar + active modals + toasts
  * ----------------------------------------------------------------
  */
-export default function JBDocsApp({ resetPasswordRequested }) {
+export default function JBDocsApp({ resetPasswordRequested, registerRequested }) {
   const ctx = useJBDocsStore();
-  const { session, view, forcedPwSession, activeModal, toast } = ctx;
+  const { session, view, forcedPwSession, activeModal, toast, sessionChecked } = ctx;
 
   let content = null;
-  if (forcedPwSession) {
+  if (!sessionChecked) {
+    // Briefly shown on first load/refresh while we check for a still-valid
+    // Supabase session — avoids flashing the login screen at a signed-in member.
+    content = (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: C.pageBg }}>
+        <div style={{ animation: "jbd-logo-breathe 1.6s ease-in-out infinite", width: 44, height: 44, borderRadius: "50%",
+          border: "1.5px solid " + C.gold, display: "flex", alignItems: "center", justifyContent: "center",
+          color: C.brand, fontFamily: FONT_BODY, fontWeight: 700, fontSize: 18 }}>J</div>
+      </div>
+    );
+  } else if (forcedPwSession) {
     content = <ForcedPasswordChange ctx={ctx} />;
   } else if (!session) {
-    content = <LoginScreen ctx={ctx} initialMode={resetPasswordRequested ? "reset" : "login"} />;
+    content = <LoginScreen ctx={ctx} initialMode={resetPasswordRequested ? "reset" : registerRequested ? "register" : "login"} />;
   } else {
     const role = session.role;
     let screen = null;

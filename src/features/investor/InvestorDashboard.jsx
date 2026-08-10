@@ -35,13 +35,7 @@ function PauseWarningBanner({ inv, ctx }) {
  * line. Priority: an upcoming maturity (most actionable) beats a general
  * portfolio observation.
  */
-function dashboardInsight({ upcoming, today, expectedReturns, active }) {
-  if (upcoming) {
-    const days = daysBetween(today, upcoming.maturityDate);
-    return { icon: "🎯", kicker: "Next Milestone", text: days <= 30
-      ? (upcoming.referenceNumber || "Your position") + " matures in " + days + " day" + (days === 1 ? "" : "s") + " — start thinking about what's next."
-      : (upcoming.referenceNumber || "Your position") + " matures in " + days + " days. Time is doing the work." };
-  }
+function dashboardInsight({ active }) {
   if (active.length > 1) {
     return { icon: "📈", kicker: "Portfolio", text: "Your money doesn't sleep — " + active.length + " positions accruing right now." };
   }
@@ -81,8 +75,10 @@ export function InvestorDashboard({ ctx }) {
     <PageShell ctx={ctx} title="Dashboard">
       <PauseWarningBanner inv={inv} ctx={ctx} />
       <div style={{ display: "flex", gap: 26, flexWrap: "wrap", marginBottom: 22 }}>
-        {/* Member Ledger — the "hero wallet" this member's whole account lives inside */}
-        <div style={{ flex: "0 0 300px" }}>
+        {/* Member Ledger — the "hero wallet" this member's whole account lives inside.
+            flex: 1 1 (not 0 0) so it shrinks on narrow phones instead of forcing
+            horizontal overflow; maxWidth keeps it from stretching wide on desktop. */}
+        <div style={{ flex: "1 1 280px", maxWidth: 340 }}>
           <div style={{
             background: "linear-gradient(135deg, " + C.brand + ", " + C.brandDark + ")",
             borderRadius: 14, padding: 24, color: C.white, position: "relative", overflow: "hidden", boxShadow: C.shadowCard,
@@ -106,7 +102,7 @@ export function InvestorDashboard({ ctx }) {
             Goal: {inv.goal}
           </div>
           {maturable.length === 0 ? (
-            <ThoughtBubble {...dashboardInsight({ upcoming, today, expectedReturns, active })} />
+            <ThoughtBubble {...dashboardInsight({ active })} />
           ) : null}
         </div>
       </div>

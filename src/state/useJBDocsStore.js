@@ -5,6 +5,7 @@ import { fmtUGX, pad } from "@/lib/format";
 import {
   login as loginAction,
   logout as logoutAction,
+  getCurrentSession as getCurrentSessionAction,
   registerInvestor as registerInvestorAction,
   createStaffOrInvestorAccount as createStaffOrInvestorAccountAction,
   completeForcedPasswordChange as completeForcedPasswordChangeAction,
@@ -97,6 +98,10 @@ export default function useJBDocsStore() {
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth < 900 : false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // False until the initial Supabase session check (below) resolves — lets
+  // JBDocsApp show a brief loader instead of flashing the login screen before a
+  // still-valid session has had a chance to restore.
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   // Real data from Supabase — loaded below via useEffect
   const [packages, setPackages] = useState([]);
@@ -344,6 +349,36 @@ export default function useJBDocsStore() {
     if (profile.role === "investor") bridgeInvestorProfile(profile);
     else bridgeStaffProfile(profile);
   }
+
+  // Runs once on mount. Restores session from the real Supabase auth cookie
+  // (still valid after a refresh — see getCurrentSession()'s comment) instead of
+  // always starting logged out. A hard sign-out (logout()) still clears the
+  // cookie itself, so this correctly finds nothing to restore afterward.
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentSessionAction().then((result) => {
+      if (cancelled) return;
+      const profile = result.profile;
+      if (profile) {
+        bridgeProfile(profile);
+        const nextSession = {
+          role: profile.role, id: profile.id,
+          fullName: profile.full_name, memberId: profile.member_id,
+        };
+        if (profile.must_change_password) setForcedPwSession(nextSession);
+        else setSession(nextSession);
+      }
+      setSessionChecked(true);
+    }).catch(() => {
+      // A network failure reaching the server action itself (not just a Supabase
+      // error inside it, which getCurrentSession() already swallows) must still
+      // unblock the loading screen — falling back to the login screen beats
+      // hanging forever.
+      if (!cancelled) setSessionChecked(true);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* ---------------- AUTH ---------------- */
   /**
@@ -813,7 +848,7 @@ export default function useJBDocsStore() {
   }
 
   const ctx = {
-    forcedPwSession, toast,
+    forcedPwSession, toast, sessionChecked,
     session, view, goTo, isMobile, sidebarOpen, setSidebarOpen,
     investors, investments, withdrawals, financeOfficers, superAdmin, org, auditLog, loginAttempts, emailEvents, notifications,
     packages, packagesError, loadPackages, depositSubmissions,
