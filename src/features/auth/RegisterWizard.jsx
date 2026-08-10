@@ -13,6 +13,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
     nokName: "", nokRelationship: "", nokPhone: "", nokAddress: "",
     goal: "", username: "", password: "", confirmPassword: "",
   });
+  const [agreed, setAgreed] = useState(false);
   const [err, setErr] = useState("");
   function set(k, v) { setForm((f) => Object.assign({}, f, { [k]: v })); }
 
@@ -33,6 +34,7 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
       if (!form.username || !form.password) return "Choose a username and password.";
       if (!checkPasswordStrength(form.password).valid) return "Password doesn't meet the requirements shown below yet.";
       if (form.password !== form.confirmPassword) return "Passwords do not match.";
+      if (!agreed) return "You must agree to the Privacy Policy and Terms and Conditions to create an account.";
     }
     return "";
   }
@@ -110,13 +112,27 @@ export function RegisterWizard({ ctx, onBackToLogin }) {
           </Field>
           <PasswordStrengthMeter password={form.password} />
           <Field label="Confirm Password"><TextInput value={form.confirmPassword} onChange={(v) => set("confirmPassword", v)} type="password" /></Field>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", marginTop: 14, fontSize: 13, color: C.inkSoft, lineHeight: 1.5 }}>
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0, accentColor: C.brand, cursor: "pointer" }}
+            />
+            <span>
+              I agree to the{" "}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: C.brand, fontWeight: 600 }}>Privacy Policy</a>
+              {" "}and{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: C.brand, fontWeight: 600 }}>Terms and Conditions</a>.
+            </span>
+          </label>
         </>
       )}
 
       {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
       <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
         {step > 1 ? <Btn variant="ghost" onClick={() => setStep(step - 1)} icon={ChevronLeft}>Back</Btn> : null}
-        <Btn full onClick={next} disabled={submitting}>{submitting ? "Creating Account…" : step === 5 ? "Create Account" : "Continue"}</Btn>
+        <Btn full onClick={next} disabled={submitting || (step === 5 && !agreed)}>{submitting ? "Creating Account…" : step === 5 ? "Create Account" : "Continue"}</Btn>
       </div>
     </div>
   );
