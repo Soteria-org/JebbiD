@@ -814,17 +814,18 @@ export default function useJBDocsStore() {
   }
 
   /**
-   * A paused investor's own action, from FrozenAccountScreen — records what they
-   * uploaded and notifies every super_admin (only a super_admin can unfreeze).
-   * Does not itself change account_status; the investor stays on
-   * FrozenAccountScreen until staff act on it and they reload the page (see
-   * that screen's "Check Again" — refreshing re-runs the real session-restore
-   * check, which picks up the new account_status once staff have unfrozen it).
+   * A paused investor's own action, from FrozenAccountScreen — fires once
+   * they've finished uploading all three KYC documents, notifying every
+   * super_admin (only a super_admin can unfreeze). Does not itself change
+   * account_status; the investor stays on FrozenAccountScreen until staff act
+   * on it and they reload the page (see that screen's "Check Again" —
+   * refreshing re-runs the real session-restore check, which picks up the
+   * new account_status once staff have unfrozen it).
    */
-  async function respondToAccountFreeze(investorId, proofStoragePath, note) {
-    const result = await respondToAccountFreezeAction(investorId, proofStoragePath, note);
+  async function respondToAccountFreeze(investorId) {
+    const result = await respondToAccountFreezeAction(investorId);
     if (result.error) { showToast(result.error, "error"); return { ok: false, error: result.error }; }
-    showToast("Sent — an admin has been notified and will review your account.", "success");
+    showToast("Sent — an admin has been notified and will review your documents.", "success");
     return { ok: true };
   }
 

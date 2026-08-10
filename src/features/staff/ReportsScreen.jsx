@@ -31,7 +31,13 @@ export function ReportsScreen({ ctx }) {
     });
     return Object.keys(buckets).map((k) => ({ month: k, amount: buckets[k] }));
   }, [ctx.investments]);
-  const PIE_COLORS = [C.brand, C.sidebarActive];
+  // Distinct on-brand colors for the two package slices — C.sidebarActive used to
+  // differ from C.brand under the old garnet/gold palette, but both now resolve to
+  // the same red after the platform-wide color unification, which made this pie
+  // chart render as a single indistinguishable color. Red vs. ink keeps it on-brand
+  // without borrowing a semantic color (success/warning) that would misleadingly
+  // imply one package is "better" than the other.
+  const PIE_COLORS = [C.brand, C.ink];
 
   return (
     <PageShell ctx={ctx} title="Reports">

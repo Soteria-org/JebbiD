@@ -345,61 +345,21 @@ export async function setAccountFreeze(investorId, frozen) {
 
 /**
  * The investor's side of the freeze/unfreeze loop — called from
- * FrozenAccountScreen while account_status = 'suspended'. Records what they
- * uploaded (same uploaded_documents table KYC/deposit proofs already use) and
- * notifies every super_admin, since only a super_admin can actually unfreeze
- * (set_account_freeze is super_admin-only). Runs as the investor's own
- * session — RLS on uploaded_documents already allows owner_profile_id =
- * auth.uid() regardless of account_status (only deposits/withdrawals are
- * gated on being active), and notify_admins_freeze_response() itself checks
- * auth.uid() = the investor and that they're actually still suspended.
+ * FrozenAccountScreen once they've finished uploading their KYC documents
+ * (KYCUploadPanel's onStatusChange fires this when status flips to
+ * 'pending', i.e. all three documents are now present). Notifies every
+ * super_admin, since only a super_admin can actually unfreeze (
+ * set_account_freeze is super_admin-only) — otherwise a paused member could
+ * complete everything asked of them and no one would know to look.
+ * notify_admins_freeze_response() itself checks auth.uid() = the investor
+ * and that the account is actually still suspended.
  */
-/**
- * Staff-only: what a paused investor has uploaded in response to being frozen
- * (respondToAccountFreeze above), newest first — shown on InvestorDetailScreen
- * so a super_admin has something to actually review before unfreezing, instead
- * of just a bare "Unfreeze" button with no evidence attached.
- */
-export async function getFreezeResponses(investorId) {
+export async function respondToAccountFreeze(investorId) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("uploaded_documents")
-    .select("id, storage_bucket, storage_path, uploaded_at")
-    .eq("owner_profile_id", investorId)
-    .eq("document_type", "account_freeze_response")
-    .order("uploaded_at", { ascending: false });
-  if (error) return { error: error.message };
-  return { success: true, documents: data || [] };
-}
-
-export async function respondToAccountFreeze(investorId, proofStoragePath, note) {
-  const supabase = await createClient();
-
-  const { error: docError } = await supabase.from("uploaded_documents").insert({
-    owner_profile_id: investorId,
-    document_type: "account_freeze_response",
-    storage_bucket: "payment-proofs",
-    storage_path: proofStoragePath,
-    related_table: "profiles",
-    related_id: investorId,
-  });
-  if (docError) return { error: docError.message };
-
-  const { error: notifyError } = await supabase.rpc("notify_admins_freeze_response", {
+  const { error } = await supabase.rpc("notify_admins_freeze_response", {
     p_investor_id: investorId,
   });
-  if (notifyError) return { error: notifyError.message };
-
-  if (note) {
-    await supabase.rpc("log_audit", {
-      p_action: "Freeze Response Note",
-      p_entity_table: "profiles",
-      p_entity_id: investorId,
-      p_previous_value: null,
-      p_new_value: { note },
-    });
-  }
-
+  if (error) return { error: error.message };
   return { success: true };
 }
 
