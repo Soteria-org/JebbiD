@@ -8,6 +8,9 @@ import { AlertTriangle, ArrowUpRight, Award, BarChart2, Bell, Briefcase, Clipboa
 // introducing a second, unmonitored-looking address.
 export const SUPPORT_EMAIL = "zeal247invest@gmail.com";
 
+// Published on the landing page footer and the legal pages' contact section.
+export const SUPPORT_PHONES = ["+256 787 905165", "+256 757 180024"];
+
 export const RATES = { standard: 0.30, corporate: 0.40 };
 
 export const MIN_INVESTMENT = 100000;
