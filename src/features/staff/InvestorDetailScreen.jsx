@@ -40,6 +40,13 @@ export function InvestorDetailScreen({ ctx }) {
           ) : null}
         </div>
       </Card>
+      {inv.accountStatus === "suspended" ? (
+        <GuidanceBanner tone="warning">
+          This account is paused. Review their KYC documents in the KYC Documents tab before unfreezing —
+          they&rsquo;re asked to complete those from their side while paused.
+          <span onClick={() => setTab("kyc")} style={{ marginLeft: 8, fontWeight: 700, textDecoration: "underline", cursor: "pointer" }}>Go to KYC Documents</span>
+        </GuidanceBanner>
+      ) : null}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         {[["overview", "Overview"], ["investments", "Investments"], ["nextofkin", "Next of Kin"], ["deposits", "Deposit History"], ["kyc", "KYC Documents"]].map((t) => (
           <div key={t[0]} onClick={() => setTab(t[0])} style={{ padding: "9px 16px", borderRadius: 9, fontSize: 13.5, fontWeight: 700, cursor: "pointer", background: tab === t[0] ? C.brand : C.cardBg, color: tab === t[0] ? C.white : C.inkSoft }}>{t[1]}</div>

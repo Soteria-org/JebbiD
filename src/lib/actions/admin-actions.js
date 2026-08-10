@@ -344,6 +344,26 @@ export async function setAccountFreeze(investorId, frozen) {
 }
 
 /**
+ * The investor's side of the freeze/unfreeze loop — called from
+ * FrozenAccountScreen once they've finished uploading their KYC documents
+ * (KYCUploadPanel's onStatusChange fires this when status flips to
+ * 'pending', i.e. all three documents are now present). Notifies every
+ * super_admin, since only a super_admin can actually unfreeze (
+ * set_account_freeze is super_admin-only) — otherwise a paused member could
+ * complete everything asked of them and no one would know to look.
+ * notify_admins_freeze_response() itself checks auth.uid() = the investor
+ * and that the account is actually still suspended.
+ */
+export async function respondToAccountFreeze(investorId) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("notify_admins_freeze_response", {
+    p_investor_id: investorId,
+  });
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+/**
  * Marks one of the caller's own notifications as read. RLS (notifications_update:
  * profile_id = auth.uid()) already prevents marking someone else's notification
  * read even by guessing an id, but we still scope the query explicitly for clarity.

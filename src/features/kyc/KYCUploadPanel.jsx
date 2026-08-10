@@ -157,7 +157,7 @@ export function KYCUploadPanel({ investorProfileId, staffMode = false, onStatusC
   // Camera capture view
   if (cameraOpen) return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: 12, background: "#000" }} />
+      <video ref={videoRef} autoPlay playsInline style={{ width: "100%", borderRadius: 8, background: "#000" }} />
       <div style={{ display: "flex", gap: 10 }}>
         <Btn variant="outline" onClick={() => { stopCamera(); setActiveDoc(null); }}>Cancel</Btn>
         <Btn full icon={Camera} onClick={capturePhoto}>Capture Photo</Btn>
@@ -171,7 +171,7 @@ export function KYCUploadPanel({ investorProfileId, staffMode = false, onStatusC
       <div style={{ fontSize: 13.5, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
         Preview — {activeDoc?.label}
       </div>
-      <img src={preview} alt="Preview" style={{ width: "100%", maxHeight: 320, objectFit: "contain", borderRadius: 12, border: "1.5px solid " + C.line }} />
+      <img src={preview} alt="Preview" style={{ width: "100%", maxHeight: 320, objectFit: "contain", borderRadius: 8, border: "1.5px solid " + C.line }} />
       <div style={{ display: "flex", gap: 10 }}>
         <Btn variant="outline" icon={RefreshCw} onClick={() => { setPreview(null); openCamera(activeDoc); }}>Retake</Btn>
         <Btn full icon={Check} onClick={confirmUpload} disabled={uploading}>{uploading ? "Uploading…" : "Confirm & Upload"}</Btn>
@@ -217,7 +217,7 @@ export function KYCUploadPanel({ investorProfileId, staffMode = false, onStatusC
           return (
             <div key={doc.key} style={{
               display: "flex", alignItems: "center", gap: 14, padding: "14px 16px",
-              borderRadius: 12, border: "1.5px solid " + (done ? C.success : C.line),
+              borderRadius: 8, border: "1.5px solid " + (done ? C.success : C.line),
               background: done ? C.successBg : C.surface,
             }}>
               <div style={{

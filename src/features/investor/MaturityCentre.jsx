@@ -52,7 +52,7 @@ export function MaturityCentre({ ctx }) {
       ) : maturable.map((p) => (
         <Card key={p.id} style={{ marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 11, background: C.successBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.success }}><Award size={20} /></div>
+            <div style={{ width: 40, height: 40, borderRadius: 8, background: C.successBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.success }}><Award size={20} /></div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 15, color: C.ink }}>Congratulations — {p.referenceNumber || "your investment"} has matured</div>
               <div style={{ fontSize: 12.5, color: C.inkSoft }}>Matured {fmtDate(p.maturityDate)}</div>
@@ -72,7 +72,7 @@ export function MaturityCentre({ ctx }) {
               { key: "withdraw_all", icon: Banknote, label: "Withdraw Everything", desc: "Request the full " + fmtUGX(p.maturityValue) },
             ].map((o) => (
               <div key={o.key} onClick={() => openChoice(p.id, o.key)} style={{
-                border: "1px solid " + C.line, borderRadius: 11, padding: 14, cursor: "pointer", display: "flex", gap: 10,
+                border: "1px solid " + C.line, borderRadius: 8, padding: 14, cursor: "pointer", display: "flex", gap: 10,
               }}>
                 <o.icon size={18} color={C.brand} style={{ flexShrink: 0, marginTop: 1 }} />
                 <div><div style={{ fontWeight: 700, fontSize: 13.5, color: C.ink }}>{o.label}</div><div style={{ fontSize: 12, color: C.inkFaint, marginTop: 2 }}>{o.desc}</div></div>

@@ -41,7 +41,7 @@ export function Header({ ctx, title }) {
   const unread = ctx.notifications.filter((n) => n.investorId === ctx.session.id && !n.read).length;
   const { isDark, toggle } = useDarkMode();
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 24px", borderBottom: "1px solid " + C.line, background: C.surface, position: "sticky", top: 0, zIndex: 100 }}>
+    <div className="jbd-header" style={{ display: "flex", alignItems: "center", gap: 14, borderBottom: "1px solid " + C.line, background: C.surface, position: "sticky", top: 0, zIndex: 100 }}>
       {ctx.isMobile ? (
         <div onClick={() => ctx.setSidebarOpen(!ctx.sidebarOpen)} style={{ cursor: "pointer", color: C.ink, padding: 4 }}>
           <Menu size={22} />

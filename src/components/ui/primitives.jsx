@@ -36,7 +36,7 @@ export function Btn({ children, onClick, variant, size, icon: Icon, full, disabl
 }
 
 export function Card({ children, style, padded }) {
-  const s = { background: C.surface, border: "1px solid " + C.line, borderRadius: 12, padding: padded === false ? 0 : 20, boxShadow: C.shadowCard };
+  const s = { background: C.surface, border: "1px solid " + C.line, borderRadius: 8, padding: padded === false ? 0 : 20, boxShadow: C.shadowCard };
   return <div style={Object.assign({}, s, style || {})}>{children}</div>;
 }
 
@@ -145,7 +145,7 @@ export function GuidanceBanner({ children, tone, icon: Icon }) {
   const t = tones[tone || "info"];
   const Ic = Icon || Sparkles;
   return (
-    <div style={{ background: t.bg, border: "1px solid " + t.border, borderRadius: 10, padding: "12px 14px",
+    <div style={{ background: t.bg, border: "1px solid " + t.border, borderRadius: 8, padding: "12px 14px",
       display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: t.fg, lineHeight: 1.45, marginBottom: 16 }}>
       <Ic size={17} style={{ flexShrink: 0, marginTop: 1 }} />
       <div>{children}</div>
@@ -155,10 +155,10 @@ export function GuidanceBanner({ children, tone, icon: Icon }) {
 
 export function StatCard({ label, value, icon: Icon, sub, tone }) {
   return (
-    <div style={{ background: C.cardBg, border: "1px solid " + C.cardBorder, borderRadius: 12, padding: 18, flex: 1, minWidth: 180 }}>
+    <div style={{ background: C.surface, border: "1px solid " + C.line, borderRadius: 8, padding: 18, flex: 1, minWidth: 180, boxShadow: C.shadowCard }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
         <span style={{ fontFamily: FONT_MONO, fontSize: 10.5, fontWeight: 600, color: C.inkFaint, textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
-        {Icon ? <div style={{ width: 28, height: 28, borderRadius: 8, background: C.surface, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand, border: "1px solid " + C.line }}>
+        {Icon ? <div style={{ width: 28, height: 28, borderRadius: 8, background: C.dangerBg, display: "flex", alignItems: "center", justifyContent: "center", color: C.brand }}>
           <Icon size={15} /></div> : null}
       </div>
       <div style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, color: C.ink, letterSpacing: 0.2, animation: "jbd-count-fade 0.3s ease" }}>{value}</div>
@@ -172,11 +172,11 @@ export function Modal({ title, onClose, children, width }) {
     <div style={{ position: "fixed", inset: 0, background: "rgba(20,12,8,0.6)", zIndex: 500, display: "flex",
       alignItems: "center", justifyContent: "center", padding: 16 }} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} style={{
-        background: C.surface, borderRadius: 14, width: width || 480, maxWidth: "100%", maxHeight: "88vh",
+        background: C.surface, borderRadius: 10, width: width || 480, maxWidth: "100%", maxHeight: "88vh",
         overflowY: "auto", boxShadow: C.shadowModal, border: "1px solid " + C.line,
       }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 22px",
-          borderBottom: "1px solid " + C.line, position: "sticky", top: 0, background: C.surface, borderRadius: "14px 14px 0 0" }}>
+          borderBottom: "1px solid " + C.line, position: "sticky", top: 0, background: C.surface, borderRadius: "10px 10px 0 0" }}>
           <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.ink }}>{title}</div>
           <div onClick={onClose} style={{ cursor: "pointer", color: C.inkFaint, padding: 4 }}><X size={20} /></div>
         </div>
@@ -215,7 +215,7 @@ export function Toast({ toast }) {
   const t = tones[toast.type || "success"];
   return (
     <div style={{ position: "fixed", bottom: 22, right: 22, zIndex: 700, background: t.bg, color: C.white,
-      padding: "13px 18px", borderRadius: 10, display: "flex", alignItems: "center", gap: 10, boxShadow: C.shadowModal,
+      padding: "13px 18px", borderRadius: 8, display: "flex", alignItems: "center", gap: 10, boxShadow: C.shadowModal,
       fontSize: 14, fontWeight: 600, maxWidth: 360, border: "1px solid rgba(255,255,255,0.1)" }}>
       <t.Ic size={18} />{toast.message}
     </div>
@@ -252,7 +252,7 @@ export function Td({ children, style }) {
 }
 
 export function TableWrap({ children }) {
-  return <div style={{ overflowX: "auto", borderRadius: 12, border: "1px solid " + C.line, background: C.surface }}>
+  return <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid " + C.line, background: C.surface }}>
     <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>{children}</table>
   </div>;
 }

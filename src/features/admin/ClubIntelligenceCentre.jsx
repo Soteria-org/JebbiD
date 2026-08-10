@@ -55,10 +55,8 @@ function daysAgo(from, to) {
 /**
  * The Super Admin's home screen. Every widget here is computed from data the
  * app already loads for the existing dashboards/queues — nothing is polled
- * live and nothing is invented. Two widgets from the original brief
- * (verification email delivery rate, failed-login attempts) aren't shown:
- * neither is tracked anywhere in this schema yet — see the note at the
- * bottom of this file rather than fabricating a number for them.
+ * live and nothing is invented. Failed login attempts aren't shown here —
+ * see Risk & Compliance Monitor instead.
  */
 export function ClubIntelligenceCentre({ ctx }) {
   const m = useStaffMetrics(ctx);
@@ -98,20 +96,6 @@ export function ClubIntelligenceCentre({ ctx }) {
     const rejectedWithdrawals = (ctx.withdrawals || []).filter((w) => w.status === "rejected").length;
     return rejectedDeposits + rejectedWithdrawals;
   }, [ctx.depositSubmissions, ctx.withdrawals]);
-
-  // Only meaningful once the Resend webhook is actually configured and has
-  // received traffic — see app/api/webhooks/resend/route.js. An empty
-  // ctx.emailEvents means "not wired up yet," not "0% delivery," so this is
-  // shown as "No data" rather than a misleading 0%.
-  const emailDeliveryRate = useMemo(() => {
-    const events = ctx.emailEvents || [];
-    if (events.length === 0) return null;
-    const delivered = events.filter((e) => e.type === "email.delivered").length;
-    const failed = events.filter((e) => ["email.bounced", "email.complained", "email.failed"].includes(e.type)).length;
-    const settled = delivered + failed;
-    if (settled === 0) return null;
-    return Math.round((delivered / settled) * 100);
-  }, [ctx.emailEvents]);
 
   const growthTrend = useMemo(() => {
     const sorted = [...m.active].filter((p) => p.startDate).sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
@@ -200,9 +184,6 @@ export function ClubIntelligenceCentre({ ctx }) {
         <StatCard label="Withdrawals Awaiting Approval" value={m.pendingWithdrawals.length} icon={ArrowUpRight} tone={m.pendingWithdrawals.length > 0 ? "warning" : undefined} />
         <StatCard label="Failed Transactions" value={failedTransactions} icon={ShieldCheck} tone={failedTransactions > 0 ? "danger" : undefined} sub="Rejected deposits + withdrawals" />
         <StatCard label="Standard / Corporate Split" value={m.standardCount + " / " + m.corporateCount} icon={TrendingUp} />
-        <StatCard label="Email Delivery Rate" value={emailDeliveryRate === null ? "No data" : emailDeliveryRate + "%"} icon={Bell}
-          tone={emailDeliveryRate !== null && emailDeliveryRate < 90 ? "danger" : undefined}
-          sub={emailDeliveryRate === null ? "Webhook not receiving events yet" : "Delivered vs. bounced/failed"} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
@@ -238,9 +219,7 @@ export function ClubIntelligenceCentre({ ctx }) {
       </div>
 
       <div style={{ fontSize: 11.5, color: C.inkFaint, marginTop: 18 }}>
-        Email Delivery Rate above will read &ldquo;No data&rdquo; until the Resend webhook is configured for this
-        deployment — see RESEND_WEBHOOK_SECRET in .env.local.example for the one-time setup. Failed login attempts are
-        tracked in Risk &amp; Compliance Monitor.
+        Failed login attempts are tracked in Risk &amp; Compliance Monitor.
       </div>
     </PageShell>
   );

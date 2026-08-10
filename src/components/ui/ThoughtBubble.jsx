@@ -13,7 +13,7 @@ export function ThoughtBubble({ icon, kicker, children, tone }) {
   return (
     <div style={{
       display: "flex", gap: 12, alignItems: "flex-start", background: C.surface,
-      border: "1px solid " + C.line, borderRadius: 12, padding: "14px 16px",
+      border: "1px solid " + C.line, borderRadius: 8, padding: "14px 16px",
       boxShadow: C.shadowCard,
     }}>
       <div style={{

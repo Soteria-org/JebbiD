@@ -1,9 +1,7 @@
 import React from "react";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Award, Calendar, Plus, TrendingUp, Wallet } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
-import { ThoughtBubble } from "@/components/ui/ThoughtBubble";
 import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
 import { PositionRow } from "@/features/investor/PositionRow";
 import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
@@ -28,24 +26,6 @@ function PauseWarningBanner({ inv, ctx }) {
       </div>
     </Card>
   );
-}
-
-/**
- * Picks one real, computed insight to surface — never a scripted generic
- * line. Priority: an upcoming maturity (most actionable) beats a general
- * portfolio observation.
- */
-function dashboardInsight({ upcoming, today, expectedReturns, active }) {
-  if (upcoming) {
-    const days = daysBetween(today, upcoming.maturityDate);
-    return { icon: "🎯", kicker: "Next Milestone", text: days <= 30
-      ? (upcoming.referenceNumber || "Your position") + " matures in " + days + " day" + (days === 1 ? "" : "s") + " — start thinking about what's next."
-      : (upcoming.referenceNumber || "Your position") + " matures in " + days + " days. Time is doing the work." };
-  }
-  if (active.length > 1) {
-    return { icon: "📈", kicker: "Portfolio", text: "Your money doesn't sleep — " + active.length + " positions accruing right now." };
-  }
-  return { icon: "💰", kicker: "Financial Wisdom", text: "Money grows best when it has time. Yours has already started." };
 }
 
 export function InvestorDashboard({ ctx }) {
@@ -73,27 +53,55 @@ export function InvestorDashboard({ ctx }) {
     );
   }
 
-  const chartData = active.map((p) => ({ name: p.referenceNumber || "Pending", Principal: p.amount, Projected: p.maturityValue }));
-
   const latestPackage = active.length ? active[active.length - 1].package : null;
 
   return (
     <PageShell ctx={ctx} title="Dashboard">
       <PauseWarningBanner inv={inv} ctx={ctx} />
       <div style={{ display: "flex", gap: 26, flexWrap: "wrap", marginBottom: 22 }}>
-        {/* Member Ledger — the "hero wallet" this member's whole account lives inside */}
-        <div style={{ flex: "0 0 300px" }}>
+        {/* Member Ledger — styled like a real membership/debit card (chip, grouped
+            member number, cardholder + package "network mark") rather than a plain
+            gradient panel. flex: 1 1 (not 0 0) so it shrinks on narrow phones
+            instead of forcing horizontal overflow; maxWidth caps it near a real
+            card's proportions on desktop. aspect-ratio keeps the card shape at
+            any width instead of just the corners being rounded. */}
+        <div style={{ flex: "1 1 280px", maxWidth: 340 }}>
           <div style={{
-            background: "linear-gradient(135deg, " + C.brand + ", " + C.brandDark + ")",
-            borderRadius: 14, padding: 24, color: C.white, position: "relative", overflow: "hidden", boxShadow: C.shadowCard,
+            position: "relative", overflow: "hidden", aspectRatio: "1.586 / 1",
+            borderRadius: 16, padding: "20px 22px", boxSizing: "border-box",
+            background: "linear-gradient(135deg, " + C.brand + " 0%, " + C.brandDark + " 100%)",
+            boxShadow: C.shadowCard, color: C.white, display: "flex", flexDirection: "column", justifyContent: "space-between",
           }}>
-            <div style={{ position: "absolute", right: -30, bottom: -30, width: 140, height: 140, border: "1px solid rgba(216,189,130,0.25)", borderRadius: "50%" }} />
-            <div style={{ fontFamily: FONT_MONO, fontSize: 10, letterSpacing: 1.5, color: C.sidebarText, position: "relative" }}>MEMBER LEDGER</div>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 600, margin: "14px 0 26px", position: "relative" }}>{inv.fullName}</div>
-            <div style={{ fontFamily: FONT_MONO, fontSize: 15, letterSpacing: 1.5, position: "relative" }}>{inv.memberId || "—"}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 22, fontSize: 11, color: C.sidebarText, position: "relative" }}>
-              <span style={{ textTransform: "uppercase" }}>{latestPackage || "No Package Yet"}</span>
-              <span>Since {fmtDate(inv.dateRegistered)}</span>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(115deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0) 34%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", right: -46, top: -46, width: 170, height: 170, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.10), rgba(255,255,255,0) 70%)", pointerEvents: "none" }} />
+
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative" }}>
+              {/* EMV-style chip */}
+              <div style={{ width: 36, height: 26, borderRadius: 6, background: "linear-gradient(135deg, #EBDCAE, #C7AC69)", position: "relative" }}>
+                <div style={{ position: "absolute", left: 0, right: 0, top: 7, borderTop: "1px solid rgba(0,0,0,0.18)" }} />
+                <div style={{ position: "absolute", left: 0, right: 0, bottom: 7, borderBottom: "1px solid rgba(0,0,0,0.18)" }} />
+                <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 1, background: "rgba(0,0,0,0.18)" }} />
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: 0.6 }}>JEBBIDOX</div>
+                <div style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: 1.4, opacity: 0.8, marginTop: 2 }}>MEMBER LEDGER</div>
+              </div>
+            </div>
+
+            <div style={{ position: "relative" }}>
+              <div style={{ fontFamily: FONT_MONO, fontSize: "clamp(13px, 3.4vw, 17px)", letterSpacing: 2.5, marginBottom: 16, whiteSpace: "nowrap" }}>
+                {inv.memberId ? inv.memberId.replace(/-/g, "  ") : "PENDING  ACTIVATION"}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: 1, opacity: 0.75, marginBottom: 3 }}>CARDHOLDER</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.fullName}</div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: 1, opacity: 0.75, marginBottom: 3 }}>PACKAGE</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase" }}>{latestPackage || "—"}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -105,9 +113,6 @@ export function InvestorDashboard({ ctx }) {
           <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 16 }}>
             Goal: {inv.goal}
           </div>
-          {maturable.length === 0 ? (
-            <ThoughtBubble {...dashboardInsight({ upcoming, today, expectedReturns, active })} />
-          ) : null}
         </div>
       </div>
 
@@ -127,41 +132,23 @@ export function InvestorDashboard({ ctx }) {
         <StatCard label="Next Maturity" value={upcoming ? fmtDate(upcoming.maturityDate) : "—"} icon={Calendar} sub={upcoming ? daysBetween(today, upcoming.maturityDate) + " days remaining" : "No upcoming maturities"} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 18, marginBottom: 18 }}>
-        <Card>
-          <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>Portfolio Projection</div>
-          <div style={{ fontSize: 12.5, color: C.inkFaint, marginBottom: 14 }}>Principal vs. projected value at maturity, per position</div>
-          <div style={{ height: 230 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.line} vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: C.inkFaint }} axisLine={{ stroke: C.line }} />
-                <YAxis tick={{ fontSize: 11, fill: C.inkFaint }} axisLine={{ stroke: C.line }} tickFormatter={(v) => (v / 1000000).toFixed(1) + "M"} />
-                <Tooltip formatter={(v) => fmtUGX(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                <Bar dataKey="Principal" fill={C.cardBorder} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Projected" fill={C.brand} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-        <Card>
-          <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>Goal Progress</div>
-          <div style={{ fontSize: 12.5, color: C.inkFaint, marginBottom: 16 }}>{inv.goal}</div>
-          {(() => {
-            const goalTarget = Math.max(totalInvested * 1.6, 3000000);
-            const pct = clampPct((projectedValue / goalTarget) * 100);
-            return (
-              <>
-                <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 600, color: C.ink, marginBottom: 8 }}>{pct.toFixed(0)}%</div>
-                <ProgressBar pct={pct} />
-                <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8 }}>
-                  {fmtUGX(projectedValue)} of an estimated {fmtUGX(goalTarget)} target
-                </div>
-              </>
-            );
-          })()}
-        </Card>
-      </div>
+      <Card style={{ marginBottom: 18, maxWidth: 420 }}>
+        <div style={{ fontWeight: 700, fontSize: 14.5, color: C.ink, marginBottom: 4 }}>Goal Progress</div>
+        <div style={{ fontSize: 12.5, color: C.inkFaint, marginBottom: 16 }}>{inv.goal}</div>
+        {(() => {
+          const goalTarget = Math.max(totalInvested * 1.6, 3000000);
+          const pct = clampPct((projectedValue / goalTarget) * 100);
+          return (
+            <>
+              <div style={{ fontFamily: FONT_DISPLAY, fontSize: 28, fontWeight: 600, color: C.ink, marginBottom: 8 }}>{pct.toFixed(0)}%</div>
+              <ProgressBar pct={pct} />
+              <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8 }}>
+                {fmtUGX(projectedValue)} of an estimated {fmtUGX(goalTarget)} target
+              </div>
+            </>
+          );
+        })()}
+      </Card>
 
       <Card>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>

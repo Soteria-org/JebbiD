@@ -53,6 +53,11 @@ export const C = {
   shadowModal: "var(--shadow-modal)",
 };
 
-export const FONT_DISPLAY = "'Fraunces','Georgia','Times New Roman',serif";
-export const FONT_BODY = "'IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+// Poppins is Jebbidox's one brand font, used platform-wide — display and body
+// share the same family (weight does the differentiating, not a serif pairing).
+export const FONT_DISPLAY = "'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+export const FONT_BODY = "'Poppins',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+// Kept monospace deliberately — reference numbers and ledger figures (e.g.
+// JBD-2026-000123) rely on tabular, fixed-width digits, which is a functional
+// need distinct from the brand's display/body typeface.
 export const FONT_MONO = "'IBM Plex Mono','SFMono-Regular',Consolas,monospace";
