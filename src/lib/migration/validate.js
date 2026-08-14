@@ -1,4 +1,3 @@
-import { MIN_INVESTMENT } from "@/lib/constants";
 import { todayISO } from "@/lib/format";
 
 /**
@@ -10,7 +9,10 @@ import { todayISO } from "@/lib/format";
  * never a default guess.
  */
 
-const NON_PERSON_NAMES = new Set(["company investment"]);
+// Confirmed business decision: "Company investment" gets its own investor
+// account like everyone else on the sheet — nothing in this club's real
+// membership is excluded as a non-person entity.
+const NON_PERSON_NAMES = new Set();
 
 function normalizeName(name) {
   return (name || "").trim().replace(/\s+/g, " ");
@@ -105,13 +107,15 @@ export function validateRow(row, todayIsoOverride) {
     warnings.push(`"${row.investorNameRaw}" appears to name two people in one row (joint entry) — genuinely ambiguous single-vs-joint identity. Flagged for manual resolution; not auto-split, not auto-merged into one investor.`);
   }
 
+  // Confirmed business decision: historical contributions below the
+  // platform's current MIN_INVESTMENT are accepted as-is and fall under the
+  // standard package (packageForAmount already does this — the only real
+  // tier boundary is CORPORATE_THRESHOLD) — no verification flag needed.
   const amountParsed = parseAmount(row.amountRaw);
   if (amountParsed === null) {
     errors.push(`Amount "${row.amountRaw}" could not be parsed as a number.`);
   } else if (amountParsed <= 0) {
     errors.push(`Amount ${amountParsed} is not a positive value.`);
-  } else if (amountParsed < MIN_INVESTMENT) {
-    warnings.push(`Amount ${amountParsed} is below the current minimum investment (${MIN_INVESTMENT.toLocaleString()}) — importing as a historical record as-is; verify whether the club's minimum applied at the time this contribution was made.`);
   }
 
   const { iso: dateParsedISO, reason: dateReason, dayIsAssumed } = parseRowDate(row.dateRaw);

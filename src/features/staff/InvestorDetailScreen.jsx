@@ -8,6 +8,7 @@ import { fmtDate, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 import { isVerifiedInvestor } from "@/lib/verification";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
+import { HistoricalWithdrawalsPanel } from "@/features/investor/HistoricalWithdrawalsPanel";
 import { createMigratedInvestorAccount, resendMigrationInvitation } from "@/lib/actions/migration-actions";
 
 /**
@@ -112,6 +113,7 @@ export function InvestorDetailScreen({ ctx }) {
         </div>
       </Card>
       <MigratedAccountPanel inv={inv} ctx={ctx} />
+      <HistoricalWithdrawalsPanel investorId={inv.id} />
       {inv.accountStatus === "suspended" ? (
         <GuidanceBanner tone="warning">
           This account is paused. Review their KYC documents in the KYC Documents tab before unfreezing —
