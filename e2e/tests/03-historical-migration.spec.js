@@ -11,9 +11,15 @@ const { requireEnv, login, e2eTag } = require("../helpers");
  * docs/migration/HISTORICAL_DATA_MIGRATION_SPEC.md §12: upload a fixture
  * spreadsheet with one investor (e2eTag()'d, real-shaped data) -> validate ->
  * dry-run -> import -> verify the investor and investment exist with the
- * ORIGINAL dates/amounts intact -> create their account -> sign in with the
- * temp password -> forced password change -> land on dashboard -> historical
+ * ORIGINAL dates/amounts intact -> invite them (right on the same screen the
+ * import just landed on, not a different one) -> sign in with the temp
+ * password -> forced password change -> land on dashboard -> historical
  * position visible -> re-upload the same file -> confirm nothing duplicates.
+ *
+ * Matches the simplified flow: Upload -> Review (validation + reconciliation
+ * + any held decisions, all on one screen) -> Confirm & Import -> lands
+ * directly on the batch's detail view, which is the SAME screen "Inspect"
+ * opens for a past batch and is where invitations are sent.
  *
  * Email delivery itself is out of scope for this suite (see e2e/README.md —
  * Playwright can't check a real inbox). The temp password is instead read
@@ -36,7 +42,7 @@ function buildFixtureWorkbook(name, amount, dateISO) {
 }
 
 test.describe("Historical investment data migration — full pipeline", () => {
-  test("upload -> dry-run -> import -> invite -> sign in -> dashboard -> re-upload doesn't duplicate", async ({ page }) => {
+  test("upload -> review -> import -> invite -> sign in -> dashboard -> re-upload doesn't duplicate", async ({ page }) => {
     const superAdminEmail = requireEnv("E2E_SUPERADMIN_EMAIL");
     const superAdminPassword = requireEnv("E2E_SUPERADMIN_PASSWORD");
 
@@ -55,20 +61,34 @@ test.describe("Historical investment data migration — full pipeline", () => {
 
       await page.getByTestId("migration-upload-input").setInputFiles(fixturePath);
       // Sheet format auto-detects to "flat" for a Name/Amount/Date sheet — no
-      // extra interaction needed before Validate & Preview becomes available.
+      // extra interaction needed before Continue to Review becomes available.
       await expect(page.getByTestId("migration-upload-submit")).toBeVisible({ timeout: 10_000 });
       await page.getByTestId("migration-upload-submit").click();
 
       await expect(page.getByTestId("migration-reconciliation-summary")).toBeVisible({ timeout: 20_000 });
       await expect(page.getByTestId("migration-reconciliation-summary")).toContainText("Reconciles to zero");
+
+      // Investor list is a collapsed <details> — expand it to check the name landed correctly.
+      await page.getByText(/investor.*found in this file/i).click();
       await expect(page.getByText(investorName)).toBeVisible();
     });
 
-    await test.step("Confirm import — clean row, no held decisions", async () => {
-      await page.getByTestId("migration-review-next").click();
+    await test.step("Confirm import — clean row, no held decisions, lands directly on the batch detail view", async () => {
       await page.getByTestId("migration-confirm-submit").click();
       await expect(page.getByTestId("migration-result-summary")).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByTestId("migration-result-summary")).toContainText("Imported");
+      await expect(page.getByTestId("migration-result-imported-count")).toHaveText("1");
+    });
+
+    let tempPassword;
+    await test.step("Invite the investor right from the batch detail view — no navigating to a different screen", async () => {
+      await expect(page.getByTestId("migration-invite-row")).toContainText(investorName);
+      await page.getByTestId("migration-invite-email").fill(investorEmail);
+      await page.getByTestId("migration-invite-submit").click();
+      await expect(page.getByTestId("migration-invite-temp-password")).toBeVisible({ timeout: 20_000 });
+      tempPassword = await page.getByTestId("migration-invite-temp-password").textContent();
+      expect(tempPassword?.length).toBeGreaterThanOrEqual(12);
+      // Reloads after inviting — row should now read "Invited".
+      await expect(page.getByTestId("migration-invite-row")).toContainText("Invited", { timeout: 10_000 });
     });
 
     await test.step("Original date/amount landed intact on the new investor", async () => {
@@ -78,20 +98,8 @@ test.describe("Historical investment data migration — full pipeline", () => {
       // "Imported" financial-history badge proves migration_status was set correctly.
       await expect(page.locator("tr", { hasText: investorName })).toContainText("Imported");
       await page.locator("tr", { hasText: investorName }).getByText("View").click();
-
-      await expect(page.getByTestId("migrated-account-panel")).toBeVisible();
-      // Investments tab shows the historical position with the original amount.
       await page.getByText("Investments").click();
       await expect(page.getByText("UGX 250,000")).toBeVisible({ timeout: 10_000 });
-    });
-
-    let tempPassword;
-    await test.step("Create the migrated investor's account — issues real credentials", async () => {
-      await page.getByTestId("migrated-account-email").fill(investorEmail);
-      await page.getByTestId("migrated-account-submit").click();
-      await expect(page.getByTestId("migrated-account-temp-password")).toBeVisible({ timeout: 20_000 });
-      tempPassword = await page.getByTestId("migrated-account-temp-password").textContent();
-      expect(tempPassword?.length).toBeGreaterThanOrEqual(12);
     });
 
     await test.step("Sign out, sign in as the migrated investor with the temp password, forced password change", async () => {
@@ -110,7 +118,7 @@ test.describe("Historical investment data migration — full pipeline", () => {
       await expect(page.getByTestId("header-sync")).toBeVisible({ timeout: 20_000 });
     });
 
-    await test.step("Dashboard shows the migration banner and the correct historical position", async () => {
+    await test.step("Dashboard shows the migration banner and the correct historical position, already there on first landing", async () => {
       await expect(page.getByText(/historical investment records have been migrated/i)).toBeVisible({ timeout: 15_000 });
       await expect(page.getByText("UGX 250,000")).toBeVisible();
     });
@@ -126,15 +134,13 @@ test.describe("Historical investment data migration — full pipeline", () => {
 
       await expect(page.getByTestId("migration-reconciliation-summary")).toBeVisible({ timeout: 20_000 });
       // Now a NAME match against the investor created above — held for a human
-      // decision, not auto-imported as a fresh position (spec §4.5).
-      const row = page.locator('[data-testid="migration-investor-row"]', { hasText: investorName });
-      await expect(row).toContainText(/possible duplicate/i);
-
-      await page.getByTestId("migration-review-next").click();
+      // decision, shown directly on the review screen (spec §4.5), not
+      // auto-imported as a fresh position.
       const decisionRow = page.locator('[data-testid="migration-group-decision"]', { hasText: investorName });
+      await expect(decisionRow).toContainText(/possible duplicate/i);
       await decisionRow.getByText("Skip for now").click();
-      await page.getByTestId("migration-confirm-submit").click();
 
+      await page.getByTestId("migration-confirm-submit").click();
       await expect(page.getByTestId("migration-result-summary")).toBeVisible({ timeout: 20_000 });
       // Skipped, not imported — the investor's position count must not have doubled.
       await expect(page.getByTestId("migration-result-imported-count")).toHaveText("0");
