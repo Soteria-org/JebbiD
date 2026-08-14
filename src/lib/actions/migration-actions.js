@@ -419,6 +419,50 @@ export async function getPostImportReconciliation(batchId) {
   };
 }
 
+/**
+ * The investors a batch actually created/linked, each flagged with whether
+ * they're reachable yet — i.e. whether "Create Account" has ever been run for
+ * them (temp_password_issued_at set means a real, usable temp password was
+ * issued; a still-placeholder @import.jebbidox.internal email means nobody
+ * has supplied their real one yet). This is what closes the loop the UI was
+ * missing: after import, staff need to see exactly who still needs an
+ * invitation, without hunting through the full Investors table one by one.
+ */
+export async function getBatchInvestors(batchId) {
+  const supabase = await createClient();
+  const access = await requireCallerRole(supabase, ["super_admin", "finance_officer"]);
+  if (access.error) return access;
+
+  const { data: rows, error: rowsError } = await supabase
+    .from("import_rows")
+    .select("linked_investor_id")
+    .eq("batch_id", batchId)
+    .eq("resolution", "imported")
+    .not("linked_investor_id", "is", null);
+  if (rowsError) return { error: rowsError.message };
+
+  const investorIds = [...new Set(rows.map((r) => r.linked_investor_id))];
+  if (investorIds.length === 0) return { success: true, investors: [] };
+
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("id, full_name, member_id, email, migration_status, temp_password_issued_at")
+    .in("id", investorIds)
+    .order("full_name");
+  if (profilesError) return { error: profilesError.message };
+
+  const investors = (profiles || []).map((p) => ({
+    id: p.id,
+    fullName: p.full_name,
+    memberId: p.member_id,
+    email: p.email,
+    needsRealEmail: !p.email || p.email.endsWith("@import.jebbidox.internal"),
+    invited: !!p.temp_password_issued_at,
+  }));
+
+  return { success: true, investors };
+}
+
 // ---------------------------------------------------------------------------
 // Batch history / inspection (spec §8)
 // ---------------------------------------------------------------------------
