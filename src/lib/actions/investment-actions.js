@@ -74,7 +74,7 @@ export async function loadAllInvestmentsView() {
       status, maturity_action, created_at,
       package:investment_packages(code),
       deposit:deposit_submissions(financial_goal),
-      investor:profiles(id, full_name, member_id, email, username)
+      investor:profiles(id, full_name, member_id, email, username, investor_details(kyc_status))
     `)
     .order("created_at", { ascending: false });
 

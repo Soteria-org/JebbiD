@@ -2,9 +2,11 @@ import React from "react";
 import { Download, FileText } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState } from "@/components/ui/primitives";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { openPrintDocument } from "@/lib/print";
 import { buildStatementHtml } from "@/lib/printTemplates";
 import { C, FONT_MONO } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 
 function monthKey(d) {
   const date = new Date(d);
@@ -58,6 +60,10 @@ export function StatementsScreen({ ctx }) {
 
   return (
     <PageShell ctx={ctx} title="Statements">
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 14, fontSize: 13, color: C.inkSoft }}>
+        <span>{inv.fullName} · {inv.memberId || "—"}</span>
+        {isVerifiedInvestor(inv) ? <VerifiedBadge size={15} /> : null}
+      </div>
       {allEvents.length === 0 ? (
         <Card><EmptyState icon={FileText} title="No settled activity yet" body="Your statement will populate once a deposit is approved and activated." /></Card>
       ) : (

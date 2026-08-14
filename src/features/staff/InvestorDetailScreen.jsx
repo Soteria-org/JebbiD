@@ -3,8 +3,10 @@ import { ChevronLeft, IdCard, Snowflake } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Badge, Btn, Card, GuidanceBanner, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
 import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { fmtDate, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
 
 export function InvestorDetailScreen({ ctx }) {
@@ -20,7 +22,10 @@ export function InvestorDetailScreen({ ctx }) {
       </div>
       <Card style={{ marginBottom: 18 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <Avatar name={inv.fullName} size={52} />
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <Avatar name={inv.fullName} size={52} />
+            {isVerifiedInvestor(inv) ? <VerifiedBadge size={20} style={{ position: "absolute", right: -3, bottom: -3 }} /> : null}
+          </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ fontFamily: FONT_DISPLAY, fontSize: 19, fontWeight: 600, color: C.ink }}>{inv.fullName}</div>
