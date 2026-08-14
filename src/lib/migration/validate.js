@@ -9,7 +9,10 @@ import { todayISO } from "@/lib/format";
  * never a default guess.
  */
 
-const NON_PERSON_NAMES = new Set(["company investment"]);
+// Confirmed business decision: "Company investment" gets its own investor
+// account like everyone else on the sheet — nothing in this club's real
+// membership is excluded as a non-person entity.
+const NON_PERSON_NAMES = new Set();
 
 function normalizeName(name) {
   return (name || "").trim().replace(/\s+/g, " ");
