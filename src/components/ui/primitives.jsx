@@ -1,14 +1,33 @@
 import React, { useState } from "react";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Sparkles, User, X } from "@/components/icons/index";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, RefreshCw, Sparkles, User, X } from "@/components/icons/index";
 import { clampPct, initials } from "@/lib/format";
 import { C, FONT_BODY, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 
-export function Btn({ children, onClick, variant, size, icon: Icon, full, disabled, type, testId }) {
+/**
+ * Inline spinner for any in-progress action — reuses the `jbd-spin` keyframe
+ * already defined globally (app/globals.css) rather than a one-off animation.
+ */
+export function Spinner({ size = 14, color }) {
+  return <RefreshCw size={size} color={color} style={{ animation: "jbd-spin 0.8s linear infinite" }} />;
+}
+
+/**
+ * `loading`: shows a spinner in place of the normal icon, forces the
+ * not-allowed/disabled visual state regardless of `disabled`, and blocks the
+ * click handler — the single place every "this can take a few seconds"
+ * action in the app should signal that, instead of each screen inventing its
+ * own text-only busy state. Callers still control the label text (e.g.
+ * `{busy ? "Validating…" : "Continue to Review"}`) since only they know what
+ * the operation actually is; this only owns the visual "something is
+ * happening" signal.
+ */
+export function Btn({ children, onClick, variant, size, icon: Icon, full, disabled, loading, type, testId }) {
+  const isDisabled = disabled || loading;
   const base = {
-    border: "1px solid transparent", borderRadius: 8, cursor: disabled ? "not-allowed" : "pointer",
+    border: "1px solid transparent", borderRadius: 8, cursor: isDisabled ? "not-allowed" : "pointer",
     fontFamily: FONT_BODY, fontWeight: 600, display: "inline-flex", alignItems: "center",
     justifyContent: "center", gap: 8, transition: "background 0.15s, opacity 0.15s, border-color 0.15s",
-    opacity: disabled ? 0.55 : 1, width: full ? "100%" : "auto", whiteSpace: "nowrap",
+    opacity: isDisabled ? 0.55 : 1, width: full ? "100%" : "auto", whiteSpace: "nowrap",
   };
   const sizes = {
     sm: { padding: "6px 12px", fontSize: 13 },
@@ -27,9 +46,9 @@ export function Btn({ children, onClick, variant, size, icon: Icon, full, disabl
   const v = variants[variant || "primary"];
   const s = sizes[size || "md"];
   return (
-    <button type={type || "button"} disabled={disabled} onClick={disabled ? undefined : onClick} data-testid={testId}
+    <button type={type || "button"} disabled={isDisabled} onClick={isDisabled ? undefined : onClick} data-testid={testId}
       style={Object.assign({}, base, s, v)}>
-      {Icon ? <Icon size={s.fontSize + 2} /> : null}
+      {loading ? <Spinner size={s.fontSize + 2} color={v.color} /> : Icon ? <Icon size={s.fontSize + 2} /> : null}
       {children}
     </button>
   );

@@ -56,7 +56,7 @@ function MigratedAccountPanel({ inv, ctx }) {
         />
       )}
       <div>
-        <Btn size="sm" disabled={busy || (needsEmail && !email.includes("@"))} onClick={handleIssue} testId="migrated-account-submit">
+        <Btn size="sm" loading={busy} disabled={needsEmail && !email.includes("@")} onClick={handleIssue} testId="migrated-account-submit">
           {busy ? "Sending…" : needsEmail ? "Create Account & Invite" : "Resend Invitation"}
         </Btn>
       </div>

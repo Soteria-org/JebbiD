@@ -27,18 +27,22 @@ const MONTH_NUMBER = {
  */
 export function meltWideMonthlySheet(members, sourceSheet = "MONTHLY REPORT 2025") {
   const rows = [];
-  let rowNumber = 0;
+  // import_rows.source_row_number is a plain integer column — one row in the
+  // source sheet melts into N output rows here (spec §5: each month becomes
+  // its own row), so this counts OUTPUT rows, not source sheet rows. The
+  // human-readable "which member, which month" locator still lives in
+  // sourceRef below; source_row_number is purely a stable ordering key.
+  let outputRowCounter = 0;
 
   for (const member of members) {
-    rowNumber += 1;
-    const memberRowNumber = rowNumber;
     const contributionMonths = (member.months || []).filter((m) => m.v !== "-" && m.v !== null && m.v !== undefined && m.v !== "");
 
     if (contributionMonths.length === 0) {
       // Spec flag: a member listed with zero recorded contributions has no
       // position to create — surfaced, not silently skipped or errored.
+      outputRowCounter += 1;
       rows.push({
-        sourceRowNumber: memberRowNumber,
+        sourceRowNumber: outputRowCounter,
         sourceSheet,
         sourceRef: `${member.name}`,
         investorNameRaw: member.name,
@@ -62,9 +66,9 @@ export function meltWideMonthlySheet(members, sourceSheet = "MONTHLY REPORT 2025
     const totalCellBlankWithContributions = totalCellIsBlank && contributionMonths.length > 0;
     const totalCellUnusable = !totalCellIsNumber && !totalCellIsBlank;
 
-    contributionMonths.forEach((monthEntry, idx) => {
+    contributionMonths.forEach((monthEntry) => {
       const monthKey = monthEntry.m;
-      const isUnlabeled = monthKey === "UNLABELED_COL16";
+      const isUnlabeled = monthKey.startsWith("UNLABELED_COL");
       const monthNumber = MONTH_NUMBER[monthKey] ?? null;
 
       const flags = [];
@@ -73,8 +77,9 @@ export function meltWideMonthlySheet(members, sourceSheet = "MONTHLY REPORT 2025
       if (totalCellUnusable) flags.push("total_cell_not_numeric");
       if (totalCellBlankWithContributions) flags.push("total_cell_blank_with_contributions");
 
+      outputRowCounter += 1;
       rows.push({
-        sourceRowNumber: `${memberRowNumber}.${idx + 1}`,
+        sourceRowNumber: outputRowCounter,
         sourceSheet,
         sourceRef: `${member.name}/${monthEntry.y}-${monthKey}`,
         investorNameRaw: member.name,
