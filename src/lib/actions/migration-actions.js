@@ -481,6 +481,39 @@ export async function getImportBatchDetail(batchId) {
   return getDryRunReport(batchId);
 }
 
+/**
+ * Deletes a batch that was uploaded/previewed but never confirmed — the "I
+ * picked the wrong sheet, let me redo it" case. Refuses anything 'completed'
+ * even if the RLS policy is somehow bypassed (belt-and-braces, matching the
+ * house pattern elsewhere in this file): a completed batch has real investor
+ * accounts and investment_positions rows tied to it, and this schema never
+ * casually deletes financial records. import_rows cascades automatically.
+ */
+export async function deleteImportBatch(batchId) {
+  const supabase = await createClient();
+  const access = await requireCallerRole(supabase, ["super_admin"]);
+  if (access.error) return access;
+
+  const { data: batch, error: batchError } = await supabase.from("import_batches").select("id, status, source_filename").eq("id", batchId).single();
+  if (batchError) return { error: batchError.message };
+  if (batch.status === "completed") {
+    return { error: "This batch was already imported — it created real investor accounts and investments, so it can't be deleted here." };
+  }
+
+  const { error: deleteError } = await supabase.from("import_batches").delete().eq("id", batchId);
+  if (deleteError) return { error: deleteError.message };
+
+  await supabase.rpc("log_staff_action", {
+    p_action: "Import Batch Deleted",
+    p_entity_table: "import_batches",
+    p_entity_id: batchId,
+    p_previous_value: { source_filename: batch.source_filename, status: batch.status },
+    p_new_value: null,
+  });
+
+  return { success: true };
+}
+
 // ---------------------------------------------------------------------------
 // Account onboarding for a migrated investor (spec §6.3)
 // ---------------------------------------------------------------------------
