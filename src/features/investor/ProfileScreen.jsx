@@ -3,10 +3,12 @@ import { ChevronDown, Edit2, Lock, LogOut, Mail, Phone } from "@/components/icon
 import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Btn, Card, Field, TextInput, Toggle } from "@/components/ui/primitives";
 import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { fmtDate, todayISO } from "@/lib/format";
 import { checkPasswordStrength } from "@/lib/password-policy";
 import { C } from "@/lib/theme";
 import { useDarkMode } from "@/lib/useDarkMode";
+import { isVerifiedInvestor } from "@/lib/verification";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
 
 export function ProfileScreen({ ctx }) {
@@ -60,7 +62,10 @@ export function ProfileScreen({ ctx }) {
         <Card style={{ maxWidth: 620 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Avatar name={inv.fullName} size={48} />
+              <div style={{ position: "relative", flexShrink: 0 }}>
+                <Avatar name={inv.fullName} size={48} />
+                {isVerifiedInvestor(inv) ? <VerifiedBadge size={18} style={{ position: "absolute", right: -3, bottom: -3 }} /> : null}
+              </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: 16, color: C.ink }}>{inv.fullName}</div>
                 <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 2 }}>{inv.memberId}</div>

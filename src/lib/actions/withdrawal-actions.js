@@ -76,7 +76,7 @@ export async function loadWithdrawalsQueue() {
     .select(`
       id, reference_number, amount_requested, penalty_amount, net_amount, payment_method,
       payout_details, is_early_withdrawal, status, created_at,
-      investor:profiles!withdrawal_requests_investor_id_fkey(id, full_name, member_id, email)
+      investor:profiles!withdrawal_requests_investor_id_fkey(id, full_name, member_id, email, investor_details(kyc_status))
     `)
     .order("created_at", { ascending: false });
 

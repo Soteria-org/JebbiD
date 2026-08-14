@@ -4,9 +4,11 @@ import React, { useEffect, useState } from "react";
 import { AlertTriangle, Check, Clock, RefreshCw, XCircle } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Field, Modal, TableWrap, Td, TextArea, Th, statusBadge } from "@/components/ui/primitives";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { fmtDate, fmtUGX } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { C } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 
 function statusLabel(status) {
   const map = { pending: "Pending", approved: "Approved", rejected: "Rejected", clarification_requested: "Clarification" };
@@ -129,7 +131,12 @@ export function DepositsQueue({ ctx }) {
           <tbody>
             {displayed.map((d) => (
               <tr key={d.id}>
-                <Td>{d.investor?.full_name ?? "—"}</Td>
+                <Td>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {d.investor?.full_name ?? "—"}
+                    {isVerifiedInvestor(d.investor) ? <VerifiedBadge size={14} /> : null}
+                  </div>
+                </Td>
                 <Td style={{ fontFamily: "monospace", fontSize: 12 }}>{d.investor?.member_id ?? "—"}</Td>
                 <Td>{d.package?.name ?? "—"}</Td>
                 <Td><strong>{fmtUGX(d.amount)}</strong></Td>
@@ -156,7 +163,12 @@ export function DepositsQueue({ ctx }) {
         <Modal title="Review Deposit" onClose={() => setReviewing(null)}>
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {[
-              ["Investor", reviewing.investor?.full_name],
+              ["Investor", reviewing.investor?.full_name ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {reviewing.investor.full_name}
+                  {isVerifiedInvestor(reviewing.investor) ? <VerifiedBadge size={14} /> : null}
+                </span>
+              ) : "—"],
               ["Member ID", reviewing.investor?.member_id],
               ["Email", reviewing.investor?.email],
               ["Package", reviewing.package?.name],

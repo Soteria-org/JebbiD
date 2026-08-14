@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { PageShell } from "@/components/layout/PageShell";
 import { TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { currentValue, fmtDate, fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 
 export function AllInvestments({ ctx }) {
   const [filter, setFilter] = useState("all");
@@ -25,7 +27,12 @@ export function AllInvestments({ ctx }) {
           return (
             <tr key={p.id}>
               <Td><strong>{p.referenceNumber || "—"}</strong></Td>
-              <Td><span onClick={() => { ctx.setSelectedInvestorId(investor.id); ctx.goTo("investorDetail"); }} style={{ cursor: "pointer", color: C.brand, fontWeight: 600 }}>{investor.fullName}</span></Td>
+              <Td>
+                <span onClick={() => { ctx.setSelectedInvestorId(investor.id); ctx.goTo("investorDetail"); }} style={{ cursor: "pointer", color: C.brand, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  {investor.fullName}
+                  {isVerifiedInvestor(investor) ? <VerifiedBadge size={14} /> : null}
+                </span>
+              </Td>
               <Td style={{ textTransform: "capitalize" }}>{p.package}</Td>
               <Td>{fmtUGX(p.amount)}</Td>
               <Td>{p.status === "active" ? fmtUGX(currentValue(p.amount, p.package, p.startDate, p.maturityDate)) : "—"}</Td>

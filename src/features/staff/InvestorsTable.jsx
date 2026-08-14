@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { Phone, Search, UserPlus } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Btn, TableWrap, Td, Th, inputStyle } from "@/components/ui/primitives";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 
 export function InvestorsTable({ ctx }) {
   const [q, setQ] = useState("");
@@ -25,7 +27,15 @@ export function InvestorsTable({ ctx }) {
             const total = pos.filter((p) => p.status === "active").reduce((s, p) => s + p.amount, 0);
             return (
               <tr key={i.id}>
-                <Td><div style={{ display: "flex", alignItems: "center", gap: 9 }}><Avatar name={i.fullName} size={28} /> {i.fullName}</div></Td>
+                <Td>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ position: "relative", flexShrink: 0 }}>
+                      <Avatar name={i.fullName} size={28} />
+                      {isVerifiedInvestor(i) ? <VerifiedBadge size={13} style={{ position: "absolute", right: -2, bottom: -2 }} /> : null}
+                    </div>
+                    {i.fullName}
+                  </div>
+                </Td>
                 <Td>{i.memberId}</Td>
                 <Td>{i.phone}</Td>
                 <Td>{pos.length}</Td>
