@@ -3,10 +3,11 @@ import { Award, Calendar, CheckCircle2, Plus, TrendingUp, Wallet } from "@/compo
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
 import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
-import { VerifiedBadge, isVerifiedInvestor } from "@/components/ui/VerifiedBadge";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { PositionRow } from "@/features/investor/PositionRow";
 import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "@/lib/format";
 import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 import { SUPPORT_EMAIL } from "@/lib/constants";
 
 /**
@@ -146,7 +147,10 @@ export function InvestorDashboard({ ctx }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 10 }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: 1, opacity: 0.75, marginBottom: 3 }}>CARDHOLDER</div>
-                  <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.fullName}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.fullName}</div>
+                    {isVerifiedInvestor(inv) ? <VerifiedBadge size={15} variant="onBrand" style={{ flexShrink: 0 }} /> : null}
+                  </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontFamily: FONT_MONO, fontSize: 8.5, letterSpacing: 1, opacity: 0.75, marginBottom: 3 }}>PACKAGE</div>
@@ -158,11 +162,8 @@ export function InvestorDashboard({ ctx }) {
         </div>
 
         <div style={{ flex: 1, minWidth: 280 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-            <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.ink }}>
-              Welcome back, {inv.fullName.split(" ")[0]}
-            </div>
-            <VerifiedBadge verified={isVerifiedInvestor({ kyc_status: inv.kycStatus, verification_status: inv.verificationStatus })} size={18} />
+          <div style={{ fontFamily: FONT_DISPLAY, fontSize: 22, fontWeight: 600, color: C.ink, marginBottom: 4 }}>
+            Welcome back, {inv.fullName.split(" ")[0]}
           </div>
           <div style={{ fontSize: 13.5, color: C.inkSoft, marginBottom: 16 }}>
             Goal: {inv.goal}

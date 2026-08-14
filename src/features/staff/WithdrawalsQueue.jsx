@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { Check, XCircle } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Field, Modal, TableWrap, Td, TextArea, TextInput, Th, statusBadge } from "@/components/ui/primitives";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 
 export function WithdrawalsQueue({ ctx }) {
   const all = [...ctx.withdrawals].sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt));
@@ -23,7 +25,12 @@ export function WithdrawalsQueue({ ctx }) {
             return (
               <tr key={w.id}>
                 <Td><strong>{w.referenceNumber || "—"}</strong></Td>
-                <Td>{investor.fullName}</Td>
+                <Td>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    {investor.fullName}
+                    {isVerifiedInvestor(investor) ? <VerifiedBadge size={14} /> : null}
+                  </div>
+                </Td>
                 <Td>{fmtUGX(w.amount)}</Td>
                 <Td>{w.penalty > 0 ? fmtUGX(w.penalty) : "None"}</Td>
                 <Td><strong>{fmtUGX(w.netAmount)}</strong></Td>

@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { Search, UserPlus } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Avatar, Badge, Btn, TableWrap, Td, Th, inputStyle } from "@/components/ui/primitives";
-import { VerifiedBadge, isVerifiedInvestor } from "@/components/ui/VerifiedBadge";
+import { VerifiedBadge } from "@/components/ui/VerifiedBadge";
 import { fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
+import { isVerifiedInvestor } from "@/lib/verification";
 
 /**
  * Spec §2.3: three separate, honestly-labeled columns instead of one
@@ -48,8 +49,11 @@ export function InvestorsTable({ ctx }) {
               <tr key={i.id}>
                 <Td>
                   <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <Avatar name={i.fullName} size={28} /> {i.fullName}
-                    <VerifiedBadge verified={isVerifiedInvestor({ kyc_status: i.kycStatus, verification_status: i.verificationStatus })} size={14} />
+                    <div style={{ position: "relative", flexShrink: 0 }}>
+                      <Avatar name={i.fullName} size={28} />
+                      {isVerifiedInvestor(i) ? <VerifiedBadge size={13} style={{ position: "absolute", right: -2, bottom: -2 }} /> : null}
+                    </div>
+                    {i.fullName}
                   </div>
                 </Td>
                 <Td>{i.memberId}</Td>
