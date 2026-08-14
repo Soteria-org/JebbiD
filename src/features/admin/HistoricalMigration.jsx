@@ -266,7 +266,13 @@ function BatchDetailView({ ctx, batchId, onBack }) {
   }
 
   const { batch, rows } = detail;
-  const errorRows = (rows || []).filter((r) => r.validation_status === "error" && r.resolution !== "imported");
+  // Every row's resolution is mutually exclusive (pending vs failed vs skipped
+  // vs imported) — bucket strictly by resolution so a row never appears in two
+  // sections at once. "pending" already covers validation errors held for a
+  // decision; "failed" is a distinct, later state — a row that was actually
+  // attempted at confirm time and errored during the real write (RPC failure),
+  // which can happen even to a row that validated cleanly.
+  const failedRows = (rows || []).filter((r) => r.resolution === "failed");
   const pendingRows = (rows || []).filter((r) => r.resolution === "pending");
   const skippedRows = (rows || []).filter((r) => r.resolution === "skipped");
 
@@ -314,10 +320,13 @@ function BatchDetailView({ ctx, batchId, onBack }) {
         </Card>
       )}
 
-      {errorRows.length > 0 && (
+      {failedRows.length > 0 && (
         <Card>
-          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 10, color: C.danger }}>Failed / not imported ({errorRows.length} rows)</div>
-          {errorRows.slice(0, 20).map((r) => (
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 10, color: C.danger }}>Failed / not imported ({failedRows.length} rows)</div>
+          <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 10 }}>
+            These rows were attempted during confirmation and failed to write. Resolve the underlying issue and confirm again — rows already imported won&rsquo;t be repeated.
+          </div>
+          {failedRows.slice(0, 20).map((r) => (
             <div key={r.id} style={{ fontSize: 12.5, padding: "5px 0", borderBottom: "1px solid " + C.line }}>
               <strong>{r.source_data?.sourceRef || r.mapped_data?.investorNameRaw || "row " + r.source_row_number}:</strong> {(r.validation_errors || []).join(" ")}
             </div>

@@ -51,7 +51,12 @@ export function readWorkbook(arrayBuffer) {
 
     const { headerRowIndex, score } = findBestHeaderRow(rows);
     const headerRow = normalizeRow(rows[headerRowIndex] || []);
-    const aboveHeaderRow = headerRowIndex > 0 ? normalizeRow(rows[headerRowIndex - 1] || []) : [];
+    // The year often lives only in the leftmost column of its block (e.g. one
+    // "2025" cell followed by six blank cells under JUNE..DECEMBER, then a
+    // fresh "2026" cell under JANUARY) rather than a real merged range or a
+    // year repeated under every month — forward-fill so every column in the
+    // block resolves to the year that actually applies to it.
+    const aboveHeaderRow = headerRowIndex > 0 ? forwardFillRow(normalizeRow(rows[headerRowIndex - 1] || [])) : [];
     const dataRows = rows.slice(headerRowIndex + 1);
 
     const isKnownNonInvestorSheet = KNOWN_NON_INVESTOR_SHEET_NAMES.includes(sheetName.trim().toLowerCase());
@@ -91,6 +96,15 @@ function expandMerges(rows, merges) {
 
 function normalizeRow(row) {
   return (row || []).map((h) => (h === null || h === undefined ? "" : String(h).trim()));
+}
+
+/** Carries each non-blank cell forward to the right until the next non-blank cell — for header rows where a value (like a year) is written once per block instead of repeated or merged across it. */
+function forwardFillRow(row) {
+  let last = "";
+  return row.map((cell) => {
+    if (cell) last = cell;
+    return cell || last;
+  });
 }
 
 /** Scores how "header-like" a row is: recognizable field-name hints or month names. */
@@ -164,6 +178,14 @@ export function suggestFlatMapping(headerRow) {
   };
 }
 
+// A per-column footer row (e.g. "MONTHLY TOTALS") sums every member's
+// contribution for that month under a label that sits in the same NAME
+// column as real members — nothing else in the sheet's shape marks it as
+// different. A real investor is never literally named "total(s)"; treating
+// that as the signal keeps this general instead of hard-coding one club's
+// exact footer label.
+const AGGREGATE_ROW_NAME_PATTERN = /\btotal(s)?\b/i;
+
 /** Builds rows in the exact shape src/lib/migration/parseSheet.js#meltWideMonthlySheet expects. */
 export function buildWideMonthlyMembers(headerRow, dataRows, aboveHeaderRow = []) {
   const nameColIdx = headerRow.findIndex((h) => NAME_HEADER_HINTS.some((hint) => h.toLowerCase().includes(hint))) ?? 0;
@@ -174,6 +196,7 @@ export function buildWideMonthlyMembers(headerRow, dataRows, aboveHeaderRow = []
 
   return dataRows
     .filter((row) => row[nameColIdx] !== null && row[nameColIdx] !== undefined && String(row[nameColIdx]).trim() !== "")
+    .filter((row) => !AGGREGATE_ROW_NAME_PATTERN.test(String(row[nameColIdx]).trim()))
     .map((row) => ({
       name: String(row[nameColIdx]).trim(),
       total_cell: totalColIdx >= 0 ? (typeof row[totalColIdx] === "number" ? row[totalColIdx] : row[totalColIdx] ?? null) : null,
