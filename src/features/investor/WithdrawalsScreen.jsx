@@ -4,6 +4,7 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, TableWrap, Td, Th, statusBadge } from "@/components/ui/primitives";
 import { fmtUGX } from "@/lib/format";
 import { C } from "@/lib/theme";
+import { HistoricalWithdrawalsPanel } from "@/features/investor/HistoricalWithdrawalsPanel";
 
 export function WithdrawalsScreen({ ctx }) {
   const withdrawals = ctx.getInvestorWithdrawals(ctx.session.id);
@@ -11,6 +12,7 @@ export function WithdrawalsScreen({ ctx }) {
   const allPositions = ctx.getInvestorInvestments(ctx.session.id);
   return (
     <PageShell ctx={ctx} title="Withdrawals">
+      <HistoricalWithdrawalsPanel investorId={ctx.session.id} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div style={{ fontSize: 13.5, color: C.inkSoft }}>Request a withdrawal from any active investment position.</div>
         <Btn icon={Plus} disabled={eligible.length === 0} onClick={() => ctx.openModal("requestWithdrawal", {})}>Request Withdrawal</Btn>
