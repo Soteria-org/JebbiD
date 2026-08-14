@@ -1,4 +1,4 @@
-import { CORPORATE_THRESHOLD, MIN_INVESTMENT, PERIOD_MONTHS, RATES } from "@/lib/constants";
+import { CORPORATE_THRESHOLD, PERIOD_MONTHS, RATES } from "@/lib/constants";
 import { addMonths, packageForAmount } from "@/lib/format";
 
 /**
@@ -28,7 +28,6 @@ export function computeHistoricalPosition(amount, startDateISO) {
     maturityDateISO,
     expectedReturn,
     maturityValue,
-    belowMinInvestment: amount < MIN_INVESTMENT,
   };
 }
 

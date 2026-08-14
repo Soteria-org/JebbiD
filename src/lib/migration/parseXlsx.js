@@ -33,11 +33,14 @@ const NAME_HEADER_HINTS = ["name", "investor", "member", "full name", "client"];
 const AMOUNT_HEADER_HINTS = ["amount", "value", "sum", "total", "paid"];
 const DATE_HEADER_HINTS = ["date", "when", "day"];
 
-// This club's own bookkeeping sheets (not investor records) — spec's
-// migration brief lists these by name as explicitly out of scope. Matched
-// case-insensitively against the sheet's tab name so they default to
-// "Skip" instead of showing up as six look-alike mapping blocks.
-const KNOWN_NON_INVESTOR_SHEET_NAMES = ["daily savings", "expenses", "money sent to min.mark", "monthly transaction register"];
+// This club's own bookkeeping sheets (not investor contribution records) —
+// confirmed out of scope for this migration. "Monthly transaction register"
+// was the old name for the "withdrawals" sheet (a record of withdrawals and
+// the payment method used, not deposits) — both names are listed so an older
+// upload of the same workbook still skips it correctly. "Daily savings" is
+// deliberately NOT here: the club has folded that sheet's contributions into
+// the historical record rather than keeping it as internal-only bookkeeping.
+const KNOWN_NON_INVESTOR_SHEET_NAMES = ["expenses", "money sent to min.mark", "monthly transaction register", "withdrawals"];
 
 const HEADER_SCAN_ROWS = 8;
 
