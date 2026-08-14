@@ -36,6 +36,7 @@ import { RiskComplianceMonitor } from "@/features/admin/RiskComplianceMonitor";
 import { AllInvestments } from "@/features/admin/AllInvestments";
 import { AdminSettings } from "@/features/admin/AdminSettings";
 import { CreateFOModal } from "@/features/admin/CreateFOModal";
+import { HistoricalMigration } from "@/features/admin/HistoricalMigration";
 
 /**
  * JBDocsApp
@@ -109,6 +110,7 @@ export default function JBDocsApp({ resetPasswordRequested, registerRequested })
       else if (view === "notifications") screen = <NotificationsScreen ctx={ctx} />;
       else if (view === "reports") screen = <ReportsScreen ctx={ctx} />;
       else if (view === "auditlogs") screen = <AuditLogsScreen ctx={ctx} />;
+      else if (view === "migration") screen = <HistoricalMigration ctx={ctx} />;
       else if (view === "settings") screen = <AdminSettings ctx={ctx} />;
       else screen = <ClubIntelligenceCentre ctx={ctx} />;
     }

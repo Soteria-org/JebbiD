@@ -1,0 +1,11 @@
+-- Advisor caught this immediately: prevent_financial_history_status_self_edit()
+-- was created without the explicit revoke every other trigger function in this
+-- schema (prevent_role_escalation, handle_deposit_status_change,
+-- handle_payout_recorded) already has -- it inherited Postgres's default PUBLIC
+-- execute grant, making it directly callable over PostgREST by anon and
+-- authenticated (POST /rest/v1/rpc/prevent_financial_history_status_self_edit).
+-- Not exploitable as a trigger function (NEW/OLD aren't bound outside a real
+-- trigger firing), but it should never have been reachable at all -- matching
+-- the postgres/service_role-only grant every other trigger function in this
+-- schema already uses.
+revoke all on function public.prevent_financial_history_status_self_edit() from public, anon, authenticated;

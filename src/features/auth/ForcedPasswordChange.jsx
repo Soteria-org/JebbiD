@@ -33,7 +33,7 @@ export function ForcedPasswordChange({ ctx }) {
         </div>
         <Field label="New Password"><TextInput value={pw} onChange={setPw} type="password" testId="forced-new-password" /></Field>
         <PasswordStrengthMeter password={pw} />
-        <Field label="Confirm New Password"><TextInput value={confirm} onChange={setConfirm} type="password" /></Field>
+        <Field label="Confirm New Password"><TextInput value={confirm} onChange={setConfirm} type="password" testId="forced-confirm-password" /></Field>
         {err ? <div style={{ color: C.danger, fontSize: 13, marginBottom: 12 }}>{err}</div> : null}
         <Btn full onClick={submit} disabled={saving} testId="forced-submit">{saving ? "Saving…" : "Set Password & Continue"}</Btn>
       </Card>

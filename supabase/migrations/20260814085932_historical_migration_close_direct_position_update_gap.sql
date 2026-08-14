@@ -1,0 +1,14 @@
+-- Same class of gap as historical_migration_close_direct_position_insert_gap,
+-- found by the same review pass: "positions_update" (migration 005) allows
+-- any is_staff() session to UPDATE any column of any investment_positions row
+-- directly over PostgREST (PATCH /rest/v1/investment_positions) -- amount,
+-- status, maturity_value, anything -- with no audit trail. Every legitimate
+-- mutation of this table (choose_maturity_action, handle_deposit_status_change,
+-- import_historical_investment) is a SECURITY DEFINER function owned by
+-- postgres, which bypasses RLS on this table regardless of this policy
+-- (confirmed: relforcerowsecurity=false, table owner=postgres) -- grep across
+-- src/ and app/ confirms zero application code performs a direct
+-- .from("investment_positions").update(...)/.upsert(...) call. Closing this
+-- removes only the illegitimate direct-write path; every real mutation path
+-- keeps working exactly as before.
+drop policy "positions_update" on public.investment_positions;

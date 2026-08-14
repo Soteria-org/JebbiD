@@ -18,9 +18,10 @@ export async function loadAllInvestors() {
     .from("profiles")
     .select(`
       id, member_id, full_name, email, phone, username, account_status, created_at,
-      pause_warning_at, pause_deadline,
+      pause_warning_at, pause_deadline, migration_status,
       investor_details ( national_id_number, address, occupation, financial_goal,
-        next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
+        next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status,
+        financial_history_status, verification_status )
     `)
     .eq("role", "investor")
     .order("created_at", { ascending: false });
@@ -40,6 +41,10 @@ export async function loadAllInvestors() {
       occupation: d?.occupation || "",
       goal: d?.financial_goal || "",
       kycStatus: d?.kyc_status || "not_started",
+      // spec §2.2: three independent axes, never collapsed into one status.
+      migrationStatus: p.migration_status || "native",
+      financialHistoryStatus: d?.financial_history_status || null,
+      verificationStatus: d?.verification_status || (d?.kyc_status === "approved" ? "verified" : "unverified"),
       nextOfKin: {
         name: d?.next_of_kin_name || "",
         relationship: d?.next_of_kin_relationship || "",

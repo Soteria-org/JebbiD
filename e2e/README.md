@@ -52,6 +52,7 @@ export $(cat .env.e2e | grep -v '^#' | xargs) && npm run test:e2e:ui
 |---|---|
 | `01-account-creation.spec.js` | Super Admin can create a Finance Officer; Finance Officer can create a Walk-in Investor. If either fails, the test fails with the **real error text** from the app — never a silent timeout — so a service-role-key misconfiguration shows up as exactly that in the test output. |
 | `02-deposit-flow.spec.js` | An investor's deposit reaches their own screen immediately, reaches a Finance Officer's screen in a **completely separate browser session** via the Refresh button, gets approved, and the resulting active investment reaches back to the investor — all without either side logging out and back in. This is the actual test for the "deposits don't sync" issue. |
+| `03-historical-migration.spec.js` | The full historical data migration pipeline (docs/migration/HISTORICAL_DATA_MIGRATION_SPEC.md §12's mandated scenario): a real .xlsx fixture (generated on the fly) uploads, validates, dry-run reconciles to zero, imports with the original date/amount intact, the migrated investor gets a real account issued, signs in with the temp password, completes the forced password change, lands on their dashboard with the historical position and migration banner visible, and re-uploading the same file is flagged as a possible duplicate rather than silently doubling the position. Only requires `E2E_SUPERADMIN_EMAIL`/`E2E_SUPERADMIN_PASSWORD` — it creates its own investor account. |
 
 ## What this does NOT cover yet (be aware, don't assume)
 

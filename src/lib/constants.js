@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, ArrowUpRight, Award, BarChart2, Bell, Briefcase, ClipboardList, FileText, Home, SettingsIcon, TrendingUp, User, Users, Wallet } from "@/components/icons/index";
+import { AlertTriangle, ArrowUpRight, Award, BarChart2, Bell, Briefcase, ClipboardList, FileText, Home, SettingsIcon, TrendingUp, Upload, User, Users, Wallet } from "@/components/icons/index";
 
 // Shown to users on account/setup failures where self-service can't resolve it
 // (e.g. login()'s orphaned-account self-heal failing) and in the public error
@@ -55,6 +55,7 @@ export const NAV = {
     { key: "notifications", label: "Notifications", icon: Bell },
     { key: "reports", label: "Reports", icon: BarChart2 },
     { key: "auditlogs", label: "Audit Logs", icon: ClipboardList },
+    { key: "migration", label: "Historical Migration", icon: Upload },
     { key: "settings", label: "Settings", icon: SettingsIcon },
   ],
 };
