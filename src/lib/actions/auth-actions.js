@@ -3,7 +3,7 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { passwordStrengthError } from "@/lib/password-policy";
 import { SUPPORT_EMAIL } from "@/lib/constants";
-import { randomBytes } from "crypto";
+import { randomTempPassword, isTempPasswordExpired } from "@/lib/temp-credentials";
 
 /**
  * All functions here are Server Actions — they run only on the server, never ship to
@@ -12,31 +12,6 @@ import { randomBytes } from "crypto";
  * Return shape convention: { success: true, ...data } or { error: "message" }.
  * Never throw — callers (eventually useJBDocsStore) expect to check `.error`.
  */
-
-function randomTempPassword() {
-  // Cryptographically random (Node's crypto, not Math.random()), and guaranteed
-  // — by construction, not by chance — to satisfy the same PASSWORD_REQUIREMENTS
-  // enforced everywhere else (src/lib/password-policy.js): one char from each
-  // required category is placed first, then the rest is filled randomly, then
-  // the whole thing is shuffled so the guaranteed characters aren't always in
-  // the same position.
-  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  const lower = "abcdefghijkmnpqrstuvwxyz";
-  const digits = "23456789";
-  const symbols = "!@#$%&*";
-  const all = upper + lower + digits + symbols;
-
-  const randChar = (set) => set[randomBytes(1)[0] % set.length];
-  const chars = [randChar(upper), randChar(lower), randChar(digits), randChar(symbols)];
-  while (chars.length < 12) chars.push(randChar(all));
-
-  // Fisher-Yates shuffle using crypto-random indices
-  for (let i = chars.length - 1; i > 0; i--) {
-    const j = randomBytes(1)[0] % (i + 1);
-    [chars[i], chars[j]] = [chars[j], chars[i]];
-  }
-  return chars.join("");
-}
 
 function isDevAuthBypassEnabled() {
   return process.env.NODE_ENV !== "production";
@@ -294,9 +269,10 @@ export async function login(input) {
     .from("profiles")
     .select(`
       id, role, full_name, member_id, must_change_password, account_status, created_at,
-      phone, username, email, pause_warning_at, pause_deadline,
+      phone, username, email, pause_warning_at, pause_deadline, temp_password_issued_at, migration_status,
       investor_details ( national_id_number, address, occupation, financial_goal,
-        next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
+        next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status,
+        financial_history_status, verification_status )
     `)
     .eq("id", data.user.id)
     .maybeSingle();
@@ -324,9 +300,10 @@ export async function login(input) {
         .from("profiles")
         .select(`
           id, role, full_name, member_id, must_change_password, account_status, created_at,
-          phone, username, email,
+          phone, username, email, migration_status,
           investor_details ( national_id_number, address, occupation, financial_goal,
-            next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
+            next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status,
+            financial_history_status, verification_status )
         `)
         .eq("id", data.user.id)
         .maybeSingle();
@@ -340,6 +317,19 @@ export async function login(input) {
     await logFailedLogin(email, "account_setup_incomplete");
     return {
       error: `Your account exists but setup didn't finish, and we weren't able to fix it automatically — this can happen if email confirmation was interrupted. Please contact support at ${SUPPORT_EMAIL} so we can complete your account.`,
+    };
+  }
+
+  if (profile.must_change_password && isTempPasswordExpired(profile.temp_password_issued_at)) {
+    // The temp password itself just worked (signInWithPassword succeeded above),
+    // so this can't be blocked earlier — only after we know which account it is
+    // and how old its temp credential is. Sign back out immediately: a login that
+    // "succeeds" past this point is exactly the un-expiring-temp-password gap
+    // spec §6.2 called out as genuinely missing before this migration.
+    await supabase.auth.signOut();
+    await logFailedLogin(email, "temp_credential_expired");
+    return {
+      error: "This invitation has expired — ask an administrator to resend it.",
     };
   }
 
@@ -388,9 +378,10 @@ export async function getCurrentSession() {
       .from("profiles")
       .select(`
         id, role, full_name, member_id, must_change_password, account_status, created_at,
-        phone, username, email, pause_warning_at, pause_deadline,
+        phone, username, email, pause_warning_at, pause_deadline, migration_status,
         investor_details ( national_id_number, address, occupation, financial_goal,
-          next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status )
+          next_of_kin_name, next_of_kin_phone, next_of_kin_relationship, kyc_status,
+          financial_history_status, verification_status )
       `)
       .eq("id", user.id)
       .maybeSingle();
@@ -609,6 +600,7 @@ export async function createStaffOrInvestorAccount(input) {
       must_change_password: true,
       account_status: "invited",
       created_by: caller.id,
+      temp_password_issued_at: new Date().toISOString(),
     });
     if (profileError) {
       // The auth.users row now exists with no matching profile — a ghost account

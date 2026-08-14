@@ -1,5 +1,5 @@
 import React from "react";
-import { Award, Calendar, Plus, TrendingUp, Wallet } from "@/components/icons/index";
+import { Award, Calendar, CheckCircle2, Plus, TrendingUp, Wallet } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
 import { Btn, Card, EmptyState, GuidanceBanner, ProgressBar, StatCard } from "@/components/ui/primitives";
 import { PauseCountdownBadge } from "@/components/ui/PauseCountdown";
@@ -9,6 +9,52 @@ import { clampPct, currentValue, daysBetween, fmtDate, fmtUGX, todayISO } from "
 import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 import { isVerifiedInvestor } from "@/lib/verification";
 import { SUPPORT_EMAIL } from "@/lib/constants";
+
+/**
+ * Spec §7: "Your historical investment records have been migrated to
+ * Jebbidox" — a clear, always-visible line, not something the investor has
+ * to go find. Shown once, permanently, for any migrated investor (there's no
+ * reason to ever dismiss a true historical fact about the account).
+ */
+function MigrationBanner({ inv }) {
+  if (inv.migrationStatus !== "migrated") return null;
+  return (
+    <GuidanceBanner tone="info" icon={Award}>
+      <strong>Your historical investment records have been migrated to Jebbidox.</strong> Everything below reflects your original contribution dates and amounts, exactly as recorded before this account existed.
+    </GuidanceBanner>
+  );
+}
+
+/**
+ * Spec §7: "Profile/KYC completion prompt if kyc_status isn't approved —
+ * reuse the existing FrozenAccountScreen-style pattern... rather than a
+ * dismissible banner easy to ignore." Deliberately NOT a full-screen block
+ * like FrozenAccountScreen itself (that's reserved for account_status =
+ * 'suspended', a different, harsher gate this spec never asked to extend) —
+ * this borrows FrozenAccountScreen's visual weight (large, un-missable, its
+ * own call to action) while still letting a migrated investor see their real
+ * historical positions underneath, which is the whole point of migrating the
+ * money before the person.
+ */
+function KycCompletionPrompt({ inv, ctx }) {
+  if (inv.migrationStatus !== "migrated" || inv.kycStatus === "approved") return null;
+  return (
+    <Card style={{ marginBottom: 20, border: "1.5px solid " + C.goldLine, background: C.warningBg }} data-testid="kyc-completion-prompt">
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: C.surface, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <CheckCircle2 size={20} color={C.brand} />
+        </div>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: C.warningText }}>Complete your profile to become a Verified Investor</div>
+          <div style={{ fontSize: 12.5, color: C.warningText, marginTop: 2 }}>
+            Your historical investments are already visible below, but identity verification (KYC) hasn&rsquo;t been completed on this account yet — {inv.kycStatus === "pending" ? "your documents are awaiting staff review." : inv.kycStatus === "rejected" ? "one or more documents were rejected and need re-upload." : "upload your ID and a selfie to get started."}
+          </div>
+        </div>
+        <Btn size="sm" onClick={() => ctx.goTo("profile")}>{inv.kycStatus === "pending" ? "View Status" : "Complete Now"}</Btn>
+      </div>
+    </Card>
+  );
+}
 
 /** Real, enforced deadline banner — shown whenever staff have actually scheduled
  * a pause on this account (profiles.pause_deadline), not a generic reminder. */
@@ -46,6 +92,8 @@ export function InvestorDashboard({ ctx }) {
     return (
       <PageShell ctx={ctx} title="Dashboard">
         <PauseWarningBanner inv={inv} ctx={ctx} />
+        <MigrationBanner inv={inv} />
+        <KycCompletionPrompt inv={inv} ctx={ctx} />
         <Card>
           <EmptyState icon={TrendingUp} title="Your portfolio is waiting for its first entry."
             body="Every investor begins with one deposit. Make yours today."
@@ -60,6 +108,8 @@ export function InvestorDashboard({ ctx }) {
   return (
     <PageShell ctx={ctx} title="Dashboard">
       <PauseWarningBanner inv={inv} ctx={ctx} />
+      <MigrationBanner inv={inv} />
+      <KycCompletionPrompt inv={inv} ctx={ctx} />
       <div style={{ display: "flex", gap: 26, flexWrap: "wrap", marginBottom: 22 }}>
         {/* Member Ledger — styled like a real membership/debit card (chip, grouped
             member number, cardholder + package "network mark") rather than a plain

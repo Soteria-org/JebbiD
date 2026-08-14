@@ -8,6 +8,72 @@ import { fmtDate, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY } from "@/lib/theme";
 import { isVerifiedInvestor } from "@/lib/verification";
 import { KYCUploadPanel } from "@/features/kyc/KYCUploadPanel";
+import { createMigratedInvestorAccount, resendMigrationInvitation } from "@/lib/actions/migration-actions";
+
+/**
+ * Spec §6.3: "Migrated investor exists (auth account = none yet [functionally
+ * — see supabase/migrations/20260814082254_historical_migration_schema.sql's
+ * Conflict B note]) → Super Admin/FO selects investor → 'Create Account'".
+ * A placeholder @import.jebbidox.internal email means no real temp password
+ * has ever been issued for this investor yet (see migration-actions.js).
+ */
+function MigratedAccountPanel({ inv, ctx }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState(null);
+  if (inv.migrationStatus !== "migrated") return null;
+
+  const needsEmail = !inv.email || inv.email.endsWith("@import.jebbidox.internal");
+
+  async function handleIssue() {
+    setBusy(true);
+    setResult(null);
+    const res = needsEmail
+      ? await createMigratedInvestorAccount(inv.id, email.trim())
+      : await resendMigrationInvitation(inv.id);
+    setBusy(false);
+    if (res.error) { setResult({ error: res.error, tempPassword: res.tempPassword }); return; }
+    setResult({ success: true, tempPassword: res.tempPassword, email: res.email });
+    ctx.showToast?.("Invitation sent to " + res.email, "success");
+  }
+
+  return (
+    <Card style={{ marginBottom: 18, border: "1.5px solid " + C.goldLine }} data-testid="migrated-account-panel">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <Badge tone="info">Migrated Investor</Badge>
+        <div style={{ fontWeight: 700, fontSize: 13.5, color: C.ink }}>Historical financial records — {needsEmail ? "no account yet" : "account created"}</div>
+      </div>
+      <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 12 }}>
+        {needsEmail
+          ? "This investor's historical positions are already visible below. No login exists yet — provide their real email to create the account and send an invitation with a temporary password (expires in 48 hours)."
+          : "An invitation was already sent to " + inv.email + ". Resending issues a new temporary password and invalidates the old one."}
+      </div>
+      {needsEmail && (
+        <input
+          type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+          placeholder="investor@example.com" data-testid="migrated-account-email"
+          style={{ width: "100%", maxWidth: 320, padding: "9px 12px", borderRadius: 8, border: "1px solid " + C.line, fontSize: 13.5, marginBottom: 10 }}
+        />
+      )}
+      <div>
+        <Btn size="sm" disabled={busy || (needsEmail && !email.includes("@"))} onClick={handleIssue} testId="migrated-account-submit">
+          {busy ? "Sending…" : needsEmail ? "Create Account & Invite" : "Resend Invitation"}
+        </Btn>
+      </div>
+      {result?.error && <div style={{ color: C.danger, fontSize: 12.5, marginTop: 10 }} data-testid="migrated-account-error">{result.error}</div>}
+      {result?.success && (
+        <div style={{ marginTop: 10, fontSize: 12.5, color: C.success }} data-testid="migrated-account-success">
+          Invitation sent to {result.email}.
+        </div>
+      )}
+      {result?.tempPassword && (
+        <div style={{ marginTop: 6, fontSize: 12.5, color: C.inkSoft }}>
+          Temp password (shown once — the email is the normal source of truth for the investor): <span data-testid="migrated-account-temp-password" style={{ fontFamily: "monospace", fontWeight: 700 }}>{result.tempPassword}</span>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export function InvestorDetailScreen({ ctx }) {
   const [tab, setTab] = useState("overview");
@@ -45,6 +111,7 @@ export function InvestorDetailScreen({ ctx }) {
           ) : null}
         </div>
       </Card>
+      <MigratedAccountPanel inv={inv} ctx={ctx} />
       {inv.accountStatus === "suspended" ? (
         <GuidanceBanner tone="warning">
           This account is paused. Review their KYC documents in the KYC Documents tab before unfreezing —
@@ -61,7 +128,8 @@ export function InvestorDetailScreen({ ctx }) {
       {tab === "overview" && (
         <Card style={{ maxWidth: 560 }}>
           {[["Member ID", inv.memberId], ["National ID", inv.nationalId], ["Address", inv.address], ["Occupation", inv.occupation],
-            ["Financial Goal", inv.goal], ["Registered", fmtDate(inv.dateRegistered)]].map((r) => (
+            ["Financial Goal", inv.goal], ["Registered", fmtDate(inv.dateRegistered)],
+            ["Financial History", inv.migrationStatus === "migrated" ? "Imported" : "Native"]].map((r) => (
             <div key={r[0]} style={{ display: "flex", justifyContent: "space-between", padding: "11px 0", borderBottom: "1px solid " + C.line, fontSize: 13.5 }}>
               <span style={{ color: C.inkSoft }}>{r[0]}</span><strong style={{ color: C.ink }}>{r[1]}</strong>
             </div>

@@ -1,0 +1,27 @@
+-- SECURITY FIX, discovered during this feature's mandated security review (spec
+-- §16: "use the same manual RLS/SECURITY DEFINER audit method used in this
+-- session's Aug 10 security pass"), not caused by this feature but directly
+-- undermines the invariant this feature depends on:
+--
+-- migration 005 (row_level_security) created "positions_insert" with
+-- `with_check (public.is_staff())` -- meaning ANY finance_officer or
+-- super_admin session could INSERT an arbitrary investment_positions row
+-- directly over PostgREST (POST /rest/v1/investment_positions), with any
+-- amount/rate/maturity_value they choose, completely bypassing BOTH the
+-- deposit-approval trigger (handle_deposit_status_change) AND this feature's
+-- audited import_historical_investment() function -- no deposit_submission
+-- link, no import batch link, no log_audit call, nothing. docs/database-
+-- schema.md already documented "do not write application code that creates an
+-- investment_positions row directly" as a rule for THIS codebase's own code,
+-- but nothing in the database enforced it against a direct API call.
+--
+-- Safe to close entirely: investment_positions.relforcerowsecurity is false
+-- and the table owner is postgres, and both legitimate write paths
+-- (handle_deposit_status_change, import_historical_investment) are SECURITY
+-- DEFINER functions owned by postgres -- confirmed via pg_class/pg_proc that
+-- both already bypass RLS on this table regardless of what this INSERT policy
+-- allows. Removing client-side INSERT here changes nothing about either
+-- legitimate path; it only removes the illegitimate third one. Matches the
+-- "no policy = denied by default" pattern this schema already uses for every
+-- DELETE (docs/database-schema.md §5).
+drop policy "positions_insert" on public.investment_positions;

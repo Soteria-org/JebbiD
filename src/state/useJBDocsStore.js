@@ -311,6 +311,10 @@ export default function useJBDocsStore() {
         occupation: d?.occupation || prev?.occupation || "",
         goal: d?.financial_goal || prev?.goal || "",
         kycStatus: d?.kyc_status || prev?.kycStatus || "not_started",
+        // spec §2.2: independent of kycStatus/migrationStatus, never collapsed into one field.
+        migrationStatus: profile.migration_status || prev?.migrationStatus || "native",
+        financialHistoryStatus: d?.financial_history_status || prev?.financialHistoryStatus || null,
+        verificationStatus: d?.verification_status || prev?.verificationStatus || ((d?.kyc_status || prev?.kycStatus) === "approved" ? "verified" : "unverified"),
         username: profile.username || profile.email || prev?.username,
         password: null,
         nextOfKin: {
