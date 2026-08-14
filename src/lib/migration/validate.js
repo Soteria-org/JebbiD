@@ -47,7 +47,7 @@ export function parseRowDate(dateRaw) {
       };
     }
     const iso = `${dateRaw.year}-${String(dateRaw.monthNumber).padStart(2, "0")}-01`;
-    return { iso, reason: null, dayIsAssumed: true };
+    return { iso, reason: null };
   }
 
   // Flat-sheet date: already ISO if it came from a real Excel date cell.
@@ -118,13 +118,14 @@ export function validateRow(row, todayIsoOverride) {
     errors.push(`Amount ${amountParsed} is not a positive value.`);
   }
 
-  const { iso: dateParsedISO, reason: dateReason, dayIsAssumed } = parseRowDate(row.dateRaw);
+  // Confirmed business decision: when the source only supplies month/year
+  // (the wide-monthly sheet, by construction, never has a day), the 1st of
+  // the month is the approved position start date — no verification flag
+  // needed, same reasoning as the below-minimum-amount decision above.
+  const { iso: dateParsedISO, reason: dateReason } = parseRowDate(row.dateRaw);
   if (!dateParsedISO) {
     errors.push(dateReason);
   } else {
-    if (dayIsAssumed) {
-      warnings.push(`Source only supplies month/year (no day) — the 1st of the month is used as the position start date; if the club can supply the actual day, correct it before import.`);
-    }
     if (dateParsedISO > today) {
       errors.push(`Date ${dateParsedISO} is in the future relative to today (${today}). A historical investment cannot have a future date — this is very likely a data-entry error (wrong year, or day/month swapped), but the correct value is not guessed here. Resolve manually before import.`);
     }
