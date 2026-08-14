@@ -8,7 +8,7 @@ import { fmtDateTime, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 import { readWorkbook, suggestFlatMapping, buildWideMonthlyMembers, buildFlatEntries } from "@/lib/migration/parseXlsx";
 import {
-  uploadImportBatch, getDryRunReport, confirmImportBatch, listImportBatches,
+  uploadImportBatch, getDryRunReport, confirmImportBatch, listImportBatches, deleteImportBatch,
   getBatchInvestors, createMigratedInvestorAccount, resendMigrationInvitation,
 } from "@/lib/actions/migration-actions";
 import { buildExportWorkbook } from "@/lib/actions/export-actions";
@@ -45,6 +45,8 @@ export function HistoricalMigration({ ctx }) {
   const [batches, setBatches] = useState(null);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function loadHistory() {
     setLoadingBatches(true);
@@ -65,6 +67,16 @@ export function HistoricalMigration({ ctx }) {
   function openDetail(batchId) {
     setDetailBatchId(batchId);
     setMode("detail");
+  }
+
+  async function handleDelete(batchId) {
+    setDeleting(true);
+    const res = await deleteImportBatch(batchId);
+    setDeleting(false);
+    setConfirmDeleteId(null);
+    if (res.error) { ctx.showToast?.(res.error, "error"); return; }
+    ctx.showToast?.("Batch deleted.", "success");
+    loadHistory();
   }
 
   function backToHistory() {
@@ -117,7 +129,22 @@ export function HistoricalMigration({ ctx }) {
                 <Td>{b.total_rows}</Td>
                 <Td>{b.imported_rows} / {b.valid_rows + b.warning_rows}</Td>
                 <Td>{fmtUGX(b.imported_total_amount || b.source_total_amount || 0)}</Td>
-                <Td><Btn size="sm" variant="ghost" onClick={() => openDetail(b.id)} testId="migration-batch-inspect">Inspect</Btn></Td>
+                <Td>
+                  {confirmDeleteId === b.id ? (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <span style={{ fontSize: 12, color: C.danger }}>Delete this batch?</span>
+                      <Btn size="sm" variant="danger" onClick={() => handleDelete(b.id)} disabled={deleting} testId="migration-batch-delete-confirm">{deleting ? "…" : "Yes"}</Btn>
+                      <Btn size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</Btn>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <Btn size="sm" variant="ghost" onClick={() => openDetail(b.id)} testId="migration-batch-inspect">Inspect</Btn>
+                      {b.status !== "completed" && (
+                        <Btn size="sm" variant="ghost" onClick={() => setConfirmDeleteId(b.id)} style={{ color: C.danger }} testId="migration-batch-delete">Delete</Btn>
+                      )}
+                    </div>
+                  )}
+                </Td>
               </tr>
             ))}
           </tbody>
@@ -342,7 +369,7 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
           sheetName: s.sheetName,
           format: s.format,
           rows: s.format === "wide-monthly"
-            ? buildWideMonthlyMembers(s.headerRow, s.dataRows)
+            ? buildWideMonthlyMembers(s.headerRow, s.dataRows, s.aboveHeaderRow)
             : buildFlatEntries(s.headerRow, s.dataRows, s.flatMapping),
         })),
     };
@@ -387,42 +414,103 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
           <input type="file" accept=".xlsx,.xls" onChange={handleFile} data-testid="migration-upload-input" />
           {sheets.length > 0 && (
             <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 10 }}>
-                {sheets.length} sheet{sheets.length === 1 ? "" : "s"} found. Confirm each sheet&rsquo;s shape below — nothing is assumed silently.
-              </div>
-              {sheets.map((s, i) => (
-                <div key={s.sheetName} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: "1px solid " + C.line, flexWrap: "wrap" }}>
-                  <div style={{ minWidth: 180, fontWeight: 600, fontSize: 13.5 }}>{s.sheetName}</div>
-                  <Select
-                    value={s.format}
-                    onChange={(v) => setSheets((list) => list.map((x, xi) => (xi === i ? { ...x, format: v } : x)))}
-                    options={[
-                      { value: "skip", label: "Skip — not investor data" },
-                      { value: "wide-monthly", label: "Wide Monthly Contributions (one row per member, one column per month)" },
-                      { value: "flat", label: "Flat Transaction List (one row per contribution)" },
-                    ]}
-                  />
-                  {s.format === "flat" && (
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {["nameCol", "amountCol", "dateCol"].map((field) => (
-                        <div key={field}>
-                          <div style={{ fontSize: 10.5, color: C.inkFaint, textTransform: "uppercase", marginBottom: 3 }}>{field.replace("Col", "")}</div>
-                          <Select
-                            value={s.flatMapping[field] ?? ""}
-                            onChange={(v) => setSheets((list) => list.map((x, xi) => (xi === i ? { ...x, flatMapping: { ...x.flatMapping, [field]: v === "" ? null : parseInt(v, 10) } } : x)))}
-                            options={s.headerRow.map((h, idx) => ({ value: String(idx), label: h || `Column ${idx + 1}` }))}
-                            placeholder="Not mapped"
-                          />
-                        </div>
-                      ))}
+              {(() => {
+                const toImport = sheets.filter((s) => s.format !== "skip");
+                const skipped = sheets.filter((s) => s.format === "skip");
+                const unmapped = toImport.filter((s) => s.format === "flat" && (s.flatMapping.nameCol == null || s.flatMapping.amountCol == null || s.flatMapping.dateCol == null));
+                return (
+                  <>
+                    <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 14 }}>
+                      {sheets.length} sheet{sheets.length === 1 ? "" : "s"} found.{" "}
+                      {skipped.length > 0 && `${skipped.length} look${skipped.length === 1 ? "s" : ""} like internal bookkeeping and ${skipped.length === 1 ? "is" : "are"} skipped by default — `}
+                      Only sheets below will be imported. Change any sheet&rsquo;s setting if this doesn&rsquo;t look right.
                     </div>
-                  )}
-                </div>
-              ))}
-              <div style={{ marginTop: 16 }}>
-                <Btn onClick={submitUpload} disabled={busy} testId="migration-upload-submit">{busy ? "Validating…" : "Continue to Review"}</Btn>
-                <Btn variant="ghost" onClick={onCancel} style={{ marginLeft: 8 }}>Cancel</Btn>
-              </div>
+
+                    {toImport.length === 0 && (
+                      <GuidanceBanner tone="warning" icon={AlertTriangle}>
+                        No sheet looks like investor data yet. Change one of the sheets below from &ldquo;Skip&rdquo; to the shape that matches it.
+                      </GuidanceBanner>
+                    )}
+
+                    {toImport.map((s) => {
+                      const i = sheets.indexOf(s);
+                      return (
+                        <div key={s.sheetName} style={{ padding: "12px 0", borderBottom: "1px solid " + C.line }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+                            <div style={{ minWidth: 180, fontWeight: 700, fontSize: 13.5 }}>{s.sheetName}</div>
+                            {s.headerConfidence === "low" && <Badge tone="warning">Couldn&rsquo;t confidently find a header row — check the preview below</Badge>}
+                            <Select
+                              value={s.format}
+                              onChange={(v) => setSheets((list) => list.map((x, xi) => (xi === i ? { ...x, format: v } : x)))}
+                              options={[
+                                { value: "skip", label: "Skip — not investor data" },
+                                { value: "wide-monthly", label: "Wide Monthly Contributions (one row per member, one column per month)" },
+                                { value: "flat", label: "Flat Transaction List (one row per contribution)" },
+                              ]}
+                            />
+                          </div>
+                          {s.format === "flat" && (
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                              {["nameCol", "amountCol", "dateCol"].map((field) => (
+                                <div key={field}>
+                                  <div style={{ fontSize: 10.5, color: C.inkFaint, textTransform: "uppercase", marginBottom: 3 }}>{field.replace("Col", "")}</div>
+                                  <Select
+                                    value={s.flatMapping[field] ?? ""}
+                                    onChange={(v) => setSheets((list) => list.map((x, xi) => (xi === i ? { ...x, flatMapping: { ...x.flatMapping, [field]: v === "" ? null : parseInt(v, 10) } } : x)))}
+                                    options={s.headerRow.map((h, idx) => ({ value: String(idx), label: h || `Column ${idx + 1} (blank header)` }))}
+                                    placeholder="Not mapped"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {s.preview?.length > 0 && (
+                            <div style={{ fontSize: 11, color: C.inkFaint, fontFamily: FONT_MONO, overflowX: "auto" }}>
+                              First row read: {s.preview[0].slice(0, 6).map((v) => (v === null || v === undefined || v === "" ? "—" : String(v))).join(" · ")}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {unmapped.length > 0 && (
+                      <GuidanceBanner tone="warning" icon={AlertTriangle}>
+                        {unmapped.map((s) => s.sheetName).join(", ")} — Name, Amount, or Date isn&rsquo;t mapped. Pick the right column above, or this sheet won&rsquo;t import any rows.
+                      </GuidanceBanner>
+                    )}
+
+                    {skipped.length > 0 && (
+                      <details style={{ marginTop: 8 }}>
+                        <summary style={{ cursor: "pointer", fontSize: 12.5, color: C.inkFaint, padding: "6px 0" }}>
+                          {skipped.length} sheet{skipped.length === 1 ? "" : "s"} skipped — {skipped.map((s) => s.sheetName).join(", ")}
+                        </summary>
+                        {skipped.map((s) => {
+                          const i = sheets.indexOf(s);
+                          return (
+                            <div key={s.sheetName} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", flexWrap: "wrap" }}>
+                              <div style={{ minWidth: 180, fontSize: 13 }}>{s.sheetName}</div>
+                              <Select
+                                value={s.format}
+                                onChange={(v) => setSheets((list) => list.map((x, xi) => (xi === i ? { ...x, format: v } : x)))}
+                                options={[
+                                  { value: "skip", label: "Skip — not investor data" },
+                                  { value: "wide-monthly", label: "Wide Monthly Contributions" },
+                                  { value: "flat", label: "Flat Transaction List" },
+                                ]}
+                              />
+                            </div>
+                          );
+                        })}
+                      </details>
+                    )}
+
+                    <div style={{ marginTop: 16 }}>
+                      <Btn onClick={submitUpload} disabled={busy || toImport.length === 0} testId="migration-upload-submit">{busy ? "Validating…" : "Continue to Review"}</Btn>
+                      <Btn variant="ghost" onClick={onCancel} style={{ marginLeft: 8 }}>Cancel</Btn>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
         </Card>
