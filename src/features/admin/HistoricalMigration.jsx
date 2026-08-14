@@ -108,7 +108,7 @@ export function HistoricalMigration({ ctx }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 8, flexWrap: "wrap" }}>
         <div style={{ fontFamily: FONT_DISPLAY, fontSize: 18, fontWeight: 600, color: C.ink }}>Import Batch History</div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Btn variant="outline" onClick={handleExportAll} disabled={exporting} testId="migration-export-all">{exporting ? "Preparing…" : "Export Full Workbook"}</Btn>
+          <Btn variant="outline" onClick={handleExportAll} loading={exporting} testId="migration-export-all">{exporting ? "Preparing…" : "Export Full Workbook"}</Btn>
           <Btn icon={Upload} onClick={() => setMode("wizard")} testId="migration-new-import">New Import</Btn>
         </div>
       </div>
@@ -133,7 +133,7 @@ export function HistoricalMigration({ ctx }) {
                   {confirmDeleteId === b.id ? (
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <span style={{ fontSize: 12, color: C.danger }}>Delete this batch?</span>
-                      <Btn size="sm" variant="danger" onClick={() => handleDelete(b.id)} disabled={deleting} testId="migration-batch-delete-confirm">{deleting ? "…" : "Yes"}</Btn>
+                      <Btn size="sm" variant="danger" onClick={() => handleDelete(b.id)} loading={deleting} testId="migration-batch-delete-confirm">{deleting ? "Deleting…" : "Yes"}</Btn>
                       <Btn size="sm" variant="ghost" onClick={() => setConfirmDeleteId(null)}>Cancel</Btn>
                     </div>
                   ) : (
@@ -216,7 +216,7 @@ function InvestorInviteRow({ investor, onChanged }) {
               style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid " + C.line, fontSize: 13, width: 200 }}
             />
           )}
-          <Btn size="sm" icon={Mail} disabled={busy || (investor.needsRealEmail && !email.includes("@"))} onClick={handleInvite} testId="migration-invite-submit">
+          <Btn size="sm" icon={Mail} loading={busy} disabled={investor.needsRealEmail && !email.includes("@")} onClick={handleInvite} testId="migration-invite-submit">
             {busy ? "Sending…" : "Invite"}
           </Btn>
         </div>
@@ -505,8 +505,9 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
                     )}
 
                     <div style={{ marginTop: 16 }}>
-                      <Btn onClick={submitUpload} disabled={busy || toImport.length === 0} testId="migration-upload-submit">{busy ? "Validating…" : "Continue to Review"}</Btn>
-                      <Btn variant="ghost" onClick={onCancel} style={{ marginLeft: 8 }}>Cancel</Btn>
+                      <Btn onClick={submitUpload} loading={busy} disabled={toImport.length === 0} testId="migration-upload-submit">{busy ? "Validating…" : "Continue to Review"}</Btn>
+                      <Btn variant="ghost" onClick={onCancel} disabled={busy} style={{ marginLeft: 8 }}>Cancel</Btn>
+                      {busy && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8 }}>Reading and validating every row — this can take a few seconds for a large file.</div>}
                     </div>
                   </>
                 );
@@ -648,10 +649,11 @@ function ReviewStep({ uploadResult, batchDetail, groupDecisions, setGroupDecisio
           Choose an action for every investor above before confirming.
         </div>
       )}
-      <Btn onClick={onConfirm} disabled={busy || (heldGroups.length > 0 && !allDecided)} testId="migration-confirm-submit">
+      <Btn onClick={onConfirm} loading={busy} disabled={heldGroups.length > 0 && !allDecided} testId="migration-confirm-submit">
         {busy ? "Importing…" : "Confirm & Import"}
       </Btn>
-      <Btn variant="ghost" onClick={onCancel} style={{ marginLeft: 8 }}>Cancel</Btn>
+      <Btn variant="ghost" onClick={onCancel} disabled={busy} style={{ marginLeft: 8 }}>Cancel</Btn>
+      {busy && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8 }}>Creating each investor&rsquo;s account and historical investment(s) — this can take a few seconds for a large batch. Don&rsquo;t close this tab.</div>}
     </>
   );
 }
