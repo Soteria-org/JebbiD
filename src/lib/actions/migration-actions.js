@@ -160,7 +160,35 @@ export async function getDryRunReport(batchId) {
   const { data: rows, error: rowsError } = await supabase.from("import_rows").select("*").eq("batch_id", batchId).order("source_row_number");
   if (rowsError) return { error: rowsError.message };
 
-  return { success: true, batch, rows };
+  // Batches whose confirmation was never finished (e.g. the tab was closed
+  // after upload, before "Confirm & Import") need the exact same
+  // investor-grouped, duplicate-matched view the original Review step showed
+  // — recomputed from the persisted mapped_data rather than the original
+  // file, so "Inspect" can resume a batch, not just report on a finished one.
+  let investorAnalyses = null;
+  let flagSummary = null;
+  let reconciliation = null;
+  if (batch.status !== "completed") {
+    const groups = groupRowsByInvestor((rows || []).map((r) => r.mapped_data || {}));
+    const analyses = analyzeInvestorGroups(groups);
+    const { data: existingProfiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name, member_id, migration_status")
+      .eq("role", "investor");
+    if (!profilesError) {
+      investorAnalyses = matchAgainstExistingProfiles(analyses, existingProfiles || []);
+      flagSummary = {
+        crossSheetOverlaps: investorAnalyses.filter((a) => a.crossSheetOverlap).length,
+        possibleDuplicates: investorAnalyses.filter((a) => a.resolution === "possible_duplicate").length,
+        nonPersonEntries: investorAnalyses.filter((a) => a.isNonPerson).length,
+        jointIdentityEntries: investorAnalyses.filter((a) => a.isJointIdentity).length,
+        noContributionMembers: investorAnalyses.filter((a) => a.hasNoContributions).length,
+      };
+      reconciliation = buildReconciliationReport((rows || []).map((r) => r.mapped_data || {}), investorAnalyses);
+    }
+  }
+
+  return { success: true, batch, rows, investorAnalyses, flagSummary, reconciliation };
 }
 
 // ---------------------------------------------------------------------------
@@ -349,15 +377,23 @@ export async function confirmImportBatch(batchId, groupDecisions = {}) {
 
   const { data: finalRows } = await supabase.from("import_rows").select("resolution, mapped_data").eq("batch_id", batchId);
   const finalImported = (finalRows || []).filter((r) => r.resolution === "imported");
+  const finalFailedCount = (finalRows || []).filter((r) => r.resolution === "failed").length;
+  const finalPendingCount = (finalRows || []).filter((r) => r.resolution === "pending").length;
   const importedTotalAmount = finalImported.reduce((acc, r) => acc + (Number(r.mapped_data?.amountParsed) || 0), 0);
+  // Only stamp "completed" when nothing is left to resolve — a row still
+  // pending a decision, or one that failed to write, means this run didn't
+  // actually finish. Marking the batch completed anyway (as this used to)
+  // made a partially/wholly failed run indistinguishable from a real
+  // success and left it permanently unresumable via Inspect.
+  const isFullyDone = finalFailedCount === 0 && finalPendingCount === 0;
 
   await supabase
     .from("import_batches")
     .update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
+      status: isFullyDone ? "completed" : "failed",
+      completed_at: isFullyDone ? new Date().toISOString() : null,
       imported_rows: finalImported.length,
-      failed_rows: (finalRows || []).filter((r) => r.resolution === "failed").length,
+      failed_rows: finalFailedCount,
       imported_total_amount: importedTotalAmount,
     })
     .eq("id", batchId);

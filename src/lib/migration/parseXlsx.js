@@ -193,9 +193,25 @@ const AGGREGATE_ROW_NAME_PATTERN = /\btotal(s)?\b/i;
 export function buildWideMonthlyMembers(headerRow, dataRows, aboveHeaderRow = []) {
   const nameColIdx = headerRow.findIndex((h) => NAME_HEADER_HINTS.some((hint) => h.toLowerCase().includes(hint))) ?? 0;
   const totalColIdx = headerRow.findIndex((h) => h.toLowerCase().includes("total"));
-  const monthCols = headerRow
+  const monthCandidates = headerRow
     .map((h, idx) => ({ idx, parsed: parseMonthHeaderWithYearFallback(h, aboveHeaderRow[idx]), raw: h }))
-    .filter((c) => c.idx !== nameColIdx && c.idx !== totalColIdx && c.parsed);
+    .filter((c) => c.idx !== nameColIdx && c.idx !== totalColIdx);
+  const parsedIdxs = monthCandidates.filter((c) => c.parsed).map((c) => c.idx);
+  const rangeStart = parsedIdxs.length ? Math.min(...parsedIdxs) : null;
+  const rangeEnd = parsedIdxs.length ? Math.max(...parsedIdxs) : null;
+  // A blank header cell sitting inside the contiguous block of month columns
+  // is still a contribution column -- the club just left that one header
+  // cell empty, it isn't unrelated data. Keep it (flagged as unlabeled, not
+  // guessed) instead of silently dropping the column and every value in it
+  // with no trace anywhere in the pipeline.
+  const monthCols = monthCandidates.filter((c) => c.parsed || (rangeStart != null && c.idx > rangeStart && c.idx < rangeEnd));
+
+  function unlabeledNeighborHint(idx) {
+    const before = [...monthCols].reverse().find((c) => c.idx < idx && c.parsed?.year);
+    const after = monthCols.find((c) => c.idx > idx && c.parsed?.year);
+    if (!before || !after) return null;
+    return `between ${before.parsed.monthLabel} ${before.parsed.year} and ${after.parsed.monthLabel} ${after.parsed.year}`;
+  }
 
   return dataRows
     .filter((row) => row[nameColIdx] !== null && row[nameColIdx] !== undefined && String(row[nameColIdx]).trim() !== "")
@@ -207,6 +223,7 @@ export function buildWideMonthlyMembers(headerRow, dataRows, aboveHeaderRow = []
         y: c.parsed?.year ?? null,
         m: c.parsed?.year ? c.parsed.monthLabel : `UNLABELED_COL${c.idx}`,
         v: row[c.idx] === null || row[c.idx] === undefined || row[c.idx] === "" ? "-" : row[c.idx],
+        ...(c.parsed?.year ? {} : { unlabeledHint: unlabeledNeighborHint(c.idx) }),
       })),
     }));
 }

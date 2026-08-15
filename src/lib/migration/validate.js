@@ -41,9 +41,10 @@ export function parseRowDate(dateRaw) {
 
   if ("monthNumber" in dateRaw) {
     if (dateRaw.monthNumber == null) {
+      const position = dateRaw.unlabeledHint ? ` Position (${dateRaw.unlabeledHint}) suggests a likely month, but the header is genuinely blank — not assumed here.` : "";
       return {
         iso: null,
-        reason: `Column month header "${dateRaw.monthLabel}" is blank in the source file. Position (between JUNE 2026 and AUGUST 2026) suggests JULY 2026, but the header is genuinely blank — not assumed here. Resolve the actual month before import.`,
+        reason: `This column's month header is blank in the source file.${position} Resolve the actual month before import.`,
       };
     }
     const iso = `${dateRaw.year}-${String(dateRaw.monthNumber).padStart(2, "0")}-01`;
@@ -136,7 +137,7 @@ export function validateRow(row, todayIsoOverride) {
       // Already surfaced via the date-parse error above when monthNumber is
       // null; nothing further to add here beyond the flag itself.
     } else if (flag === "total_cell_mismatch") {
-      warnings.push(`This member's sheet total (${row.memberTotalCellRaw}) does not match the sum of their recorded monthly contributions (${row.memberSumOfMonths}). The sum of actual monthly values is treated as source of truth; the mismatch is reported, not silently resolved.`);
+      warnings.push(`This member's sheet total (${row.memberTotalCellRaw}) does not match the sum of their recorded monthly contributions (${row.memberSumOfMonths}). The sum of actual monthly values (${row.memberSumOfMonths}) is what gets imported — it's the mathematically verified figure, not the club's stated total, and not a guess. The difference likely reflects a contribution the club counted in their running total but never entered into a monthly column; worth confirming with the club, but it doesn't block import.`);
     } else if (flag === "total_cell_not_numeric") {
       warnings.push(`This member's sheet total is "${row.memberTotalCellRaw}", not a number — cannot be reconciled against the sum of their monthly contributions. If this reads "paid", it likely means this member's position has already been closed/withdrawn outside this sheet, not that the amount is unknown.`);
     } else if (flag === "total_cell_blank_with_contributions") {

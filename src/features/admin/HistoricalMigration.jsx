@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ClipboardList, Mail, Upload } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
-import { Badge, Btn, Card, EmptyState, GuidanceBanner, Select, TableWrap, Td, Th } from "@/components/ui/primitives";
+import { Badge, Btn, Card, EmptyState, GuidanceBanner, LoadingState, Select, TableWrap, Td, Th } from "@/components/ui/primitives";
 import { fmtDateTime, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 import { readWorkbook, suggestFlatMapping, buildWideMonthlyMembers, buildFlatEntries } from "@/lib/migration/parseXlsx";
@@ -114,7 +114,7 @@ export function HistoricalMigration({ ctx }) {
       </div>
 
       {loadingBatches ? (
-        <Card>Loading…</Card>
+        <Card><LoadingState label="Loading import batches…" /></Card>
       ) : !batches || batches.length === 0 ? (
         <Card><EmptyState icon={ClipboardList} title="No import batches yet" body="Upload a historical spreadsheet to begin." /></Card>
       ) : (
@@ -242,6 +242,9 @@ function BatchDetailView({ ctx, batchId, onBack }) {
   const [detail, setDetail] = useState(null);
   const [investors, setInvestors] = useState(null);
   const [error, setError] = useState("");
+  const [groupDecisions, setGroupDecisions] = useState({});
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
 
   async function load() {
     const [detailRes, investorsRes] = await Promise.all([getDryRunReport(batchId), getBatchInvestors(batchId)]);
@@ -253,6 +256,21 @@ function BatchDetailView({ ctx, batchId, onBack }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when the batch being viewed changes
   React.useEffect(() => { load(); }, [batchId]);
 
+  function setDecision(key, action, linkProfileId) {
+    setGroupDecisions((d) => ({ ...d, [key]: { action, linkProfileId } }));
+  }
+
+  async function handleConfirm() {
+    setConfirming(true);
+    setConfirmError("");
+    const res = await confirmImportBatch(batchId, groupDecisions);
+    setConfirming(false);
+    if (res.error) { setConfirmError(res.error); return; }
+    ctx.showToast?.("Batch imported.", "success");
+    setGroupDecisions({});
+    load();
+  }
+
   if (error) {
     return (
       <PageShell ctx={ctx} title="Import Batch">
@@ -262,10 +280,10 @@ function BatchDetailView({ ctx, batchId, onBack }) {
     );
   }
   if (!detail) {
-    return <PageShell ctx={ctx} title="Import Batch"><Card>Loading…</Card></PageShell>;
+    return <PageShell ctx={ctx} title="Import Batch"><Card><LoadingState label="Loading batch details…" /></Card></PageShell>;
   }
 
-  const { batch, rows } = detail;
+  const { batch, rows, investorAnalyses, reconciliation } = detail;
   // Every row's resolution is mutually exclusive (pending vs failed vs skipped
   // vs imported) — bucket strictly by resolution so a row never appears in two
   // sections at once. "pending" already covers validation errors held for a
@@ -275,6 +293,9 @@ function BatchDetailView({ ctx, batchId, onBack }) {
   const failedRows = (rows || []).filter((r) => r.resolution === "failed");
   const pendingRows = (rows || []).filter((r) => r.resolution === "pending");
   const skippedRows = (rows || []).filter((r) => r.resolution === "skipped");
+  const notYetConfirmed = batch.status !== "completed";
+  const heldGroups = notYetConfirmed ? (investorAnalyses || []).filter((a) => a.resolution !== "new") : [];
+  const allDecided = heldGroups.every((g) => groupDecisions[g.key]?.action);
 
   return (
     <PageShell ctx={ctx} title="Import Batch">
@@ -298,6 +319,56 @@ function BatchDetailView({ ctx, batchId, onBack }) {
         </div>
       </Card>
 
+      {notYetConfirmed && (
+        <Card style={{ marginBottom: 16 }} data-testid="migration-resume-confirm">
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>This batch hasn&rsquo;t been imported yet</div>
+          <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 14 }}>
+            {reconciliation
+              ? `${reconciliation.readyToImportRowCount} contribution${reconciliation.readyToImportRowCount === 1 ? "" : "s"} totaling ${fmtUGX(reconciliation.readyToImportAmount)} are ready. `
+              : ""}
+            {heldGroups.length > 0
+              ? `Choose an action for each investor below, then confirm to create their accounts and historical investment(s).`
+              : `Nothing is held for a decision — confirm below to create each investor's account and historical investment(s).`}
+          </div>
+
+          {heldGroups.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              {heldGroups.map((g) => (
+                <div key={g.key} style={{ padding: "12px 0", borderBottom: "1px solid " + C.line }} data-testid="migration-group-decision">
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{g.displayName} — {g.resolution.replace(/_/g, " ")}</div>
+                  <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 8 }}>
+                    {g.existingProfileMatches?.length ? `Matches existing: ${g.existingProfileMatches.map((m) => `${m.full_name} (${m.member_id || "no member id"})`).join(", ")}. ` : ""}
+                    {fmtUGX(g.sumValidAmount)} across {g.totalRows} row{g.totalRows === 1 ? "" : "s"}.
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {(g.existingProfileMatches || []).map((m) => (
+                      <Btn
+                        key={m.id} size="sm"
+                        variant={groupDecisions[g.key]?.action === "link_existing" && groupDecisions[g.key]?.linkProfileId === m.id ? "primary" : "outline"}
+                        onClick={() => setDecision(g.key, "link_existing", m.id)}
+                      >
+                        Link to {m.full_name}
+                      </Btn>
+                    ))}
+                    <Btn size="sm" variant={groupDecisions[g.key]?.action === "import_as_new" ? "primary" : "outline"} onClick={() => setDecision(g.key, "import_as_new")}>Import as new investor</Btn>
+                    <Btn size="sm" variant={groupDecisions[g.key]?.action === "skip" ? "primary" : "outline"} onClick={() => setDecision(g.key, "skip")}>Skip for now</Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {confirmError && <GuidanceBanner tone="warning" icon={AlertTriangle}>{confirmError}</GuidanceBanner>}
+          {heldGroups.length > 0 && !allDecided && (
+            <div style={{ fontSize: 12.5, color: C.warningText, marginBottom: 10 }}>Choose an action for every investor above before confirming.</div>
+          )}
+          <Btn onClick={handleConfirm} loading={confirming} disabled={heldGroups.length > 0 && !allDecided} testId="migration-confirm-submit">
+            {confirming ? "Importing…" : "Confirm & Import"}
+          </Btn>
+          {confirming && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8 }}>Creating each investor&rsquo;s account and historical investment(s) — this can take a few seconds for a large batch. Don&rsquo;t close this tab.</div>}
+        </Card>
+      )}
+
       <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>Investors &amp; Invitations</div>
         <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 12 }}>
@@ -306,11 +377,11 @@ function BatchDetailView({ ctx, batchId, onBack }) {
         <InvestorInviteList investors={investors} onChanged={load} />
       </Card>
 
-      {pendingRows.length > 0 && (
+      {pendingRows.length > 0 && !notYetConfirmed && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 10, color: C.warningText }}>Still needs a decision ({pendingRows.length} rows)</div>
           <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 10 }}>
-            These rows were held for a human decision (possible duplicate, ambiguous identity, or a validation error) and were not imported. Start a new import of the same file to resolve them, or fix the source data and re-upload.
+            This batch is already marked completed with these rows still held for a human decision. Start a new import of the same file to resolve them, or fix the source data and re-upload.
           </div>
           {pendingRows.slice(0, 20).map((r) => (
             <div key={r.id} style={{ fontSize: 12.5, padding: "5px 0", borderBottom: "1px solid " + C.line }}>
@@ -346,7 +417,6 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
-  const [batchDetail, setBatchDetail] = useState(null);
   const [groupDecisions, setGroupDecisions] = useState({});
 
   async function handleFile(e) {
@@ -386,8 +456,6 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     setUploadResult(res);
-    const detail = await getDryRunReport(res.batchId);
-    if (!detail.error) setBatchDetail(detail);
     setStep("review");
   }
 
@@ -529,7 +597,6 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
       {step === "review" && uploadResult && (
         <ReviewStep
           uploadResult={uploadResult}
-          batchDetail={batchDetail}
           groupDecisions={groupDecisions}
           setGroupDecisions={setGroupDecisions}
           onConfirm={submitConfirm}
@@ -550,14 +617,74 @@ function Stat({ label, value, tone, testId }) {
   );
 }
 
-function ReviewStep({ uploadResult, batchDetail, groupDecisions, setGroupDecisions, onConfirm, busy, onCancel }) {
-  const { reconciliation, investorAnalyses, flagSummary } = uploadResult;
-  const errorRows = (batchDetail?.rows || []).filter((r) => r.validation_status === "error");
-  const warningRows = (batchDetail?.rows || []).filter((r) => r.validation_status === "warning");
-  const heldGroups = investorAnalyses.filter((a) => a.resolution !== "new");
+/**
+ * One row per investor, not one row per contribution — repeated appearances
+ * across sheets (e.g. the same person on both the monthly report and the
+ * individual investments sheet) are already merged into a.rows by
+ * groupRowsByInvestor(). Expanding a row shows every one of their deposits
+ * (sheet, date, amount, status) in one place instead of scattered separately.
+ */
+function InvestorAnalysisList({ investorAnalyses }) {
+  const [expanded, setExpanded] = useState({});
+  function toggle(key) {
+    setExpanded((e) => ({ ...e, [key]: !e[key] }));
+  }
+  return (
+    <div>
+      {investorAnalyses.map((a) => {
+        const isOpen = !!expanded[a.key];
+        const rowErrorCount = a.rows.filter((r) => r.validation_status === "error").length;
+        const rowWarningCount = a.rows.filter((r) => r.validation_status === "warning").length;
+        return (
+          <div key={a.key} style={{ borderBottom: "1px solid " + C.line }} data-testid="migration-investor-row">
+            <div
+              onClick={() => toggle(a.key)}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 4px", cursor: "pointer", flexWrap: "wrap" }}
+            >
+              <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkFaint, width: 14 }}>{isOpen ? "▾" : "▸"}</div>
+              <div style={{ fontWeight: 600, fontSize: 13.5, minWidth: 160 }}>{a.displayName}</div>
+              <div style={{ fontSize: 12, color: C.inkFaint }}>
+                {a.totalRows} deposit{a.totalRows === 1 ? "" : "s"}
+                {a.sourceSheets.length > 1 ? ` across ${a.sourceSheets.length} sheets` : ""}
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 600 }}>{fmtUGX(a.sumValidAmount)}</div>
+              <Badge tone={a.resolution === "new" ? "success" : "warning"}>{a.resolution.replace(/_/g, " ")}</Badge>
+              {rowErrorCount > 0 && <Badge tone="danger">{rowErrorCount} error{rowErrorCount === 1 ? "" : "s"}</Badge>}
+              {rowWarningCount > 0 && <Badge tone="warning">{rowWarningCount} warning{rowWarningCount === 1 ? "" : "s"}</Badge>}
+            </div>
+            {isOpen && (
+              <div style={{ padding: "0 4px 12px 24px" }}>
+                <TableWrap>
+                  <thead><tr><Th>Sheet</Th><Th>Date</Th><Th>Amount</Th><Th>Status</Th><Th>Note</Th></tr></thead>
+                  <tbody>
+                    {a.rows.map((r, i) => (
+                      <tr key={i}>
+                        <Td>{r.sourceSheet}</Td>
+                        <Td>{r.dateParsedISO || "—"}</Td>
+                        <Td>{r.amountParsed != null ? fmtUGX(r.amountParsed) : "—"}</Td>
+                        <Td><Badge tone={r.validation_status === "error" ? "danger" : r.validation_status === "warning" ? "warning" : "success"}>{r.validation_status}</Badge></Td>
+                        <Td style={{ fontSize: 11.5, color: C.inkSoft }}>{(r.validation_errors || []).concat(r.validation_warnings || []).join(" ") || "—"}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </TableWrap>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-  function setDecision(key, action) {
-    setGroupDecisions((d) => ({ ...d, [key]: { action } }));
+function ReviewStep({ uploadResult, groupDecisions, setGroupDecisions, onConfirm, busy, onCancel }) {
+  const { reconciliation, investorAnalyses, flagSummary } = uploadResult;
+  const heldGroups = investorAnalyses.filter((a) => a.resolution !== "new");
+  const errorRowCount = investorAnalyses.reduce((acc, a) => acc + a.rows.filter((r) => r.validation_status === "error").length, 0);
+  const warningRowCount = investorAnalyses.reduce((acc, a) => acc + a.rows.filter((r) => r.validation_status === "warning").length, 0);
+
+  function setDecision(key, action, linkProfileId) {
+    setGroupDecisions((d) => ({ ...d, [key]: { action, linkProfileId } }));
   }
 
   const allDecided = heldGroups.every((g) => groupDecisions[g.key]?.action);
@@ -599,6 +726,15 @@ function ReviewStep({ uploadResult, batchDetail, groupDecisions, setGroupDecisio
                 {fmtUGX(g.sumValidAmount)} across {g.totalRows} row{g.totalRows === 1 ? "" : "s"}.
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {(g.existingProfileMatches || []).map((m) => (
+                  <Btn
+                    key={m.id} size="sm"
+                    variant={groupDecisions[g.key]?.action === "link_existing" && groupDecisions[g.key]?.linkProfileId === m.id ? "primary" : "outline"}
+                    onClick={() => setDecision(g.key, "link_existing", m.id)}
+                  >
+                    Link to {m.full_name}
+                  </Btn>
+                ))}
                 <Btn size="sm" variant={groupDecisions[g.key]?.action === "import_as_new" ? "primary" : "outline"} onClick={() => setDecision(g.key, "import_as_new")}>Import as new investor</Btn>
                 <Btn size="sm" variant={groupDecisions[g.key]?.action === "skip" ? "primary" : "outline"} onClick={() => setDecision(g.key, "skip")}>Skip for now</Btn>
               </div>
@@ -607,51 +743,23 @@ function ReviewStep({ uploadResult, batchDetail, groupDecisions, setGroupDecisio
         </Card>
       )}
 
-      <details style={{ marginBottom: 16 }}>
+      <details style={{ marginBottom: 16 }} open>
         <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: C.inkSoft, padding: "4px 0" }}>
           All {investorAnalyses.length} investor{investorAnalyses.length === 1 ? "" : "s"} found in this file
+          {(errorRowCount > 0 || warningRowCount > 0) && (
+            <span style={{ fontWeight: 400 }}>
+              {" — "}
+              {errorRowCount > 0 && <span style={{ color: C.danger }}>{errorRowCount} row{errorRowCount === 1 ? "" : "s"} failed validation</span>}
+              {errorRowCount > 0 && warningRowCount > 0 && ", "}
+              {warningRowCount > 0 && <span style={{ color: C.warningText }}>{warningRowCount} row{warningRowCount === 1 ? "" : "s"} with warnings</span>}
+            </span>
+          )}
         </summary>
-        <TableWrap>
-          <thead><tr><Th>Name</Th><Th>Rows</Th><Th>Amount</Th><Th>Resolution</Th></tr></thead>
-          <tbody>
-            {investorAnalyses.map((a) => (
-              <tr key={a.key} data-testid="migration-investor-row">
-                <Td>{a.displayName}</Td>
-                <Td>{a.totalRows}</Td>
-                <Td>{fmtUGX(a.sumValidAmount)}</Td>
-                <Td><Badge tone={a.resolution === "new" ? "success" : "warning"}>{a.resolution.replace(/_/g, " ")}</Badge></Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
+        <div style={{ fontSize: 12, color: C.inkFaint, margin: "6px 0 10px" }}>
+          One entry per investor — every sheet this file mentions them on (monthly report, individual investments, etc.) is merged into their one row below. Expand an investor to see their individual deposits.
+        </div>
+        <InvestorAnalysisList investorAnalyses={investorAnalyses} />
       </details>
-
-      {errorRows.length > 0 && (
-        <details style={{ marginBottom: 16 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: C.danger, padding: "4px 0" }}>
-            {errorRows.length} row{errorRows.length === 1 ? "" : "s"} failed validation — not imported until fixed
-          </summary>
-          {errorRows.map((r) => (
-            <div key={r.id} style={{ fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid " + C.line }}>
-              <strong>{r.source_data?.sourceRef || "row " + r.source_row_number}:</strong> {(r.validation_errors || []).join(" ")}
-            </div>
-          ))}
-        </details>
-      )}
-
-      {warningRows.length > 0 && (
-        <details style={{ marginBottom: 16 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: C.warningText, padding: "4px 0" }}>
-            {warningRows.length} row{warningRows.length === 1 ? "" : "s"} with warnings — importable, worth a look
-          </summary>
-          {warningRows.slice(0, 30).map((r) => (
-            <div key={r.id} style={{ fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid " + C.line }}>
-              <strong>{r.source_data?.sourceRef || "row " + r.source_row_number}:</strong> {(r.validation_warnings || []).join(" ")}
-            </div>
-          ))}
-          {warningRows.length > 30 && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 6 }}>+{warningRows.length - 30} more.</div>}
-        </details>
-      )}
 
       {heldGroups.length > 0 && !allDecided && (
         <div style={{ fontSize: 12.5, color: C.warningText, marginBottom: 10 }}>

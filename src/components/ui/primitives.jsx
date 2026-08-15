@@ -59,6 +59,25 @@ export function Card({ children, style, padded }) {
   return <div style={Object.assign({}, s, style || {})}>{children}</div>;
 }
 
+/**
+ * Standard "something is happening" state for a whole card/section — a
+ * spinner plus an indeterminate progress bar (we never know a real %
+ * complete for these operations), so users get continuous visual feedback
+ * instead of a static "Loading…" card that looks identical whether it's
+ * frozen or working.
+ */
+export function LoadingState({ label = "Loading…", compact }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: compact ? "10px 4px" : "28px 4px" }}>
+      <Spinner size={compact ? 18 : 24} color={C.brand} />
+      <div style={{ fontSize: 12.5, color: C.inkSoft }}>{label}</div>
+      <div style={{ position: "relative", width: "100%", maxWidth: 220, height: 4, borderRadius: 100, background: C.cardBg, overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: 0, bottom: 0, background: C.brand, borderRadius: 100, animation: "jbd-progress-indeterminate 1.4s ease-in-out infinite" }} />
+      </div>
+    </div>
+  );
+}
+
 export function Badge({ children, tone }) {
   const tones = {
     success: { bg: C.successBg, fg: C.success },
