@@ -116,6 +116,7 @@ export async function loadAuditLog() {
 }
 
 const UGX = (n) => (n === null || n === undefined) ? "?" : "UGX " + Number(n).toLocaleString("en-UG");
+const shortDate = (d) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "?");
 
 /**
  * Turns the raw JSONB audit payload (usually a full row, via to_jsonb(new)/to_jsonb(old)
@@ -171,6 +172,20 @@ function summarizeAuditValue(action, v) {
 
   if (action === "Finance Officer Created" || action === "Investor Registered" || action === "Investor Registered (Admin)") {
     return (v.full_name || "?") + (v.email ? " (" + v.email + ")" : "");
+  }
+
+  if (action === "Historical Investment Imported") {
+    const start = shortDate(v.start_date);
+    const maturity = shortDate(v.maturity_date);
+    return `${UGX(v.principal_amount)} invested ${start} → matures ${maturity} at ${UGX(v.maturity_value)}`;
+  }
+
+  if (action === "Migrated Investor Identity Created") {
+    return (v.full_name || "?") + " — account created from historical records (placeholder email until invited)";
+  }
+
+  if (action === "Import Batch Deleted") {
+    return (v.source_filename || "Import batch") + (v.status ? " (was " + v.status + ")" : "");
   }
 
   // Generic fallback for anything not covered above — still a readable line, never
