@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronLeft, ClipboardList, Mail, Upload } from "@/components/icons/index";
 import { PageShell } from "@/components/layout/PageShell";
-import { Badge, Btn, Card, EmptyState, GuidanceBanner, Select, TableWrap, Td, Th } from "@/components/ui/primitives";
+import { Badge, Btn, Card, EmptyState, GuidanceBanner, LoadingState, Select, TableWrap, Td, Th } from "@/components/ui/primitives";
 import { fmtDateTime, fmtUGX } from "@/lib/format";
 import { C, FONT_DISPLAY, FONT_MONO } from "@/lib/theme";
 import { readWorkbook, suggestFlatMapping, buildWideMonthlyMembers, buildFlatEntries } from "@/lib/migration/parseXlsx";
@@ -114,7 +114,7 @@ export function HistoricalMigration({ ctx }) {
       </div>
 
       {loadingBatches ? (
-        <Card>Loading…</Card>
+        <Card><LoadingState label="Loading import batches…" /></Card>
       ) : !batches || batches.length === 0 ? (
         <Card><EmptyState icon={ClipboardList} title="No import batches yet" body="Upload a historical spreadsheet to begin." /></Card>
       ) : (
@@ -262,7 +262,7 @@ function BatchDetailView({ ctx, batchId, onBack }) {
     );
   }
   if (!detail) {
-    return <PageShell ctx={ctx} title="Import Batch"><Card>Loading…</Card></PageShell>;
+    return <PageShell ctx={ctx} title="Import Batch"><Card><LoadingState label="Loading batch details…" /></Card></PageShell>;
   }
 
   const { batch, rows } = detail;
@@ -346,7 +346,6 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
-  const [batchDetail, setBatchDetail] = useState(null);
   const [groupDecisions, setGroupDecisions] = useState({});
 
   async function handleFile(e) {
@@ -386,8 +385,6 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
     setBusy(false);
     if (res.error) { setError(res.error); return; }
     setUploadResult(res);
-    const detail = await getDryRunReport(res.batchId);
-    if (!detail.error) setBatchDetail(detail);
     setStep("review");
   }
 
@@ -529,7 +526,6 @@ function MigrationWizard({ ctx, onDone, onCancel }) {
       {step === "review" && uploadResult && (
         <ReviewStep
           uploadResult={uploadResult}
-          batchDetail={batchDetail}
           groupDecisions={groupDecisions}
           setGroupDecisions={setGroupDecisions}
           onConfirm={submitConfirm}
@@ -550,11 +546,71 @@ function Stat({ label, value, tone, testId }) {
   );
 }
 
-function ReviewStep({ uploadResult, batchDetail, groupDecisions, setGroupDecisions, onConfirm, busy, onCancel }) {
+/**
+ * One row per investor, not one row per contribution — repeated appearances
+ * across sheets (e.g. the same person on both the monthly report and the
+ * individual investments sheet) are already merged into a.rows by
+ * groupRowsByInvestor(). Expanding a row shows every one of their deposits
+ * (sheet, date, amount, status) in one place instead of scattered separately.
+ */
+function InvestorAnalysisList({ investorAnalyses }) {
+  const [expanded, setExpanded] = useState({});
+  function toggle(key) {
+    setExpanded((e) => ({ ...e, [key]: !e[key] }));
+  }
+  return (
+    <div>
+      {investorAnalyses.map((a) => {
+        const isOpen = !!expanded[a.key];
+        const rowErrorCount = a.rows.filter((r) => r.validation_status === "error").length;
+        const rowWarningCount = a.rows.filter((r) => r.validation_status === "warning").length;
+        return (
+          <div key={a.key} style={{ borderBottom: "1px solid " + C.line }} data-testid="migration-investor-row">
+            <div
+              onClick={() => toggle(a.key)}
+              style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 4px", cursor: "pointer", flexWrap: "wrap" }}
+            >
+              <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkFaint, width: 14 }}>{isOpen ? "▾" : "▸"}</div>
+              <div style={{ fontWeight: 600, fontSize: 13.5, minWidth: 160 }}>{a.displayName}</div>
+              <div style={{ fontSize: 12, color: C.inkFaint }}>
+                {a.totalRows} deposit{a.totalRows === 1 ? "" : "s"}
+                {a.sourceSheets.length > 1 ? ` across ${a.sourceSheets.length} sheets` : ""}
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 600 }}>{fmtUGX(a.sumValidAmount)}</div>
+              <Badge tone={a.resolution === "new" ? "success" : "warning"}>{a.resolution.replace(/_/g, " ")}</Badge>
+              {rowErrorCount > 0 && <Badge tone="danger">{rowErrorCount} error{rowErrorCount === 1 ? "" : "s"}</Badge>}
+              {rowWarningCount > 0 && <Badge tone="warning">{rowWarningCount} warning{rowWarningCount === 1 ? "" : "s"}</Badge>}
+            </div>
+            {isOpen && (
+              <div style={{ padding: "0 4px 12px 24px" }}>
+                <TableWrap>
+                  <thead><tr><Th>Sheet</Th><Th>Date</Th><Th>Amount</Th><Th>Status</Th><Th>Note</Th></tr></thead>
+                  <tbody>
+                    {a.rows.map((r, i) => (
+                      <tr key={i}>
+                        <Td>{r.sourceSheet}</Td>
+                        <Td>{r.dateParsedISO || "—"}</Td>
+                        <Td>{r.amountParsed != null ? fmtUGX(r.amountParsed) : "—"}</Td>
+                        <Td><Badge tone={r.validation_status === "error" ? "danger" : r.validation_status === "warning" ? "warning" : "success"}>{r.validation_status}</Badge></Td>
+                        <Td style={{ fontSize: 11.5, color: C.inkSoft }}>{(r.validation_errors || []).concat(r.validation_warnings || []).join(" ") || "—"}</Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </TableWrap>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReviewStep({ uploadResult, groupDecisions, setGroupDecisions, onConfirm, busy, onCancel }) {
   const { reconciliation, investorAnalyses, flagSummary } = uploadResult;
-  const errorRows = (batchDetail?.rows || []).filter((r) => r.validation_status === "error");
-  const warningRows = (batchDetail?.rows || []).filter((r) => r.validation_status === "warning");
   const heldGroups = investorAnalyses.filter((a) => a.resolution !== "new");
+  const errorRowCount = investorAnalyses.reduce((acc, a) => acc + a.rows.filter((r) => r.validation_status === "error").length, 0);
+  const warningRowCount = investorAnalyses.reduce((acc, a) => acc + a.rows.filter((r) => r.validation_status === "warning").length, 0);
 
   function setDecision(key, action) {
     setGroupDecisions((d) => ({ ...d, [key]: { action } }));
@@ -607,51 +663,23 @@ function ReviewStep({ uploadResult, batchDetail, groupDecisions, setGroupDecisio
         </Card>
       )}
 
-      <details style={{ marginBottom: 16 }}>
+      <details style={{ marginBottom: 16 }} open>
         <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: C.inkSoft, padding: "4px 0" }}>
           All {investorAnalyses.length} investor{investorAnalyses.length === 1 ? "" : "s"} found in this file
+          {(errorRowCount > 0 || warningRowCount > 0) && (
+            <span style={{ fontWeight: 400 }}>
+              {" — "}
+              {errorRowCount > 0 && <span style={{ color: C.danger }}>{errorRowCount} row{errorRowCount === 1 ? "" : "s"} failed validation</span>}
+              {errorRowCount > 0 && warningRowCount > 0 && ", "}
+              {warningRowCount > 0 && <span style={{ color: C.warningText }}>{warningRowCount} row{warningRowCount === 1 ? "" : "s"} with warnings</span>}
+            </span>
+          )}
         </summary>
-        <TableWrap>
-          <thead><tr><Th>Name</Th><Th>Rows</Th><Th>Amount</Th><Th>Resolution</Th></tr></thead>
-          <tbody>
-            {investorAnalyses.map((a) => (
-              <tr key={a.key} data-testid="migration-investor-row">
-                <Td>{a.displayName}</Td>
-                <Td>{a.totalRows}</Td>
-                <Td>{fmtUGX(a.sumValidAmount)}</Td>
-                <Td><Badge tone={a.resolution === "new" ? "success" : "warning"}>{a.resolution.replace(/_/g, " ")}</Badge></Td>
-              </tr>
-            ))}
-          </tbody>
-        </TableWrap>
+        <div style={{ fontSize: 12, color: C.inkFaint, margin: "6px 0 10px" }}>
+          One entry per investor — every sheet this file mentions them on (monthly report, individual investments, etc.) is merged into their one row below. Expand an investor to see their individual deposits.
+        </div>
+        <InvestorAnalysisList investorAnalyses={investorAnalyses} />
       </details>
-
-      {errorRows.length > 0 && (
-        <details style={{ marginBottom: 16 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: C.danger, padding: "4px 0" }}>
-            {errorRows.length} row{errorRows.length === 1 ? "" : "s"} failed validation — not imported until fixed
-          </summary>
-          {errorRows.map((r) => (
-            <div key={r.id} style={{ fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid " + C.line }}>
-              <strong>{r.source_data?.sourceRef || "row " + r.source_row_number}:</strong> {(r.validation_errors || []).join(" ")}
-            </div>
-          ))}
-        </details>
-      )}
-
-      {warningRows.length > 0 && (
-        <details style={{ marginBottom: 16 }}>
-          <summary style={{ cursor: "pointer", fontWeight: 700, fontSize: 13.5, color: C.warningText, padding: "4px 0" }}>
-            {warningRows.length} row{warningRows.length === 1 ? "" : "s"} with warnings — importable, worth a look
-          </summary>
-          {warningRows.slice(0, 30).map((r) => (
-            <div key={r.id} style={{ fontSize: 12.5, padding: "6px 0", borderBottom: "1px solid " + C.line }}>
-              <strong>{r.source_data?.sourceRef || "row " + r.source_row_number}:</strong> {(r.validation_warnings || []).join(" ")}
-            </div>
-          ))}
-          {warningRows.length > 30 && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 6 }}>+{warningRows.length - 30} more.</div>}
-        </details>
-      )}
 
       {heldGroups.length > 0 && !allDecided && (
         <div style={{ fontSize: 12.5, color: C.warningText, marginBottom: 10 }}>
