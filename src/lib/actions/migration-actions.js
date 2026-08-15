@@ -578,7 +578,23 @@ async function issueMigrationInvitation(profileId, overrideEmail) {
 
   if (overrideEmail) {
     const { error: emailUpdateError } = await adminClient.auth.admin.updateUserById(profileId, { email: overrideEmail, email_confirm: true });
-    if (emailUpdateError) return { error: `Could not update email: ${emailUpdateError.message}` };
+    if (emailUpdateError) {
+      // supabase-js AuthError.message is sometimes just the server's raw
+      // (empty) JSON body, e.g. "{}" — never surface that alone. The most
+      // common real cause is the email already belonging to another
+      // auth.users row (this investor's own staff account, a duplicate
+      // migrated identity, etc.) — say so plainly when detectable, and
+      // always include enough of the raw error that a real cause is never
+      // silently lost.
+      const detail = [emailUpdateError.message, emailUpdateError.code, emailUpdateError.status]
+        .filter((x) => x !== undefined && x !== null && x !== "" && x !== "{}")
+        .join(" — ");
+      const looksLikeDuplicate = /already|exists|registered|duplicate/i.test(detail) || emailUpdateError.status === 422 || emailUpdateError.code === "email_exists";
+      const hint = looksLikeDuplicate
+        ? ` "${overrideEmail}" is already the login email for another account (possibly this same person's staff account) — use a different email for this investor account.`
+        : "";
+      return { error: `Could not update email: ${detail || "the auth server rejected this email (no further detail returned)"}.${hint}` };
+    }
     await supabase.from("profiles").update({ email: overrideEmail }).eq("id", profileId);
     targetEmail = overrideEmail;
   }

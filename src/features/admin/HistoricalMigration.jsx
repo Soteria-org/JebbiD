@@ -194,7 +194,16 @@ function InvestorInviteRow({ investor, onChanged }) {
       ? await createMigratedInvestorAccount(investor.id, email.trim())
       : await resendMigrationInvitation(investor.id);
     setBusy(false);
-    if (res.error) { setError(res.error); if (res.tempPassword) setTempPassword(res.tempPassword); return; }
+    if (res.error) {
+      setError(res.error);
+      if (res.tempPassword) setTempPassword(res.tempPassword);
+      // A temp password on an error response means real, usable credentials
+      // WERE issued — only the (best-effort) email delivery failed. Reload
+      // so the "Invited" badge reflects that instead of silently going
+      // stale and showing the still-unusable invite form again.
+      if (res.tempPassword) onChanged?.();
+      return;
+    }
     if (res.tempPassword) setTempPassword(res.tempPassword);
     onChanged?.();
   }
