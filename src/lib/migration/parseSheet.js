@@ -84,7 +84,7 @@ export function meltWideMonthlySheet(members, sourceSheet = "MONTHLY REPORT 2025
         sourceRef: `${member.name}/${monthEntry.y}-${monthKey}`,
         investorNameRaw: member.name,
         amountRaw: monthEntry.v,
-        dateRaw: isUnlabeled ? null : { year: monthEntry.y, monthNumber, monthLabel: monthKey },
+        dateRaw: { year: monthEntry.y, monthNumber, monthLabel: monthKey, unlabeledHint: monthEntry.unlabeledHint ?? null },
         isMemberSummaryOnly: false,
         memberTotalCellRaw: member.total_cell,
         memberSumOfMonths: sumOfMonths,

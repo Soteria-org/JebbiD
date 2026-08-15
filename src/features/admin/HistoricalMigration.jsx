@@ -256,8 +256,8 @@ function BatchDetailView({ ctx, batchId, onBack }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when the batch being viewed changes
   React.useEffect(() => { load(); }, [batchId]);
 
-  function setDecision(key, action) {
-    setGroupDecisions((d) => ({ ...d, [key]: { action } }));
+  function setDecision(key, action, linkProfileId) {
+    setGroupDecisions((d) => ({ ...d, [key]: { action, linkProfileId } }));
   }
 
   async function handleConfirm() {
@@ -341,6 +341,15 @@ function BatchDetailView({ ctx, batchId, onBack }) {
                     {fmtUGX(g.sumValidAmount)} across {g.totalRows} row{g.totalRows === 1 ? "" : "s"}.
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {(g.existingProfileMatches || []).map((m) => (
+                      <Btn
+                        key={m.id} size="sm"
+                        variant={groupDecisions[g.key]?.action === "link_existing" && groupDecisions[g.key]?.linkProfileId === m.id ? "primary" : "outline"}
+                        onClick={() => setDecision(g.key, "link_existing", m.id)}
+                      >
+                        Link to {m.full_name}
+                      </Btn>
+                    ))}
                     <Btn size="sm" variant={groupDecisions[g.key]?.action === "import_as_new" ? "primary" : "outline"} onClick={() => setDecision(g.key, "import_as_new")}>Import as new investor</Btn>
                     <Btn size="sm" variant={groupDecisions[g.key]?.action === "skip" ? "primary" : "outline"} onClick={() => setDecision(g.key, "skip")}>Skip for now</Btn>
                   </div>
@@ -674,8 +683,8 @@ function ReviewStep({ uploadResult, groupDecisions, setGroupDecisions, onConfirm
   const errorRowCount = investorAnalyses.reduce((acc, a) => acc + a.rows.filter((r) => r.validation_status === "error").length, 0);
   const warningRowCount = investorAnalyses.reduce((acc, a) => acc + a.rows.filter((r) => r.validation_status === "warning").length, 0);
 
-  function setDecision(key, action) {
-    setGroupDecisions((d) => ({ ...d, [key]: { action } }));
+  function setDecision(key, action, linkProfileId) {
+    setGroupDecisions((d) => ({ ...d, [key]: { action, linkProfileId } }));
   }
 
   const allDecided = heldGroups.every((g) => groupDecisions[g.key]?.action);
@@ -717,6 +726,15 @@ function ReviewStep({ uploadResult, groupDecisions, setGroupDecisions, onConfirm
                 {fmtUGX(g.sumValidAmount)} across {g.totalRows} row{g.totalRows === 1 ? "" : "s"}.
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {(g.existingProfileMatches || []).map((m) => (
+                  <Btn
+                    key={m.id} size="sm"
+                    variant={groupDecisions[g.key]?.action === "link_existing" && groupDecisions[g.key]?.linkProfileId === m.id ? "primary" : "outline"}
+                    onClick={() => setDecision(g.key, "link_existing", m.id)}
+                  >
+                    Link to {m.full_name}
+                  </Btn>
+                ))}
                 <Btn size="sm" variant={groupDecisions[g.key]?.action === "import_as_new" ? "primary" : "outline"} onClick={() => setDecision(g.key, "import_as_new")}>Import as new investor</Btn>
                 <Btn size="sm" variant={groupDecisions[g.key]?.action === "skip" ? "primary" : "outline"} onClick={() => setDecision(g.key, "skip")}>Skip for now</Btn>
               </div>

@@ -377,15 +377,23 @@ export async function confirmImportBatch(batchId, groupDecisions = {}) {
 
   const { data: finalRows } = await supabase.from("import_rows").select("resolution, mapped_data").eq("batch_id", batchId);
   const finalImported = (finalRows || []).filter((r) => r.resolution === "imported");
+  const finalFailedCount = (finalRows || []).filter((r) => r.resolution === "failed").length;
+  const finalPendingCount = (finalRows || []).filter((r) => r.resolution === "pending").length;
   const importedTotalAmount = finalImported.reduce((acc, r) => acc + (Number(r.mapped_data?.amountParsed) || 0), 0);
+  // Only stamp "completed" when nothing is left to resolve — a row still
+  // pending a decision, or one that failed to write, means this run didn't
+  // actually finish. Marking the batch completed anyway (as this used to)
+  // made a partially/wholly failed run indistinguishable from a real
+  // success and left it permanently unresumable via Inspect.
+  const isFullyDone = finalFailedCount === 0 && finalPendingCount === 0;
 
   await supabase
     .from("import_batches")
     .update({
-      status: "completed",
-      completed_at: new Date().toISOString(),
+      status: isFullyDone ? "completed" : "failed",
+      completed_at: isFullyDone ? new Date().toISOString() : null,
       imported_rows: finalImported.length,
-      failed_rows: (finalRows || []).filter((r) => r.resolution === "failed").length,
+      failed_rows: finalFailedCount,
       imported_total_amount: importedTotalAmount,
     })
     .eq("id", batchId);

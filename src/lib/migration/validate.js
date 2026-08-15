@@ -41,9 +41,10 @@ export function parseRowDate(dateRaw) {
 
   if ("monthNumber" in dateRaw) {
     if (dateRaw.monthNumber == null) {
+      const position = dateRaw.unlabeledHint ? ` Position (${dateRaw.unlabeledHint}) suggests a likely month, but the header is genuinely blank — not assumed here.` : "";
       return {
         iso: null,
-        reason: `Column month header "${dateRaw.monthLabel}" is blank in the source file. Position (between JUNE 2026 and AUGUST 2026) suggests JULY 2026, but the header is genuinely blank — not assumed here. Resolve the actual month before import.`,
+        reason: `This column's month header is blank in the source file.${position} Resolve the actual month before import.`,
       };
     }
     const iso = `${dateRaw.year}-${String(dateRaw.monthNumber).padStart(2, "0")}-01`;
