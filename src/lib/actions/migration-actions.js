@@ -160,7 +160,35 @@ export async function getDryRunReport(batchId) {
   const { data: rows, error: rowsError } = await supabase.from("import_rows").select("*").eq("batch_id", batchId).order("source_row_number");
   if (rowsError) return { error: rowsError.message };
 
-  return { success: true, batch, rows };
+  // Batches whose confirmation was never finished (e.g. the tab was closed
+  // after upload, before "Confirm & Import") need the exact same
+  // investor-grouped, duplicate-matched view the original Review step showed
+  // — recomputed from the persisted mapped_data rather than the original
+  // file, so "Inspect" can resume a batch, not just report on a finished one.
+  let investorAnalyses = null;
+  let flagSummary = null;
+  let reconciliation = null;
+  if (batch.status !== "completed") {
+    const groups = groupRowsByInvestor((rows || []).map((r) => r.mapped_data || {}));
+    const analyses = analyzeInvestorGroups(groups);
+    const { data: existingProfiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name, member_id, migration_status")
+      .eq("role", "investor");
+    if (!profilesError) {
+      investorAnalyses = matchAgainstExistingProfiles(analyses, existingProfiles || []);
+      flagSummary = {
+        crossSheetOverlaps: investorAnalyses.filter((a) => a.crossSheetOverlap).length,
+        possibleDuplicates: investorAnalyses.filter((a) => a.resolution === "possible_duplicate").length,
+        nonPersonEntries: investorAnalyses.filter((a) => a.isNonPerson).length,
+        jointIdentityEntries: investorAnalyses.filter((a) => a.isJointIdentity).length,
+        noContributionMembers: investorAnalyses.filter((a) => a.hasNoContributions).length,
+      };
+      reconciliation = buildReconciliationReport((rows || []).map((r) => r.mapped_data || {}), investorAnalyses);
+    }
+  }
+
+  return { success: true, batch, rows, investorAnalyses, flagSummary, reconciliation };
 }
 
 // ---------------------------------------------------------------------------

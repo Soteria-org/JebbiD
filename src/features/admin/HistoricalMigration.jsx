@@ -242,6 +242,9 @@ function BatchDetailView({ ctx, batchId, onBack }) {
   const [detail, setDetail] = useState(null);
   const [investors, setInvestors] = useState(null);
   const [error, setError] = useState("");
+  const [groupDecisions, setGroupDecisions] = useState({});
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState("");
 
   async function load() {
     const [detailRes, investorsRes] = await Promise.all([getDryRunReport(batchId), getBatchInvestors(batchId)]);
@@ -252,6 +255,21 @@ function BatchDetailView({ ctx, batchId, onBack }) {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- reload only when the batch being viewed changes
   React.useEffect(() => { load(); }, [batchId]);
+
+  function setDecision(key, action) {
+    setGroupDecisions((d) => ({ ...d, [key]: { action } }));
+  }
+
+  async function handleConfirm() {
+    setConfirming(true);
+    setConfirmError("");
+    const res = await confirmImportBatch(batchId, groupDecisions);
+    setConfirming(false);
+    if (res.error) { setConfirmError(res.error); return; }
+    ctx.showToast?.("Batch imported.", "success");
+    setGroupDecisions({});
+    load();
+  }
 
   if (error) {
     return (
@@ -265,7 +283,7 @@ function BatchDetailView({ ctx, batchId, onBack }) {
     return <PageShell ctx={ctx} title="Import Batch"><Card><LoadingState label="Loading batch details…" /></Card></PageShell>;
   }
 
-  const { batch, rows } = detail;
+  const { batch, rows, investorAnalyses, reconciliation } = detail;
   // Every row's resolution is mutually exclusive (pending vs failed vs skipped
   // vs imported) — bucket strictly by resolution so a row never appears in two
   // sections at once. "pending" already covers validation errors held for a
@@ -275,6 +293,9 @@ function BatchDetailView({ ctx, batchId, onBack }) {
   const failedRows = (rows || []).filter((r) => r.resolution === "failed");
   const pendingRows = (rows || []).filter((r) => r.resolution === "pending");
   const skippedRows = (rows || []).filter((r) => r.resolution === "skipped");
+  const notYetConfirmed = batch.status !== "completed";
+  const heldGroups = notYetConfirmed ? (investorAnalyses || []).filter((a) => a.resolution !== "new") : [];
+  const allDecided = heldGroups.every((g) => groupDecisions[g.key]?.action);
 
   return (
     <PageShell ctx={ctx} title="Import Batch">
@@ -298,6 +319,47 @@ function BatchDetailView({ ctx, batchId, onBack }) {
         </div>
       </Card>
 
+      {notYetConfirmed && (
+        <Card style={{ marginBottom: 16 }} data-testid="migration-resume-confirm">
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>This batch hasn&rsquo;t been imported yet</div>
+          <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 14 }}>
+            {reconciliation
+              ? `${reconciliation.readyToImportRowCount} contribution${reconciliation.readyToImportRowCount === 1 ? "" : "s"} totaling ${fmtUGX(reconciliation.readyToImportAmount)} are ready. `
+              : ""}
+            {heldGroups.length > 0
+              ? `Choose an action for each investor below, then confirm to create their accounts and historical investment(s).`
+              : `Nothing is held for a decision — confirm below to create each investor's account and historical investment(s).`}
+          </div>
+
+          {heldGroups.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              {heldGroups.map((g) => (
+                <div key={g.key} style={{ padding: "12px 0", borderBottom: "1px solid " + C.line }} data-testid="migration-group-decision">
+                  <div style={{ fontWeight: 600, fontSize: 13.5 }}>{g.displayName} — {g.resolution.replace(/_/g, " ")}</div>
+                  <div style={{ fontSize: 12, color: C.inkFaint, marginBottom: 8 }}>
+                    {g.existingProfileMatches?.length ? `Matches existing: ${g.existingProfileMatches.map((m) => `${m.full_name} (${m.member_id || "no member id"})`).join(", ")}. ` : ""}
+                    {fmtUGX(g.sumValidAmount)} across {g.totalRows} row{g.totalRows === 1 ? "" : "s"}.
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <Btn size="sm" variant={groupDecisions[g.key]?.action === "import_as_new" ? "primary" : "outline"} onClick={() => setDecision(g.key, "import_as_new")}>Import as new investor</Btn>
+                    <Btn size="sm" variant={groupDecisions[g.key]?.action === "skip" ? "primary" : "outline"} onClick={() => setDecision(g.key, "skip")}>Skip for now</Btn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {confirmError && <GuidanceBanner tone="warning" icon={AlertTriangle}>{confirmError}</GuidanceBanner>}
+          {heldGroups.length > 0 && !allDecided && (
+            <div style={{ fontSize: 12.5, color: C.warningText, marginBottom: 10 }}>Choose an action for every investor above before confirming.</div>
+          )}
+          <Btn onClick={handleConfirm} loading={confirming} disabled={heldGroups.length > 0 && !allDecided} testId="migration-confirm-submit">
+            {confirming ? "Importing…" : "Confirm & Import"}
+          </Btn>
+          {confirming && <div style={{ fontSize: 12, color: C.inkFaint, marginTop: 8 }}>Creating each investor&rsquo;s account and historical investment(s) — this can take a few seconds for a large batch. Don&rsquo;t close this tab.</div>}
+        </Card>
+      )}
+
       <Card style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>Investors &amp; Invitations</div>
         <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 12 }}>
@@ -306,11 +368,11 @@ function BatchDetailView({ ctx, batchId, onBack }) {
         <InvestorInviteList investors={investors} onChanged={load} />
       </Card>
 
-      {pendingRows.length > 0 && (
+      {pendingRows.length > 0 && !notYetConfirmed && (
         <Card style={{ marginBottom: 16 }}>
           <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 10, color: C.warningText }}>Still needs a decision ({pendingRows.length} rows)</div>
           <div style={{ fontSize: 12.5, color: C.inkSoft, marginBottom: 10 }}>
-            These rows were held for a human decision (possible duplicate, ambiguous identity, or a validation error) and were not imported. Start a new import of the same file to resolve them, or fix the source data and re-upload.
+            This batch is already marked completed with these rows still held for a human decision. Start a new import of the same file to resolve them, or fix the source data and re-upload.
           </div>
           {pendingRows.slice(0, 20).map((r) => (
             <div key={r.id} style={{ fontSize: 12.5, padding: "5px 0", borderBottom: "1px solid " + C.line }}>
